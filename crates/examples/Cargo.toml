@@ -5,6 +5,46 @@ edition = "2021"
 license.workspace = true
 publish = false
 
+[[bin]]
+name = "accept_transfers"
+path = "src/accept_transfers.rs"
+
+[[bin]]
+name = "batch_distribute"
+path = "src/batch_distribute.rs"
+
+[[bin]]
+name = "batch_with_callback"
+path = "src/batch_with_callback.rs"
+
+[[bin]]
+name = "check_balance"
+path = "src/check_balance.rs"
+
+[[bin]]
+name = "consolidate_utxos"
+path = "src/consolidate_utxos.rs"
+
+[[bin]]
+name = "mint_cbtc_flow"
+path = "src/mint_cbtc_flow.rs"
+
+[[bin]]
+name = "monitor_deposits"
+path = "src/monitor_deposits.rs"
+
+[[bin]]
+name = "redeem_cbtc_flow"
+path = "src/redeem_cbtc_flow.rs"
+
+[[bin]]
+name = "send_cbtc"
+path = "src/send_cbtc.rs"
+
+[[bin]]
+name = "test_burn_cbtc"
+path = "src/test_burn_cbtc.rs"
+
 [dependencies]
 cbtc = { path = "../cbtc" }
 common = { path = "../common" }

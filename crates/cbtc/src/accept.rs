@@ -115,6 +115,8 @@ pub async fn submit(params: Params) -> Result<(), String> {
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
+        read_as: None,
+        user_id: None,
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {

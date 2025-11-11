@@ -241,6 +241,8 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
+        read_as: None,
+        user_id: None,
     };
 
     let response_raw = ledger::submit::wait_for_transaction_tree(ledger::submit::Params {

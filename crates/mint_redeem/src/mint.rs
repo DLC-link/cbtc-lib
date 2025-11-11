@@ -158,6 +158,8 @@ pub async fn create_deposit_account(
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
+        read_as: Some(vec![params.party.clone()]),
+        user_id: Some(params.user_name.clone()),
     };
 
     // Submit the transaction

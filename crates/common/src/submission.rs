@@ -17,6 +17,7 @@ pub struct ExerciseCommandData {
 pub enum ChoiceArgumentsVariations {
     TransferFactory(transfer_factory::ChoiceArguments),
     Accept(accept::ChoiceArguments),
+    Generic(serde_json::Value),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

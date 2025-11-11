@@ -10,6 +10,7 @@ cbtc = { path = "../cbtc" }
 common = { path = "../common" }
 keycloak = { path = "../keycloak" }
 ledger = { path = "../ledger" }
+mint_redeem = { path = "../mint_redeem" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 chrono = "0.4.42"
 dotenvy = { workspace = true }

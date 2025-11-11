@@ -8,6 +8,7 @@ members = [
   "crates/registry",
   "crates/common",
   "crates/examples",
+  "crates/mint_redeem",
 ]
 resolver = "2"
 

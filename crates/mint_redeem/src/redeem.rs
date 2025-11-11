@@ -369,10 +369,63 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
         });
     }
 
-    // Build extraArgs for burn operation
+    // Build extraArgs for burn operation with proper token standard context structure
+    let mut context_values = serde_json::Map::new();
+
+    // Add instrument configuration
+    context_values.insert(
+        "utility.digitalasset.com/instrument-configuration".to_string(),
+        json!({
+            "tag": "AV_ContractId",
+            "value": token_contracts.instrument_configuration.contract_id
+        }),
+    );
+
+    // Add issuer credentials as a list if present
+    if let Some(issuer_cred) = &token_contracts.issuer_credential {
+        context_values.insert(
+            "utility.digitalasset.com/issuer-credentials".to_string(),
+            json!({
+                "tag": "AV_List",
+                "value": [{
+                    "tag": "AV_ContractId",
+                    "value": issuer_cred.contract_id
+                }]
+            }),
+        );
+    }
+
+    // Add app reward configuration if present
+    if let Some(app_reward) = &token_contracts.app_reward_configuration {
+        context_values.insert(
+            "utility.digitalasset.com/app-reward-configuration".to_string(),
+            json!({
+                "tag": "AV_ContractId",
+                "value": app_reward.contract_id
+            }),
+        );
+    }
+
+    // Add featured app right if present
+    if let Some(featured_app) = &token_contracts.featured_app_right {
+        context_values.insert(
+            "utility.digitalasset.com/featured-app-right".to_string(),
+            json!({
+                "tag": "AV_ContractId",
+                "value": featured_app.contract_id
+            }),
+        );
+    }
+
     let extra_args = json!({
-        "burnMintFactoryCid": token_contracts.burn_mint_factory.contract_id,
-        "instrumentConfigurationCid": token_contracts.instrument_configuration.contract_id
+        "context": {
+            "values": context_values
+        },
+        "meta": {
+            "values": {
+                "splice.lfdecentralizedtrust.org/reason": "CBTC withdrawal"
+            }
+        }
     });
 
     // Build the choice argument

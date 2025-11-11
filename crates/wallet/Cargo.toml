@@ -1,0 +1,15 @@
+[package]
+name = "wallet"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[dependencies]
+reqwest = { version = "0.12.24", features = ["json"] }
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.48", features = ["full"] }
+tokio-macros = "2.5.0"
+
+[dev-dependencies]
+keycloak = { path = "../keycloak" }
+dotenvy = { workspace = true }

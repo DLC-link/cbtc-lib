@@ -348,133 +348,64 @@ cargo run --example monitor_deposits
 ### Mint Module
 
 #### `list_deposit_accounts()`
+
 List all deposit accounts for a party.
 
 #### `create_deposit_account()`
+
 Create a new deposit account that can receive BTC deposits.
 
 #### `get_bitcoin_address()`
+
 Get the Bitcoin address for a deposit account from the attestor network.
 
 #### `list_deposit_requests()`
+
 List all deposit requests (completed deposits that have been confirmed and minted).
 
 #### `get_deposit_account_status()`
+
 Get the full status of a deposit account including Bitcoin address, pending balance, and last processed block height. This combines data from both Canton and the attestor network.
 
 #### `mint_cbtc()`
+
 Manually mint CBTC from a confirmed deposit request. Usually this happens automatically, but this function allows manual triggering if needed.
 
 ### Redeem Module
 
 #### `list_withdraw_accounts()`
+
 List all withdraw accounts for a party.
 
 #### `create_withdraw_account()`
+
 Create a new withdraw account with a destination Bitcoin address for redemptions.
 
 #### `list_holdings()`
+
 List all CBTC holdings (unlocked UTXOs) available for burning.
 
 #### `request_withdraw()`
+
 Burn CBTC holdings and create a withdraw request that the attestor will process.
 
 #### `list_withdraw_requests()`
+
 List all withdraw requests and their status (including BTC transaction IDs once processed).
 
 ### Attestor Module
 
 #### `get_account_contract_rules()`
+
 Get the DepositAccountRules and WithdrawAccountRules contracts from the attestor. Required for creating accounts.
 
 #### `get_bitcoin_address()`
+
 Get the Bitcoin address for a specific account ID.
 
 #### `get_token_standard_contracts()`
+
 Get the token standard contracts (burn_mint_factory, instrument_configuration, etc.). Required for burning CBTC.
-
-## Data Structures
-
-### DepositAccount
-
-Represents a deposit account contract on Canton.
-
-```rust
-pub struct DepositAccount {
-    pub contract_id: String,              // Canton contract ID
-    pub id: String,                       // Unique account UUID
-    pub owner: String,                    // Canton party ID of owner
-    pub pending_balance: String,          // BTC pending confirmation (as string)
-    pub last_processed_bitcoin_block: i64, // Last BTC block processed
-}
-```
-
-### DepositRequest
-
-Represents a confirmed deposit that resulted in CBTC being minted.
-
-```rust
-pub struct DepositRequest {
-    pub contract_id: String,         // Canton contract ID
-    pub deposit_account_id: String,  // Associated deposit account
-    pub amount: String,              // Amount of BTC deposited
-    pub btc_tx_id: String,          // Bitcoin transaction ID
-}
-```
-
-### DepositAccountStatus
-
-Full status information for a deposit account, combining Canton and attestor data.
-
-```rust
-pub struct DepositAccountStatus {
-    pub contract_id: String,
-    pub id: String,
-    pub owner: String,
-    pub has_pending_balance: bool,        // True if deposit is processing
-    pub pending_balance: String,          // Amount of BTC detected but not confirmed
-    pub bitcoin_address: String,          // BTC address for deposits
-    pub last_processed_bitcoin_block: i64, // Last block scanned by attestor
-}
-```
-
-### WithdrawAccount
-
-Represents a withdraw account contract on Canton with a locked destination address.
-
-```rust
-pub struct WithdrawAccount {
-    pub contract_id: String,              // Canton contract ID
-    pub owner: String,                    // Canton party ID of owner
-    pub destination_btc_address: String,  // BTC address where withdrawals are sent
-}
-```
-
-### WithdrawRequest
-
-Represents a CBTC burn and pending Bitcoin withdrawal.
-
-```rust
-pub struct WithdrawRequest {
-    pub contract_id: String,         // Canton contract ID
-    pub amount: String,              // Amount of BTC to withdraw
-    pub destination_btc_address: String, // Destination BTC address
-    pub btc_tx_id: Option<String>,  // BTC transaction ID (None until processed)
-}
-```
-
-### Holding
-
-Represents a CBTC UTXO holding that can be burned for redemption.
-
-```rust
-pub struct Holding {
-    pub contract_id: String,    // Canton contract ID
-    pub owner: String,          // Canton party ID of owner
-    pub amount: String,         // Amount of CBTC in this holding
-    pub instrument_id: String,  // Token identifier (e.g., "CBTC")
-}
-```
 
 ## Testing
 
@@ -489,16 +420,19 @@ Make sure your `.env` file is configured with valid credentials before running t
 ## Environments
 
 ### Devnet
+
 - Attestor: `https://devnet.dlc.link/attestor-1`
 - Network: `canton-devnet`
 - Bitcoin: Regtest or Bitcoin testnet
 
 ### Testnet
+
 - Attestor: `https://testnet.dlc.link/attestor-1`
 - Network: `canton-testnet`
 - Bitcoin: Bitcoin testnet
 
 ### Mainnet
+
 - Attestor: `https://dlc.link/attestor-1`
 - Network: `canton-mainnet`
 - Bitcoin: Bitcoin mainnet
@@ -506,6 +440,7 @@ Make sure your `.env` file is configured with valid credentials before running t
 ## Important Notes
 
 1. **Bitcoin Monitoring**: This library does NOT monitor Bitcoin transactions. The attestor network handles that. You simply need to:
+
    - Get a Bitcoin address from the attestor
    - Send BTC to that address
    - Wait for attestor confirmation (6+ blocks)

@@ -139,7 +139,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
 ///
 /// Returns a summary of successful and failed acceptances.
 pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, String> {
-    println!("Authenticating with Keycloak...");
+    log::debug!("Authenticating with Keycloak...");
     let auth = keycloak::login::password(keycloak::login::PasswordParams {
         client_id: params.keycloak_client_id,
         username: params.keycloak_username,
@@ -149,13 +149,12 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
     .await
     .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    println!("✓ Authenticated successfully");
+    log::debug!("Authenticated successfully");
 
-    println!(
-        "\nChecking for pending transfers for party: {}",
+    log::debug!(
+        "Checking for pending transfers for party: {}",
         params.receiver_party
     );
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     // Fetch pending transfer instructions
     let pending_transfers = fetch_pending_transfers(
@@ -166,7 +165,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
     .await?;
 
     if pending_transfers.is_empty() {
-        println!("No pending transfers found");
+        log::debug!("No pending transfers found");
         return Ok(AcceptAllResult {
             results: Vec::new(),
             successful_count: 0,
@@ -174,7 +173,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         });
     }
 
-    println!("Found {} pending transfer(s)\n", pending_transfers.len());
+    log::debug!("Found {} pending transfer(s)", pending_transfers.len());
 
     // Accept each transfer
     let mut results = Vec::new();
@@ -193,7 +192,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
             contract_id.clone()
         };
 
-        println!("{}. Accepting transfer {}", idx + 1, short_id);
+        log::debug!("{}. Accepting transfer {}", idx + 1, short_id);
 
         // Extract transfer details from create_argument
         let mut amount = None;
@@ -203,11 +202,11 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
             if let Some(transfer_data) = create_arg.get("transfer") {
                 if let Some(amt) = transfer_data.get("amount") {
                     amount = amt.as_str().map(|s| s.to_string());
-                    println!("   Amount: {}", amt);
+                    log::debug!("Amount: {}", amt);
                 }
                 if let Some(sndr) = transfer_data.get("sender") {
                     sender = sndr.as_str().map(|s| s.to_string());
-                    println!("   From: {}", sndr.as_str().unwrap_or("unknown"));
+                    log::debug!("From: {}", sndr.as_str().unwrap_or("unknown"));
                 }
             }
         }
@@ -224,7 +223,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
 
         match submit(accept_params).await {
             Ok(_) => {
-                println!("   [SUCCESS] Accepted\n");
+                log::debug!("Accepted");
                 results.push(AcceptResult {
                     success: true,
                     contract_id: contract_id.clone(),
@@ -235,7 +234,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
                 successful_count += 1;
             }
             Err(e) => {
-                println!("   [FAILED] {}\n", e);
+                log::debug!("Failed: {}", e);
                 results.push(AcceptResult {
                     success: false,
                     contract_id: contract_id.clone(),
@@ -248,11 +247,11 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         }
     }
 
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("Summary:");
-    println!("  Accepted: {}", successful_count);
+    
+    log::debug!("Summary:");
+    log::debug!("Accepted: {}", successful_count);
     if failed_count > 0 {
-        println!("  Failed: {}", failed_count);
+        log::debug!("Failed: {}", failed_count);
     }
 
     Ok(AcceptAllResult {
@@ -297,7 +296,7 @@ async fn fetch_pending_transfers(
     })
     .await?;
 
-    println!(
+    log::debug!(
         "Total active TransferInstruction contracts fetched: {}",
         result.len()
     );
@@ -355,8 +354,6 @@ mod tests {
         let transfer_offer_cid = std::env::var("LIB_TEST_TRANSFER_OFFER_CID").ok();
 
         if transfer_offer_cid.is_none() {
-            println!("Skipping test: LIB_TEST_TRANSFER_OFFER_CID not set");
-            println!("To test this, first create a transfer and set LIB_TEST_TRANSFER_OFFER_CID to the TransferOffer contract ID");
             return;
         }
 
@@ -364,6 +361,5 @@ mod tests {
         // 1. A valid transfer_offer_contract_id from a pending transfer
         // 2. Authentication as the receiver party
         // 3. The transfer must be in a state ready for acceptance
-        println!("Accept transfer test would run here with valid transfer offer");
     }
 }

@@ -84,7 +84,7 @@ impl TokenState {
         let needs_refresh = now >= self.expires_at;
 
         if needs_refresh {
-            println!("🔄 Refreshing JWT token...");
+            log::debug!("Refreshing JWT token...");
             let auth = keycloak::login::refresh(keycloak::login::RefreshParams {
                 client_id: self.client_id.clone(),
                 refresh_token: self.refresh_token.clone(),
@@ -93,7 +93,7 @@ impl TokenState {
             .await
             .map_err(|e| format!("Failed to refresh JWT: {}", e))?;
 
-            println!("✓ JWT token refreshed successfully");
+            log::debug!("JWT token refreshed successfully");
             self.access_token = auth.access_token.clone();
             self.refresh_token = auth.refresh_token;
             // Set expiry to 1 minute before actual expiry
@@ -213,7 +213,7 @@ pub async fn submit_sequential_chained(
         return Err("No recipients to process".to_string());
     }
 
-    println!(
+    log::debug!(
         "Starting sequential chained transfers: {} transfers from {}",
         params.recipients.len(),
         params.sender
@@ -225,7 +225,7 @@ pub async fn submit_sequential_chained(
         params.keycloak_client_id.clone(),
         params.keycloak_url.clone(),
     ) {
-        println!("✓ JWT auto-refresh enabled");
+        log::debug!("JWT auto-refresh enabled");
         Some(TokenState {
             access_token: params.access_token.clone(),
             refresh_token,
@@ -259,7 +259,7 @@ pub async fn submit_sequential_chained(
         }),
     };
 
-    println!("Fetching transfer factory context from registry (once)...");
+    log::debug!("Fetching transfer factory context from registry (once)...");
     let additional_information =
         registry::transfer_factory::get(registry::transfer_factory::Params {
             registry_url: params.registry_url.clone(),
@@ -286,7 +286,7 @@ pub async fn submit_sequential_chained(
     let choice_context_data = additional_information.choice_context.choice_context_data;
     let disclosed_contracts = additional_information.choice_context.disclosed_contracts;
 
-    println!("✓ Registry context fetched successfully");
+    log::debug!("Registry context fetched successfully");
 
     // Track results and current holdings
     let mut results = Vec::new();
@@ -299,14 +299,14 @@ pub async fn submit_sequential_chained(
     // Process each recipient sequentially, building transfers on-the-fly
     for (idx, recipient) in params.recipients.into_iter().enumerate() {
         let transfer_num = idx + 1;
-        println!(
-            "\n[{}/{}] Transferring {} to {}...",
+        log::debug!(
+            "[{}/{}] Transferring {} to {}...",
             transfer_num, total_transfers, recipient.amount, recipient.receiver
         );
 
         if current_holding_cids.is_empty() {
             let error_msg = "No UTXOs available for transfer".to_string();
-            println!("  ✗ {}", error_msg);
+            log::debug!("Transfer failed: {}", error_msg);
             let result = TransferResult {
                 success: false,
                 transfer_index: idx,
@@ -335,7 +335,7 @@ pub async fn submit_sequential_chained(
                 Ok(token) => token,
                 Err(e) => {
                     let error_msg = format!("Failed to get fresh token: {}", e);
-                    println!("  ✗ {}", error_msg);
+                    log::debug!("Transfer failed: {}", error_msg);
                     let result = TransferResult {
                         success: false,
                         transfer_index: idx,
@@ -441,10 +441,10 @@ pub async fn submit_sequential_chained(
                 // Parse response to extract change UTXOs, transfer offer CID, and update_id
                 match parse_transfer_response(&response_raw) {
                     Ok((sender_change_cids, transfer_offer_cid, update_id)) => {
-                        println!("  ✓ Transfer successful");
-                        println!("    Transfer Offer: {}", transfer_offer_cid);
-                        println!("    Update ID: {}", update_id);
-                        println!("    Change UTXOs: {} remaining", sender_change_cids.len());
+                        log::debug!("Transfer successful");
+                        log::debug!("Transfer Offer: {}", transfer_offer_cid);
+                        log::debug!("Update ID: {}", update_id);
+                        log::debug!("Change UTXOs: {} remaining", sender_change_cids.len());
 
                         let result = TransferResult {
                             success: true,
@@ -471,8 +471,8 @@ pub async fn submit_sequential_chained(
                     }
                     Err(e) => {
                         let error_msg = format!("Failed to parse transfer response: {}", e);
-                        println!("  ✗ {}", error_msg);
-                        println!("    Note: Change UTXOs preserved for next transfer");
+                        log::debug!("Transfer failed: {}", error_msg);
+                        log::debug!("Note: Change UTXOs preserved for next transfer");
                         let result = TransferResult {
                             success: false,
                             transfer_index: idx,
@@ -498,8 +498,8 @@ pub async fn submit_sequential_chained(
             }
             Err(e) => {
                 let error_msg = format!("Ledger submission failed: {}", e);
-                println!("  ✗ {}", error_msg);
-                println!("    Note: Change UTXOs preserved, will retry next transfer");
+                log::debug!("Transfer failed: {}", error_msg);
+                log::debug!("Note: Change UTXOs preserved, will retry next transfer");
                 let result = TransferResult {
                     success: false,
                     transfer_index: idx,
@@ -524,11 +524,11 @@ pub async fn submit_sequential_chained(
         }
     }
 
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("Transfer Summary:");
-    println!("  Successful: {}", successful_count);
-    println!("  Failed: {}", failed_count);
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    log::debug!("Transfer Summary:");
+    
+    log::debug!("Successful: {}", successful_count);
+    log::debug!("Failed: {}", failed_count);
+    
 
     Ok(SequentialChainedResult {
         results,

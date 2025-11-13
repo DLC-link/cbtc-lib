@@ -325,7 +325,7 @@ pub async fn check_and_consolidate(
     })
     .await?;
 
-    println!(
+    log::debug!(
         "Party has {} CBTC UTXOs (threshold: {})",
         utxo_count, params.threshold
     );
@@ -340,7 +340,7 @@ pub async fn check_and_consolidate(
         });
     }
 
-    println!("Threshold met or exceeded. Consolidating UTXOs...");
+    log::debug!("Threshold met or exceeded. Consolidating UTXOs...");
 
     // Perform consolidation
     let result_cids = consolidate_utxos(ConsolidateParams {
@@ -423,8 +423,6 @@ mod tests {
         };
 
         let result = check_and_consolidate(consolidate_params).await.unwrap();
-        println!("Consolidation result: {:?}", result.consolidated);
-        println!("UTXOs before: {}", result.utxos_before);
-        println!("UTXOs after: {}", result.utxos_after);
+        assert!(result.utxos_before < 10000); // Sanity check
     }
 }

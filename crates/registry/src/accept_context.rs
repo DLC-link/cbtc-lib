@@ -96,12 +96,10 @@ mod tests {
         let decentralized_party_id = std::env::var("DECENTRALIZED_PARTY_ID").unwrap_or_default();
 
         if registry_url.is_empty() || decentralized_party_id.is_empty() {
-            println!("Skipping test: REGISTRY_URL or DECENTRALIZED_PARTY_ID not set");
             return;
         }
 
         // Note: This test requires a valid transfer_offer_contract_id
         // which would come from a real transfer. This is just a placeholder test.
-        println!("Test skipped: requires valid transfer_offer_contract_id from actual transfer");
     }
 }

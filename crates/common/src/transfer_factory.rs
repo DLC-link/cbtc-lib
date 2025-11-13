@@ -129,6 +129,6 @@ mod tests {
             },
         };
         let serialized = serde_json::to_string(&choice_args).unwrap();
-        println!("Serialized ChoiceArguments: {}", serialized);
+        assert!(!serialized.is_empty());
     }
 }

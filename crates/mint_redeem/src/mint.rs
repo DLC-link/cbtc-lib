@@ -367,11 +367,6 @@ mod tests {
         .await
         .expect("Failed to list deposit accounts");
 
-        println!("Found {} deposit accounts", accounts.len());
-        for account in &accounts {
-            println!("  - Contract ID: {}", account.contract_id);
-            println!("    Owner: {}", account.owner);
-            println!("    Last processed BTC block: {}", account.last_processed_bitcoin_block);
-        }
+        assert!(!accounts.is_empty());
     }
 }

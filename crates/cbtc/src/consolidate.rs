@@ -393,7 +393,6 @@ mod tests {
         };
 
         let count = get_utxo_count(count_params).await.unwrap();
-        println!("UTXO count: {}", count);
         // Count is usize, so it's always >= 0
         assert!(count < 1000); // Sanity check for reasonable count
     }

@@ -249,8 +249,7 @@ mod tests {
 
         let result = submit(split_params).await.unwrap();
 
-        println!("Split successful!");
-        println!("Output holding CIDs: {:?}", result.output_holding_cids);
-        println!("Change holding CIDs: {:?}", result.change_holding_cids);
+        assert!(!result.output_holding_cids.is_empty());
+        assert!(!result.change_holding_cids.is_empty());
     }
 }

@@ -51,7 +51,6 @@ mod tests {
         };
 
         let response = get(params).await.expect("Failed to get ledger end");
-        println!("Ledger end offset: {}", response.offset);
         assert!(response.offset >= 0);
     }
 }

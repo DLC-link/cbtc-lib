@@ -188,6 +188,7 @@ dependencies = [
  "futures",
  "keycloak",
  "ledger",
+ "log",
  "registry",
  "serde",
  "serde_json",

@@ -171,9 +171,6 @@ mod tests {
             .await
             .expect("Failed to get account contract rules");
 
-        println!("DepositAccountRules contract ID: {}", rules.da_rules.contract_id);
-        println!("WithdrawAccountRules contract ID: {}", rules.wa_rules.contract_id);
-
         assert!(!rules.da_rules.contract_id.is_empty());
         assert!(!rules.wa_rules.contract_id.is_empty());
     }
@@ -188,9 +185,6 @@ mod tests {
         let contracts = get_token_standard_contracts(&attestor_url, &chain)
             .await
             .expect("Failed to get token standard contracts");
-
-        println!("Burn/Mint Factory: {}", contracts.burn_mint_factory.contract_id);
-        println!("Instrument Config: {}", contracts.instrument_configuration.contract_id);
 
         assert!(!contracts.burn_mint_factory.contract_id.is_empty());
         assert!(!contracts.instrument_configuration.contract_id.is_empty());

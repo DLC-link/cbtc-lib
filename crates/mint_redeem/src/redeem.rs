@@ -663,14 +663,6 @@ mod tests {
         .await
         .expect("Failed to list withdraw accounts");
 
-        println!("Found {} withdraw accounts", accounts.len());
-        for account in &accounts {
-            println!("  - Contract ID: {}", account.contract_id);
-            println!("    Owner: {}", account.owner);
-            println!(
-                "    Destination BTC Address: {}",
-                account.destination_btc_address
-            );
-        }
+        assert!(!accounts.is_empty());
     }
 }

@@ -84,9 +84,7 @@ mod tests {
 
         match result {
             Ok(rules) => {
-                println!("Contract ID: {}", rules.contract.contract_id);
-                println!("Template ID: {}", rules.contract.template_id);
-                println!("Created Event Blob: {}", rules.contract.created_event_blob);
+                assert!(!rules.contract.contract_id.is_empty());
             }
             Err(e) => panic!("Failed to get amulet rules: {:?}", e),
         }

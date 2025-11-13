@@ -18,6 +18,7 @@ pub struct SplitResult {
 }
 
 /// Split a single amount using MergeSplit
+#[allow(clippy::too_many_arguments)]
 async fn split_once(
     party: String,
     amount: String,
@@ -83,7 +84,7 @@ async fn split_once(
             contract_id: additional_information.factory_id,
             choice: "TransferFactory_Transfer".to_string(),
             choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                common::transfer_factory::ChoiceArguments {
+                Box::new(common::transfer_factory::ChoiceArguments {
                     expected_admin: decentralized_party_id,
                     transfer: transfer.clone(),
                     extra_args: common::transfer_factory::ExtraArgs {
@@ -92,7 +93,7 @@ async fn split_once(
                             values: common::transfer_factory::MetaValue {},
                         },
                     },
-                },
+                }),
             ),
         },
     };

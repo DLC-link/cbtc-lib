@@ -50,7 +50,6 @@ pub async fn get(params: Params) -> Result<common::transfer_factory::Response, S
 mod tests {
     use super::*;
     use crate::consts;
-    use common::transfer_factory::{ContextValue, ContextValueArray, ContextValueString};
     use keycloak::login::{password, password_url, PasswordParams};
     use std::collections::HashMap;
     use std::env;
@@ -123,6 +122,6 @@ mod tests {
             },
         };
 
-        let result = get(params).await.unwrap();
+        let _result = get(params).await.unwrap();
     }
 }

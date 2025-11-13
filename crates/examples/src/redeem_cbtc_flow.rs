@@ -113,37 +113,57 @@ async fn main() -> Result<(), String> {
     );
     println!();
 
-    // Step 5: Create a new withdraw account
-    // For this example, we'll use a Bitcoin regtest address
-    // In production, this should be your real Bitcoin address where you want to receive BTC
-    let destination_btc_address =
-        env::var("DESTINATION_BTC_ADDRESS").unwrap_or_else(|_| {
-            "bcrt1qexamplewithdrawaddressfortestingonly00000000".to_string()
-        });
+    // Step 5: Create a new withdraw account (or skip if one already exists)
+    // For production, you should provide a real Bitcoin address via DESTINATION_BTC_ADDRESS env var
+    // For testing/devnet, we use a test address
 
-    println!("Step 5: Creating a new withdraw account...");
-    println!("  Destination BTC address: {}", destination_btc_address);
-    let withdraw_account =
-        mint_redeem::redeem::create_withdraw_account(CreateWithdrawAccountParams {
+    if !accounts.is_empty() {
+        println!("Step 5: Withdraw account already exists, skipping creation...");
+        println!("  Using existing account: {}", accounts[0].contract_id);
+        println!("  Destination: {}\n", accounts[0].destination_btc_address);
+    } else {
+        let destination_btc_address = env::var("DESTINATION_BTC_ADDRESS")
+            .unwrap_or_else(|_| "bcrt1qexamplewithdrawaddressfortestingonly00000000".to_string());
+
+        println!("Step 5: Creating a new withdraw account...");
+        println!("  Destination BTC address: {}", destination_btc_address);
+
+        let withdraw_account =
+            mint_redeem::redeem::create_withdraw_account(CreateWithdrawAccountParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+                access_token: access_token.clone(),
+                account_rules_contract_id: account_rules.wa_rules.contract_id.clone(),
+                account_rules_template_id: account_rules.wa_rules.template_id.clone(),
+                account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
+                destination_btc_address: destination_btc_address.clone(),
+            })
+            .await?;
+
+        println!("✓ Withdraw account created successfully!");
+        println!("  - Contract ID: {}", withdraw_account.contract_id);
+        println!("  - Owner: {}", withdraw_account.owner);
+        println!(
+            "  - Destination BTC Address: {}",
+            withdraw_account.destination_btc_address
+        );
+        println!();
+    }
+
+    // Use the first account (either existing or newly created)
+    let withdraw_account = if accounts.is_empty() {
+        // Fetch the newly created account
+        let updated_accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
             ledger_host: ledger_host.clone(),
             party: party_id.clone(),
-            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             access_token: access_token.clone(),
-            account_rules_contract_id: account_rules.wa_rules.contract_id.clone(),
-            account_rules_template_id: account_rules.wa_rules.template_id.clone(),
-            account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
-            destination_btc_address: destination_btc_address.clone(),
         })
         .await?;
-
-    println!("✓ Withdraw account created successfully!");
-    println!("  - Contract ID: {}", withdraw_account.contract_id);
-    println!("  - Owner: {}", withdraw_account.owner);
-    println!(
-        "  - Destination BTC Address: {}",
-        withdraw_account.destination_btc_address
-    );
-    println!();
+        updated_accounts.into_iter().next().ok_or("Failed to find newly created withdraw account")?
+    } else {
+        accounts[0].clone()
+    };
 
     // Step 6: Request withdrawal (burn CBTC)
     // For this example, let's try to withdraw a small amount
@@ -238,7 +258,7 @@ async fn main() -> Result<(), String> {
     println!("  • Withdraw request created for: {} BTC", withdraw_amount);
     println!(
         "  • BTC will be sent to: {}",
-        destination_btc_address
+        withdraw_account.destination_btc_address
     );
     println!("  • The attestor network will process your withdrawal request");
     println!("  • Once confirmed, BTC will be sent to your destination address");

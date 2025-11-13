@@ -1,6 +1,7 @@
 use crate::attestor;
 use crate::constants::{CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID};
 use crate::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
+use base64::Engine;
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -8,6 +9,41 @@ use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilt
 use ledger::ledger_end;
 use ledger::submit;
 use serde_json::json;
+
+/// Extract the user ID (subject claim) from a JWT access token
+fn extract_user_id_from_jwt(access_token: &str) -> Result<String, String> {
+    // JWT format: header.payload.signature
+    let parts: Vec<&str> = access_token.split('.').collect();
+    if parts.len() != 3 {
+        return Err("Invalid JWT format".to_string());
+    }
+
+    // Decode the payload (second part)
+    let payload = parts[1];
+
+    // URL-safe base64 without padding - we need to add padding for the decoder
+    let padding_needed = (4 - (payload.len() % 4)) % 4;
+    let padded = if padding_needed > 0 {
+        format!("{}{}", payload, "=".repeat(padding_needed))
+    } else {
+        payload.to_string()
+    };
+
+    // Decode base64 - use STANDARD engine with padding since we added it
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&padded)
+        .map_err(|e| format!("Failed to decode JWT payload: {}", e))?;
+
+    // Parse JSON
+    let json: serde_json::Value = serde_json::from_slice(&decoded)
+        .map_err(|e| format!("Failed to parse JWT payload JSON: {}", e))?;
+
+    // Extract 'sub' claim (user ID / UUID)
+    json.get("sub")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "JWT does not contain 'sub' claim".to_string())
+}
 
 /// Parameters for listing withdraw accounts
 pub struct ListWithdrawAccountsParams {
@@ -100,7 +136,7 @@ pub async fn list_withdraw_accounts(
 
     let withdraw_accounts: Result<Vec<WithdrawAccount>, String> = contracts
         .iter()
-        .map(|contract| WithdrawAccount::from_active_contract(contract))
+        .map(WithdrawAccount::from_active_contract)
         .collect();
 
     withdraw_accounts
@@ -136,6 +172,9 @@ pub async fn list_withdraw_accounts(
 pub async fn create_withdraw_account(
     params: CreateWithdrawAccountParams,
 ) -> Result<WithdrawAccount, String> {
+    // Extract user ID from JWT access token
+    let user_id = extract_user_id_from_jwt(&params.access_token)?;
+
     // Generate a random command ID
     let command_id = format!("cmd-{}", uuid::Uuid::new_v4());
 
@@ -170,7 +209,7 @@ pub async fn create_withdraw_account(
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
         read_as: Some(vec![params.party.clone()]),
-        user_id: Some(params.user_name.clone()),
+        user_id: Some(user_id),
     };
 
     // Submit the transaction
@@ -272,9 +311,12 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
     })
     .await?;
 
+    // Filter out locked holdings (those being used in other transactions)
+    // and parse the remaining ones
     let holdings: Result<Vec<Holding>, String> = contracts
         .iter()
-        .map(|contract| Holding::from_active_contract(contract))
+        .filter(|contract| !Holding::is_locked_in_contract(contract))
+        .map(Holding::from_active_contract)
         .collect();
 
     holdings
@@ -315,6 +357,9 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 /// }).await?;
 /// ```
 pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawRequest, String> {
+    // Extract user ID from JWT access token
+    let user_id = extract_user_id_from_jwt(&params.access_token)?;
+
     // Get token standard contracts from attestor
     let token_contracts: TokenStandardContracts =
         attestor::get_token_standard_contracts(&params.attestor_url, &params.chain).await?;
@@ -428,13 +473,28 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
         }
     });
 
-    // Build the choice argument
-    let choice_argument = json!({
-        "tokens": params.holding_contract_ids,
-        "amount": params.amount,
-        "burnMintFactoryCid": token_contracts.burn_mint_factory.contract_id,
-        "extraArgs": extra_args
-    });
+    // Validate amount is a valid number
+    let _: f64 = params.amount.parse()
+        .map_err(|e| format!("Invalid amount format: {}", e))?;
+
+    // Build choice argument JSON manually to preserve decimal format
+    // serde_json can use scientific notation for small numbers, which Canton rejects
+    // Keep amount as a JSON string (quoted) to ensure Canton receives it in decimal format
+    let choice_argument_str = format!(
+        r#"{{
+            "tokens": {},
+            "amount": "{}",
+            "burnMintFactoryCid": "{}",
+            "extraArgs": {}
+        }}"#,
+        serde_json::to_string(&params.holding_contract_ids).unwrap(),
+        params.amount,  // Keep as quoted string
+        token_contracts.burn_mint_factory.contract_id,
+        serde_json::to_string(&extra_args).unwrap()
+    );
+
+    let choice_argument: serde_json::Value = serde_json::from_str(&choice_argument_str)
+        .map_err(|e| format!("Failed to construct choice argument: {}", e))?;
 
     // Build the exercise command
     let exercise_command = submission::ExerciseCommand {
@@ -453,7 +513,7 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
         read_as: Some(vec![params.party.clone()]),
-        user_id: Some(params.user_name.clone()),
+        user_id: Some(user_id),
     };
 
     // Submit the transaction
@@ -565,7 +625,7 @@ pub async fn list_withdraw_requests(
 
     let withdraw_requests: Result<Vec<WithdrawRequest>, String> = contracts
         .iter()
-        .map(|contract| WithdrawRequest::from_active_contract(contract))
+        .map(WithdrawRequest::from_active_contract)
         .collect();
 
     withdraw_requests

@@ -111,7 +111,7 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::password_url;
     use std::env;
     use std::io::Write;
 

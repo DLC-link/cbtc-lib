@@ -132,7 +132,7 @@ pub fn convert_get_active_contracts_request(
     req: GetActiveContractsRequest,
 ) -> models::GetActiveContractsRequest {
     models::GetActiveContractsRequest {
-        filter: req.filter.map(|f| convert_transaction_filter(f)),
+        filter: req.filter.map(convert_transaction_filter),
         verbose: req.verbose,
         active_at_offset: req.active_at_offset,
         event_format: None, // TODO
@@ -172,7 +172,7 @@ pub fn convert_identifier_filter(idf: IdentifierFilter) -> models::IdentifierFil
         IdentifierFilter::EmptyIdentifierFilter(_) => {
             models::IdentifierFilter::IdentifierFilterOneOf1(Box::new(
                 models::IdentifierFilterOneOf1 {
-                    interface_filter: Box::new(Default::default()),
+                    interface_filter: Box::default(),
                 },
             ))
         }

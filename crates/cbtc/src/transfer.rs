@@ -160,7 +160,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
             contract_id: additional_information.factory_id,
             choice: "TransferFactory_Transfer".to_string(),
             choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                common::transfer_factory::ChoiceArguments {
+                Box::new(common::transfer_factory::ChoiceArguments {
                     expected_admin: params.decentralized_party_id,
                     transfer: params.transfer.clone(),
                     extra_args: common::transfer_factory::ExtraArgs {
@@ -169,7 +169,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
                             values: common::transfer_factory::MetaValue {},
                         },
                     },
-                },
+                }),
             ),
         },
     };
@@ -404,7 +404,7 @@ pub async fn submit_sequential_chained(
                 contract_id: factory_id.clone(),
                 choice: "TransferFactory_Transfer".to_string(),
                 choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                    common::transfer_factory::ChoiceArguments {
+                    Box::new(common::transfer_factory::ChoiceArguments {
                         expected_admin: params.decentralized_party_id.clone(),
                         transfer: transfer.clone(),
                         extra_args: common::transfer_factory::ExtraArgs {
@@ -413,7 +413,7 @@ pub async fn submit_sequential_chained(
                                 values: common::transfer_factory::MetaValue {},
                             },
                         },
-                    },
+                    }),
                 ),
             },
         };

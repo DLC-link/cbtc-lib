@@ -112,7 +112,7 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::password_url;
     use std::env;
 
     #[tokio::test]

@@ -94,7 +94,7 @@ pub async fn list_deposit_accounts(
 
     let deposit_accounts: Result<Vec<DepositAccount>, String> = contracts
         .iter()
-        .map(|contract| DepositAccount::from_active_contract(contract))
+        .map(DepositAccount::from_active_contract)
         .collect();
 
     deposit_accounts
@@ -282,7 +282,7 @@ pub async fn list_deposit_requests(
 
     let deposit_requests: Result<Vec<DepositRequest>, String> = contracts
         .iter()
-        .map(|contract| DepositRequest::from_active_contract(contract))
+        .map(DepositRequest::from_active_contract)
         .collect();
 
     deposit_requests

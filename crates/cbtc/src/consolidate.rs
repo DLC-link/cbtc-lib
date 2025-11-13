@@ -220,7 +220,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
             contract_id: additional_information.factory_id,
             choice: "TransferFactory_Transfer".to_string(),
             choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                common::transfer_factory::ChoiceArguments {
+                Box::new(common::transfer_factory::ChoiceArguments {
                     expected_admin: params.decentralized_party_id,
                     transfer: transfer.clone(),
                     extra_args: common::transfer_factory::ExtraArgs {
@@ -229,7 +229,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
                             values: common::transfer_factory::MetaValue {},
                         },
                     },
-                },
+                }),
             ),
         },
     };
@@ -394,7 +394,8 @@ mod tests {
 
         let count = get_utxo_count(count_params).await.unwrap();
         println!("UTXO count: {}", count);
-        assert!(count >= 0);
+        // Count is usize, so it's always >= 0
+        assert!(count < 1000); // Sanity check for reasonable count
     }
 
     #[tokio::test]

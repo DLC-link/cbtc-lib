@@ -58,7 +58,7 @@ async fn main() -> Result<(), String> {
                         println!();
                     }
                     last_count = requests.len();
-                } else if requests.len() > 0 {
+                } else if !requests.is_empty() {
                     print!(".");
                     std::io::Write::flush(&mut std::io::stdout()).ok();
                 }

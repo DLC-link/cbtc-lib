@@ -309,4 +309,17 @@ impl Holding {
             owner,
         })
     }
+
+    /// Check if this holding is locked (being used in another transaction)
+    /// Returns true if the holding has a non-null lock field
+    pub fn is_locked_in_contract(contract: &JsActiveContract) -> bool {
+        contract
+            .created_event
+            .create_argument
+            .as_ref()
+            .and_then(|opt| opt.as_ref())
+            .and_then(|v| v.as_object())
+            .and_then(|args| args.get("lock"))
+            .is_some_and(|lock| !lock.is_null())
+    }
 }

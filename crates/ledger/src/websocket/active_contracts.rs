@@ -209,12 +209,11 @@ mod tests {
         )
         .await;
 
-        match result {
-            Ok(connection_result) => match connection_result {
-                Ok(_) => println!("WebSocket connection completed successfully"),
-                Err(e) => println!("WebSocket connection error: {e}"),
-            },
-            Err(_) => println!("WebSocket connection timed out after 1000 seconds"),
+        if let Ok(connection_result) = result {
+            match connection_result {
+                Ok(_) => {},
+                Err(_e) => {},
+            }
         }
     }
 }

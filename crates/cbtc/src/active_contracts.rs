@@ -94,11 +94,6 @@ mod tests {
         .await
         .unwrap();
 
-        for contract in contracts {
-            println!(
-                "Create arguments: {:?}",
-                contract.created_event.interface_views
-            );
-        }
+        assert!(!contracts.is_empty());
     }
 }

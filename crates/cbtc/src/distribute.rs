@@ -37,10 +37,10 @@ pub struct Params {
 /// If reference_base is provided, each transfer gets a unique ID:
 /// base64(reference_base + sender + receiver) in the meta field.
 pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult, String> {
-    println!("Distributing to {} recipients", params.recipients.len());
+    log::debug!("Distributing to {} recipients", params.recipients.len());
 
     // Authenticate with Keycloak
-    println!("Authenticating with Keycloak...");
+    log::debug!("Authenticating with Keycloak...");
     let auth = keycloak::login::password(keycloak::login::PasswordParams {
         client_id: params.keycloak_client_id.clone(),
         username: params.keycloak_username,
@@ -50,9 +50,9 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
     .await
     .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    println!("✓ Authenticated successfully");
+    log::debug!("Authenticated successfully");
     if !auth.refresh_token.is_empty() {
-        println!("✓ JWT auto-refresh enabled");
+        log::debug!("JWT auto-refresh enabled");
     }
 
     // Fetch all active contracts once
@@ -73,11 +73,11 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
         .map(|c| c.created_event.contract_id.clone())
         .collect();
 
-    println!("Using {} initial UTXOs", initial_holding_cids.len());
+    log::debug!("Using {} initial UTXOs", initial_holding_cids.len());
 
     // Generate run reference if reference_base is provided
     if let Some(ref reference_base) = params.reference_base {
-        println!("Using reference base: {}", reference_base);
+        log::debug!("Using reference base: {}", reference_base);
     }
 
     // Convert recipients to the format expected by submit_sequential_chained
@@ -112,7 +112,7 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::password_url;
     use std::env;
 
     #[tokio::test]
@@ -159,9 +159,9 @@ mod tests {
 
         let result = submit(params).await.unwrap();
 
-        println!("\nDistribution complete!");
-        println!("Successful: {}", result.successful_count);
-        println!("Failed: {}", result.failed_count);
+        log::debug!("Distribution complete!");
+        log::debug!("Successful: {}", result.successful_count);
+        log::debug!("Failed: {}", result.failed_count);
 
         assert!(
             result.successful_count > 0,

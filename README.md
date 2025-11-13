@@ -6,9 +6,11 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 
 - ✅ **Send CBTC** - Transfer tokens to other parties
 - ✅ **Accept CBTC** - Accept incoming transfers as a receiver
+- ✅ **Mint CBTC** - Deposit BTC and mint CBTC tokens via Bitsafe Attestor network
+- ✅ **Redeem CBTC** - Burn CBTC tokens and withdraw BTC
 - ✅ **Batch Distribution** - Efficiently distribute tokens to multiple recipients
 - ✅ **UTXO Management** - Consolidate and split holdings
-- ✅ **Reward Farming** - Optimized for high-volume transfer operations
+- ✅ **High-Volume Transfers** - Optimized for high-volume transfer operations
 - ✅ **Multi-Environment** - Support for devnet, testnet, and mainnet
 - ✅ **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
 
@@ -20,6 +22,7 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 2. [Installation](#installation)
 3. [Configuration](#configuration)
 4. [Usage Examples](#usage-examples)
+   - [CBTC Mint & Redeem](#cbtc-mint--redeem)
    - [Sending CBTC](#sending-cbtc)
    - [Accepting CBTC](#accepting-cbtc)
    - [Batch Distribution](#batch-distribution)
@@ -60,8 +63,8 @@ cp .env.example .env
 # Edit .env with your Canton credentials
 
 # Run an example
-cargo run -p examples --example check_balance
-cargo run -p examples --example send_cbtc
+cargo run -p examples --bin check_balance
+cargo run -p examples --bin send_cbtc
 ```
 
 See [Quick Start with Examples](#quick-start-with-examples) for more details.
@@ -157,6 +160,10 @@ LEDGER_HOST=https://participant.example.com
 PARTY_ID=your-party::1220...
 DECENTRALIZED_PARTY_ID=cbtc-network::1220...  # See environment-specific values below
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com  # See environment-specific values below
+
+# CBTC Mint/Redeem (optional - only needed for BTC bridging)
+ATTESTOR_URL=https://attestor.bitsafe.dev  # See environment-specific values below
+CANTON_NETWORK=devnet  # or testnet/mainnet
 ```
 
 ### Environment-Specific Values
@@ -165,18 +172,24 @@ REGISTRY_URL=https://api.utilities.digitalasset-dev.com  # See environment-speci
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com
+ATTESTOR_URL=https://attestor.bitsafe.dev
+CANTON_NETWORK=devnet
 ```
 
 #### Testnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f
 REGISTRY_URL=https://api.utilities.digitalasset-staging.com
+ATTESTOR_URL=https://attestor.bitsafe.testnet
+CANTON_NETWORK=testnet
 ```
 
 #### Mainnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262
 REGISTRY_URL=https://api.utilities.digitalasset.com
+ATTESTOR_URL=https://attestor.bitsafe.com
+CANTON_NETWORK=mainnet
 ```
 
 ---
@@ -193,7 +206,7 @@ For quick experimentation, this library includes ready-to-run example programs. 
 
 Run examples from the workspace root:
 ```bash
-cargo run -p examples --example check_balance
+cargo run -p examples --bin check_balance
 ```
 
 See the [examples README](crates/examples/README.md) for detailed instructions.
@@ -206,13 +219,16 @@ This library provides several high-level operations for working with CBTC tokens
 
 ### Core Operations
 
-| Operation | Example File | Description |
-|-----------|-------------|-------------|
-| **Check Balance** | [`check_balance.rs`](crates/examples/examples/check_balance.rs) | View your CBTC balance and UTXO count |
-| **Send CBTC** | [`send_cbtc.rs`](crates/examples/examples/send_cbtc.rs) | Transfer tokens to another party |
-| **Accept CBTC** | [`accept_transfers.rs`](crates/examples/examples/accept_transfers.rs) | Accept incoming transfers |
-| **Batch Distribution** | [`batch_distribute.rs`](crates/examples/examples/batch_distribute.rs) | Distribute to multiple recipients from CSV |
-| **Consolidate UTXOs** | [`consolidate_utxos.rs`](crates/examples/examples/consolidate_utxos.rs) | Merge multiple UTXOs into one |
+| Operation | Example File | Run Command | Description |
+|-----------|-------------|-------------|-------------|
+| **Mint CBTC** | [`mint_cbtc_flow.rs`](crates/examples/src/mint_cbtc_flow.rs) | `cargo run -p examples --bin mint_cbtc_flow` | Deposit BTC and mint CBTC tokens |
+| **Redeem CBTC** | [`redeem_cbtc_flow.rs`](crates/examples/src/redeem_cbtc_flow.rs) | `cargo run -p examples --bin redeem_cbtc_flow` | Burn CBTC and withdraw BTC |
+| **Monitor Deposits** | [`monitor_deposits.rs`](crates/examples/src/monitor_deposits.rs) | `cargo run -p examples --bin monitor_deposits` | Watch for BTC deposits in real-time |
+| **Check Balance** | [`check_balance.rs`](crates/examples/src/check_balance.rs) | `cargo run -p examples --bin check_balance` | View your CBTC balance and UTXO count |
+| **Send CBTC** | [`send_cbtc.rs`](crates/examples/src/send_cbtc.rs) | `cargo run -p examples --bin send_cbtc` | Transfer tokens to another party |
+| **Accept CBTC** | [`accept_transfers.rs`](crates/examples/src/accept_transfers.rs) | `cargo run -p examples --bin accept_transfers` | Accept incoming transfers |
+| **Batch Distribution** | [`batch_distribute.rs`](crates/examples/src/batch_distribute.rs) | `cargo run -p examples --bin batch_distribute` | Distribute to multiple recipients from CSV |
+| **Consolidate UTXOs** | [`consolidate_utxos.rs`](crates/examples/src/consolidate_utxos.rs) | `cargo run -p examples --bin consolidate_utxos` | Merge multiple UTXOs into one |
 
 ### Key Concepts
 
@@ -224,7 +240,67 @@ This library provides several high-level operations for working with CBTC tokens
 1. Sender creates a transfer offer
 2. Receiver must accept the transfer to complete it
 
+**BTC ↔ CBTC Bridge**: The mint/redeem flow allows you to bridge between native Bitcoin and CBTC tokens:
+- **Minting**: Deposit BTC → Attestor network confirms → Mint CBTC tokens
+- **Redeeming**: Burn CBTC → Create withdraw request → Attestor network sends BTC
+
 See the [examples README](crates/examples/README.md) for detailed usage instructions.
+
+---
+
+## CBTC Mint & Redeem
+
+### Overview
+
+The mint/redeem functionality allows you to bridge between native Bitcoin and CBTC tokens on the Canton network. This is powered by the **Bitsafe Attestor Network**, a decentralized network that monitors Bitcoin transactions and confirms deposits/withdrawals.
+
+### Minting CBTC (BTC → CBTC)
+
+**Flow**:
+1. Create a deposit account with the `mint_redeem` module
+2. Receive a unique BTC deposit address
+3. Send BTC to that address
+4. Monitor deposits using the attestor network
+5. Once confirmed (6+ blocks), mint CBTC tokens
+
+**Example**:
+```bash
+# Run the mint flow example
+cargo run -p examples --bin mint_cbtc_flow
+
+# Monitor deposits in real-time
+cargo run -p examples --bin monitor_deposits
+```
+
+See [mint_cbtc_flow.rs](crates/examples/src/mint_cbtc_flow.rs) for complete code.
+
+### Redeeming CBTC (CBTC → BTC)
+
+**Flow**:
+1. Create a withdraw account with your destination BTC address
+2. Burn CBTC tokens to create a withdraw request
+3. Attestor network processes the request
+4. Receive BTC at your destination address
+
+**Example**:
+```bash
+# Run the redeem flow example
+cargo run -p examples --bin redeem_cbtc_flow
+
+# Test burning CBTC with an existing withdraw account
+cargo run -p examples --bin test_burn_cbtc
+```
+
+See [redeem_cbtc_flow.rs](crates/examples/src/redeem_cbtc_flow.rs) for complete code.
+
+### Required Configuration
+
+To use mint/redeem functionality, add these environment variables:
+
+```bash
+ATTESTOR_URL=https://attestor.bitsafe.dev  # Bitsafe Attestor API
+CANTON_NETWORK=devnet  # or testnet/mainnet
+```
 
 ### Understanding UTXO Management
 
@@ -237,13 +313,13 @@ Every CBTC holding is a UTXO (Unspent Transaction Output), similar to Bitcoin. E
 - **Node Efficiency**: Fewer UTXOs reduce database and memory usage
 - **Network Load**: Smaller transactions with fewer inputs
 
-**Best Practice**: Consolidate regularly, especially for high-volume operations. See [`consolidate_utxos.rs`](crates/examples/examples/consolidate_utxos.rs) for example code.
+**Best Practice**: Consolidate regularly, especially for high-volume operations. See [consolidate_utxos.rs](crates/examples/src/consolidate_utxos.rs) for example code.
 
 ---
 
 ## High-Volume Operations
 
-For applications running high-volume CBTC transfers (e.g., reward farming, payment processors):
+For applications running high-volume CBTC transfers (e.g., payment processors, exchanges, automated trading):
 
 ### Best Practices
 
@@ -256,13 +332,13 @@ For applications running high-volume CBTC transfers (e.g., reward farming, payme
 
 ```bash
 # 1. Check UTXO count and consolidate if needed
-cargo run -p examples --example consolidate_utxos
+cargo run -p examples --bin consolidate_utxos
 
 # 2. Run batch distribution
-cargo run -p examples --example batch_distribute
+cargo run -p examples --bin batch_distribute
 ```
 
-See [`batch_distribute.rs`](crates/examples/examples/batch_distribute.rs) and [`batch_with_callback.rs`](crates/examples/examples/batch_with_callback.rs) for complete examples with callbacks and logging.
+See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_with_callback.rs](crates/examples/src/batch_with_callback.rs) for complete examples with callbacks and logging.
 
 ---
 
@@ -293,6 +369,20 @@ See [`batch_distribute.rs`](crates/examples/examples/batch_distribute.rs) and [`
 
 #### `cbtc::active_contracts`
 - `get(Params)` - Get active CBTC holdings
+
+#### `mint_redeem::mint`
+- `list_deposit_accounts(Params)` - Get all deposit accounts
+- `create_deposit_account(Params)` - Create new deposit account for minting
+- `list_deposits(Params)` - Get all deposit transactions
+- `mint_cbtc(Params)` - Mint CBTC from confirmed BTC deposit
+- `monitor_deposits(Params)` - Real-time monitoring of BTC deposits via WebSocket
+
+#### `mint_redeem::redeem`
+- `list_withdraw_accounts(Params)` - Get all withdraw accounts
+- `create_withdraw_account(Params)` - Create withdraw account with BTC destination
+- `list_holdings(Params)` - Get CBTC holdings for burning
+- `request_withdraw(Params)` - Burn CBTC and request BTC withdrawal
+- `list_withdraw_requests(Params)` - Monitor withdrawal status
 
 ### Helper Modules
 

@@ -155,11 +155,6 @@ mod tests {
         .await
         .unwrap();
 
-        for contract in result {
-            println!("Contract ID: {}", contract.created_event.contract_id);
-            println!("Template ID: {}", contract.created_event.template_id);
-            println!("Blob: {}", contract.created_event.created_event_blob);
-            println!("{:?}", contract)
-        }
+        assert!(!result.is_empty());
     }
 }

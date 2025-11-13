@@ -220,7 +220,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
             contract_id: additional_information.factory_id,
             choice: "TransferFactory_Transfer".to_string(),
             choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                common::transfer_factory::ChoiceArguments {
+                Box::new(common::transfer_factory::ChoiceArguments {
                     expected_admin: params.decentralized_party_id,
                     transfer: transfer.clone(),
                     extra_args: common::transfer_factory::ExtraArgs {
@@ -229,7 +229,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
                             values: common::transfer_factory::MetaValue {},
                         },
                     },
-                },
+                }),
             ),
         },
     };
@@ -241,6 +241,8 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
+        read_as: None,
+        user_id: None,
     };
 
     let response_raw = ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -323,7 +325,7 @@ pub async fn check_and_consolidate(
     })
     .await?;
 
-    println!(
+    log::debug!(
         "Party has {} CBTC UTXOs (threshold: {})",
         utxo_count, params.threshold
     );
@@ -338,7 +340,7 @@ pub async fn check_and_consolidate(
         });
     }
 
-    println!("Threshold met or exceeded. Consolidating UTXOs...");
+    log::debug!("Threshold met or exceeded. Consolidating UTXOs...");
 
     // Perform consolidation
     let result_cids = consolidate_utxos(ConsolidateParams {
@@ -391,8 +393,8 @@ mod tests {
         };
 
         let count = get_utxo_count(count_params).await.unwrap();
-        println!("UTXO count: {}", count);
-        assert!(count >= 0);
+        // Count is usize, so it's always >= 0
+        assert!(count < 1000); // Sanity check for reasonable count
     }
 
     #[tokio::test]
@@ -421,8 +423,6 @@ mod tests {
         };
 
         let result = check_and_consolidate(consolidate_params).await.unwrap();
-        println!("Consolidation result: {:?}", result.consolidated);
-        println!("UTXOs before: {}", result.utxos_before);
-        println!("UTXOs after: {}", result.utxos_after);
+        assert!(result.utxos_before < 10000); // Sanity check
     }
 }

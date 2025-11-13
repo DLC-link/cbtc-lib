@@ -94,7 +94,7 @@ pub async fn list_deposit_accounts(
 
     let deposit_accounts: Result<Vec<DepositAccount>, String> = contracts
         .iter()
-        .map(|contract| DepositAccount::from_active_contract(contract))
+        .map(DepositAccount::from_active_contract)
         .collect();
 
     deposit_accounts
@@ -158,6 +158,8 @@ pub async fn create_deposit_account(
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
+        read_as: Some(vec![params.party.clone()]),
+        user_id: Some(params.user_name.clone()),
     };
 
     // Submit the transaction
@@ -280,7 +282,7 @@ pub async fn list_deposit_requests(
 
     let deposit_requests: Result<Vec<DepositRequest>, String> = contracts
         .iter()
-        .map(|contract| DepositRequest::from_active_contract(contract))
+        .map(DepositRequest::from_active_contract)
         .collect();
 
     deposit_requests
@@ -365,11 +367,6 @@ mod tests {
         .await
         .expect("Failed to list deposit accounts");
 
-        println!("Found {} deposit accounts", accounts.len());
-        for account in &accounts {
-            println!("  - Contract ID: {}", account.contract_id);
-            println!("    Owner: {}", account.owner);
-            println!("    Last processed BTC block: {}", account.last_processed_bitcoin_block);
-        }
+        assert!(!accounts.is_empty());
     }
 }

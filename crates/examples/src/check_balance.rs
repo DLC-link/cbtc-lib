@@ -58,7 +58,7 @@ async fn main() -> Result<(), String> {
     // Calculate total balance
     let total_balance: f64 = holdings
         .iter()
-        .filter_map(|h| cbtc::utils::extract_amount(h))
+        .filter_map(cbtc::utils::extract_amount)
         .sum();
 
     // Display results

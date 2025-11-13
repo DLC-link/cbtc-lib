@@ -35,7 +35,7 @@ pub struct Params {
 /// need for pre-splitting UTXOs.
 pub async fn submit_from_csv(params: Params) -> Result<(), String> {
     // Read CSV file
-    println!("Reading CSV from: {}", params.csv_path);
+    log::debug!("Reading CSV from: {}", params.csv_path);
     let mut reader = csv::Reader::from_path(&params.csv_path)
         .map_err(|e| format!("Failed to read CSV file: {}", e))?;
 
@@ -62,7 +62,7 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
         return Err("No recipients found in CSV file".to_string());
     }
 
-    println!(
+    log::debug!(
         "Found {} recipients, total amount: {}",
         recipients.len(),
         total_amount
@@ -86,14 +86,13 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
     })
     .await?;
 
-    println!("\nBatch distribution complete!");
-    println!("✓ Successful transfers: {}", result.successful_count);
+    log::debug!("Batch distribution complete!");
+    log::debug!("Successful transfers: {}", result.successful_count);
     if result.failed_count > 0 {
-        println!("✗ Failed transfers: {}", result.failed_count);
-        println!("\nFailed transfers:");
+        log::debug!("Failed transfers: {}", result.failed_count);
         for transfer_result in result.results.iter().filter(|r| !r.success) {
-            println!(
-                "  - {} to {} ({}): {}",
+            log::debug!(
+                "Failed transfer: {} to {} ({}): {}",
                 transfer_result.amount,
                 transfer_result.receiver,
                 transfer_result.transfer_index + 1,
@@ -111,7 +110,7 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::password_url;
     use std::env;
     use std::io::Write;
 

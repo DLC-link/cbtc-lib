@@ -301,7 +301,10 @@ pub async fn submit_sequential_chained(
         let transfer_num = idx + 1;
         log::debug!(
             "[{}/{}] Transferring {} to {}...",
-            transfer_num, total_transfers, recipient.amount, recipient.receiver
+            transfer_num,
+            total_transfers,
+            recipient.amount,
+            recipient.receiver
         );
 
         if current_holding_cids.is_empty() {
@@ -525,10 +528,9 @@ pub async fn submit_sequential_chained(
     }
 
     log::debug!("Transfer Summary:");
-    
+
     log::debug!("Successful: {}", successful_count);
     log::debug!("Failed: {}", failed_count);
-    
 
     Ok(SequentialChainedResult {
         results,

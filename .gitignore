@@ -22,5 +22,8 @@ target
 
 # Environment variables with secrets
 .env
+.env.mainnet
+.env.devnet
+.env.testnet
 
 .claude

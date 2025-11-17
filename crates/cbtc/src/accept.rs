@@ -247,7 +247,6 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         }
     }
 
-    
     log::debug!("Summary:");
     log::debug!("Accepted: {}", successful_count);
     if failed_count > 0 {

@@ -45,6 +45,22 @@ path = "src/send_cbtc.rs"
 name = "test_burn_cbtc"
 path = "src/test_burn_cbtc.rs"
 
+[[bin]]
+name = "list_incoming_offers"
+path = "src/list_incoming_offers.rs"
+
+[[bin]]
+name = "list_outgoing_offers"
+path = "src/list_outgoing_offers.rs"
+
+[[bin]]
+name = "stream_cbtc"
+path = "src/stream.rs"
+
+[[bin]]
+name = "withdraw_offers"
+path = "src/withdraw_transfers.rs"
+
 [dependencies]
 cbtc = { path = "../cbtc" }
 common = { path = "../common" }

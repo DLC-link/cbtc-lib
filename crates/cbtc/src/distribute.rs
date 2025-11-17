@@ -37,29 +37,25 @@ pub struct Params {
 /// If reference_base is provided, each transfer gets a unique ID:
 /// base64(reference_base + sender + receiver) in the meta field.
 pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult, String> {
-    log::debug!("Distributing to {} recipients", params.recipients.len());
+    println!("Distributing to {} recipients", params.recipients.len());
 
     // Authenticate with Keycloak
-    log::debug!("Authenticating with Keycloak...");
-    let auth = keycloak::login::password(keycloak::login::PasswordParams {
-        client_id: params.keycloak_client_id.clone(),
-        username: params.keycloak_username,
-        password: params.keycloak_password,
-        url: params.keycloak_url.clone(),
-    })
+    let mut token_state = transfer::TokenState::new(
+        params.keycloak_username,
+        params.keycloak_password,
+        params.keycloak_client_id.clone(),
+        params.keycloak_url.clone(),
+    )
     .await
-    .map_err(|e| format!("Authentication failed: {}", e))?;
+    .map_err(|e| format!("Failed to initialize token state: {}", e))?;
 
-    log::debug!("Authenticated successfully");
-    if !auth.refresh_token.is_empty() {
-        log::debug!("JWT auto-refresh enabled");
-    }
+    let access_token = token_state.get_fresh_token().await?;
 
     // Fetch all active contracts once
     let contracts = active_contracts::get(active_contracts::Params {
         ledger_host: params.ledger_host.clone(),
         party: params.sender.clone(),
-        access_token: auth.access_token.clone(),
+        access_token: access_token.clone(),
     })
     .await?;
 
@@ -73,11 +69,11 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
         .map(|c| c.created_event.contract_id.clone())
         .collect();
 
-    log::debug!("Using {} initial UTXOs", initial_holding_cids.len());
+    println!("Using {} initial UTXOs", initial_holding_cids.len());
 
     // Generate run reference if reference_base is provided
     if let Some(ref reference_base) = params.reference_base {
-        log::debug!("Using reference base: {}", reference_base);
+        println!("Using reference base: {}", reference_base);
     }
 
     // Convert recipients to the format expected by submit_sequential_chained
@@ -87,25 +83,27 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
         .map(|r| transfer::Recipient {
             receiver: r.receiver,
             amount: r.amount,
+            reference: None,
         })
         .collect();
 
     // Submit all transfers sequentially with JWT auto-refresh, chaining the change outputs
-    transfer::submit_sequential_chained(transfer::SequentialChainedParams {
-        recipients,
-        sender: params.sender,
-        instrument_id: params.instrument_id,
-        initial_holding_cids,
-        ledger_host: params.ledger_host,
-        access_token: auth.access_token,
-        registry_url: params.registry_url,
-        decentralized_party_id: params.decentralized_party_id,
-        refresh_token: Some(auth.refresh_token),
-        keycloak_client_id: Some(params.keycloak_client_id),
-        keycloak_url: Some(params.keycloak_url),
-        reference_base: params.reference_base,
-        on_transfer_complete: params.on_transfer_complete,
-    })
+    transfer::submit_sequential_chained(
+        transfer::SequentialChainedParams {
+            recipients,
+            sender: params.sender,
+            instrument_id: params.instrument_id,
+            initial_holding_cids,
+            ledger_host: params.ledger_host,
+            registry_url: params.registry_url,
+            decentralized_party_id: params.decentralized_party_id,
+            reference_base: params.reference_base,
+            on_transfer_complete: params.on_transfer_complete,
+            registry_response: None,
+            verbose: true,
+        },
+        &mut token_state,
+    )
     .await
 }
 

@@ -118,8 +118,8 @@ mod tests {
     async fn test_batch_from_csv() {
         dotenvy::dotenv().ok();
 
-        let receiver = env::var("LIB_TEST_RECEIVER_PARTY_ID")
-            .expect("LIB_TEST_RECEIVER_PARTY_ID must be set");
+        let receiver =
+            env::var("LIB_TEST_RECEIVER_PARTY_ID").expect("LIB_TEST_RECEIVER_PARTY_ID must be set");
 
         // Create a temporary CSV file
         let csv_content = format!(

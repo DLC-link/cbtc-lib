@@ -1,5 +1,7 @@
 use crate::attestor;
-use crate::constants::{CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_TEMPLATE_ID, DEPOSIT_REQUEST_TEMPLATE_ID};
+use crate::constants::{
+    CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_TEMPLATE_ID, DEPOSIT_REQUEST_TEMPLATE_ID,
+};
 use crate::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus, DepositRequest};
 use common::submission;
 use common::transfer::DisclosedContract;
@@ -70,16 +72,15 @@ pub async fn list_deposit_accounts(
     .await?;
 
     // Create template filter for DepositAccount contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(DEPOSIT_ACCOUNT_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {
@@ -118,7 +119,6 @@ pub async fn list_deposit_accounts(
 /// let account = mint::create_deposit_account(CreateDepositAccountParams {
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
-///     user_name: "user@example.com".to_string(),
 ///     access_token: "your-token".to_string(),
 ///     account_rules: rules,
 /// }).await?;
@@ -158,8 +158,6 @@ pub async fn create_deposit_account(
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
-        read_as: Some(vec![params.party.clone()]),
-        user_id: Some(params.user_name.clone()),
     };
 
     // Submit the transaction
@@ -181,9 +179,7 @@ pub async fn create_deposit_account(
 
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
-            let template_id = created_event["value"]["templateId"]
-                .as_str()
-                .unwrap_or("");
+            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
@@ -227,7 +223,12 @@ pub async fn create_deposit_account(
 /// println!("Send BTC to: {}", bitcoin_address);
 /// ```
 pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<String, String> {
-    attestor::get_bitcoin_address(&params.attestor_url, &params.account_contract_id, &params.chain).await
+    attestor::get_bitcoin_address(
+        &params.attestor_url,
+        &params.account_contract_id,
+        &params.chain,
+    )
+    .await
 }
 
 /// List all deposit requests for a party
@@ -258,16 +259,15 @@ pub async fn list_deposit_requests(
     .await?;
 
     // Create template filter for DepositRequest contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(DEPOSIT_REQUEST_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {
@@ -318,12 +318,20 @@ pub async fn get_deposit_account_status(
     let account = accounts
         .into_iter()
         .find(|a| a.contract_id == params.account_contract_id)
-        .ok_or_else(|| format!("Deposit account with contract ID {} not found", params.account_contract_id))?;
+        .ok_or_else(|| {
+            format!(
+                "Deposit account with contract ID {} not found",
+                params.account_contract_id
+            )
+        })?;
 
     // Get the Bitcoin address from attestor
-    let bitcoin_address =
-        attestor::get_bitcoin_address(&params.attestor_url, &params.account_contract_id, &params.chain)
-            .await?;
+    let bitcoin_address = attestor::get_bitcoin_address(
+        &params.attestor_url,
+        &params.account_contract_id,
+        &params.chain,
+    )
+    .await?;
 
     Ok(DepositAccountStatus {
         contract_id: account.contract_id,

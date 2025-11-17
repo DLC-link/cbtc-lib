@@ -1,5 +1,8 @@
 use crate::attestor;
-use crate::constants::{CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID};
+use crate::constants::{
+    CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_TEMPLATE_ID,
+    WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
+};
 use crate::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
 use base64::Engine;
 use common::submission;
@@ -11,39 +14,39 @@ use ledger::submit;
 use serde_json::json;
 
 /// Extract the user ID (subject claim) from a JWT access token
-fn extract_user_id_from_jwt(access_token: &str) -> Result<String, String> {
-    // JWT format: header.payload.signature
-    let parts: Vec<&str> = access_token.split('.').collect();
-    if parts.len() != 3 {
-        return Err("Invalid JWT format".to_string());
-    }
+// fn extract_user_id_from_jwt(access_token: &str) -> Result<String, String> {
+//     // JWT format: header.payload.signature
+//     let parts: Vec<&str> = access_token.split('.').collect();
+//     if parts.len() != 3 {
+//         return Err("Invalid JWT format".to_string());
+//     }
 
-    // Decode the payload (second part)
-    let payload = parts[1];
+//     // Decode the payload (second part)
+//     let payload = parts[1];
 
-    // URL-safe base64 without padding - we need to add padding for the decoder
-    let padding_needed = (4 - (payload.len() % 4)) % 4;
-    let padded = if padding_needed > 0 {
-        format!("{}{}", payload, "=".repeat(padding_needed))
-    } else {
-        payload.to_string()
-    };
+//     // URL-safe base64 without padding - we need to add padding for the decoder
+//     let padding_needed = (4 - (payload.len() % 4)) % 4;
+//     let padded = if padding_needed > 0 {
+//         format!("{}{}", payload, "=".repeat(padding_needed))
+//     } else {
+//         payload.to_string()
+//     };
 
-    // Decode base64 - use STANDARD engine with padding since we added it
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(&padded)
-        .map_err(|e| format!("Failed to decode JWT payload: {}", e))?;
+//     // Decode base64 - use STANDARD engine with padding since we added it
+//     let decoded = base64::engine::general_purpose::STANDARD
+//         .decode(&padded)
+//         .map_err(|e| format!("Failed to decode JWT payload: {}", e))?;
 
-    // Parse JSON
-    let json: serde_json::Value = serde_json::from_slice(&decoded)
-        .map_err(|e| format!("Failed to parse JWT payload JSON: {}", e))?;
+//     // Parse JSON
+//     let json: serde_json::Value = serde_json::from_slice(&decoded)
+//         .map_err(|e| format!("Failed to parse JWT payload JSON: {}", e))?;
 
-    // Extract 'sub' claim (user ID / UUID)
-    json.get("sub")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "JWT does not contain 'sub' claim".to_string())
-}
+//     // Extract 'sub' claim (user ID / UUID)
+//     json.get("sub")
+//         .and_then(|v| v.as_str())
+//         .map(|s| s.to_string())
+//         .ok_or_else(|| "JWT does not contain 'sub' claim".to_string())
+// }
 
 /// Parameters for listing withdraw accounts
 pub struct ListWithdrawAccountsParams {
@@ -112,16 +115,15 @@ pub async fn list_withdraw_accounts(
     .await?;
 
     // Create template filter for WithdrawAccount contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(WITHDRAW_ACCOUNT_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {
@@ -172,9 +174,6 @@ pub async fn list_withdraw_accounts(
 pub async fn create_withdraw_account(
     params: CreateWithdrawAccountParams,
 ) -> Result<WithdrawAccount, String> {
-    // Extract user ID from JWT access token
-    let user_id = extract_user_id_from_jwt(&params.access_token)?;
-
     // Generate a random command ID
     let command_id = format!("cmd-{}", uuid::Uuid::new_v4());
 
@@ -208,8 +207,6 @@ pub async fn create_withdraw_account(
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
-        read_as: Some(vec![params.party.clone()]),
-        user_id: Some(user_id),
     };
 
     // Submit the transaction
@@ -231,9 +228,7 @@ pub async fn create_withdraw_account(
 
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
-            let template_id = created_event["value"]["templateId"]
-                .as_str()
-                .unwrap_or("");
+            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
@@ -289,16 +284,15 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
     .await?;
 
     // Create template filter for Holding contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(HOLDING_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {
@@ -347,7 +341,6 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 /// let withdraw_request = redeem::request_withdraw(RequestWithdrawParams {
 ///     ledger_host: ledger_host.clone(),
 ///     party: party_id.clone(),
-///     user_name: "user@example.com".to_string(),
 ///     access_token: access_token.clone(),
 ///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
 ///     chain: "canton-devnet".to_string(),
@@ -357,9 +350,6 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 /// }).await?;
 /// ```
 pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawRequest, String> {
-    // Extract user ID from JWT access token
-    let user_id = extract_user_id_from_jwt(&params.access_token)?;
-
     // Get token standard contracts from attestor
     let token_contracts: TokenStandardContracts =
         attestor::get_token_standard_contracts(&params.attestor_url, &params.chain).await?;
@@ -474,7 +464,9 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
     });
 
     // Validate amount is a valid number
-    let _: f64 = params.amount.parse()
+    let _: f64 = params
+        .amount
+        .parse()
         .map_err(|e| format!("Invalid amount format: {}", e))?;
 
     // Build choice argument JSON manually to preserve decimal format
@@ -488,7 +480,7 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
             "extraArgs": {}
         }}"#,
         serde_json::to_string(&params.holding_contract_ids).unwrap(),
-        params.amount,  // Keep as quoted string
+        params.amount, // Keep as quoted string
         token_contracts.burn_mint_factory.contract_id,
         serde_json::to_string(&extra_args).unwrap()
     );
@@ -512,8 +504,6 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
-        read_as: Some(vec![params.party.clone()]),
-        user_id: Some(user_id),
     };
 
     // Submit the transaction
@@ -535,9 +525,7 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
 
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
-            let template_id = created_event["value"]["templateId"]
-                .as_str()
-                .unwrap_or("");
+            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawRequest:CBTCWithdrawRequest") {
@@ -601,16 +589,15 @@ pub async fn list_withdraw_requests(
     .await?;
 
     // Create template filter for WithdrawRequest contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(WITHDRAW_REQUEST_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {

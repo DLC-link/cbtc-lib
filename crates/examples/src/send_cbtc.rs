@@ -1,32 +1,16 @@
 /// Example: Send CBTC to another party
 ///
-/// This example demonstrates how to:
-/// 1. Authenticate with Keycloak
-/// 2. Create a transfer from sender to receiver
-/// 3. Submit the transfer to the Canton network
-///
 /// Run with: cargo run -p examples --example send_cbtc
 ///
-/// Required environment variables:
-/// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
-/// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
-/// - LEDGER_HOST, PARTY_ID, DECENTRALIZED_PARTY_ID, REGISTRY_URL
-/// - LIB_TEST_RECEIVER_PARTY_ID (the recipient)
-///
-/// Optional:
-/// - TRANSFER_AMOUNT (default: 0.1)
-
+/// Make sure to set up your .env file with the required configuration.
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    // Load environment variables from .env file
+    // Load environment variables
     dotenvy::dotenv().ok();
 
-    // ============================================================================
-    // STEP 1: Authenticate with Keycloak
-    // ============================================================================
-    // All Canton operations require authentication via OIDC (Keycloak)
+    // Authenticate
     println!("Authenticating...");
     let login_params = keycloak::login::PasswordParams {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
@@ -42,31 +26,22 @@ async fn main() -> Result<(), String> {
         .await
         .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    println!("✅ Authenticated successfully!");
+    println!("Authenticated successfully!");
 
-    // ============================================================================
-    // STEP 2: Set up transfer parameters
-    // ============================================================================
+    // Set up transfer parameters
     let sender_party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let receiver_party = env::var("LIB_TEST_RECEIVER_PARTY_ID")
         .expect("LIB_TEST_RECEIVER_PARTY_ID must be set (the party to send CBTC to)");
-    let amount = env::var("TRANSFER_AMOUNT")
-        .unwrap_or_else(|_| "0.1".to_string());
+    let amount = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.1".to_string());
 
-    println!("\n📤 Sending {} CBTC", amount);
+    println!("\nSending {} CBTC", amount);
     println!("From: {}", sender_party);
-    println!("To:   {}", receiver_party);
+    println!("To: {}", receiver_party);
 
-    let decentralized_party = env::var("DECENTRALIZED_PARTY_ID")
-        .expect("DECENTRALIZED_PARTY_ID must be set");
+    // Create transfer
+    let decentralized_party =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
-    // ============================================================================
-    // STEP 3: Create and submit the transfer
-    // ============================================================================
-    // The library automatically:
-    // - Selects appropriate UTXOs (if input_holding_cids is None)
-    // - Creates necessary disclosed contracts
-    // - Submits to the Canton ledger
     let transfer_params = cbtc::transfer::Params {
         transfer: common::transfer::Transfer {
             sender: sender_party,
@@ -78,10 +53,10 @@ async fn main() -> Result<(), String> {
             },
             requested_at: chrono::Utc::now().to_rfc3339(),
             execute_before: chrono::Utc::now()
-                .checked_add_signed(chrono::Duration::hours(24))
+                .checked_add_signed(chrono::Duration::hours(168))
                 .unwrap()
                 .to_rfc3339(),
-            input_holding_cids: None, // Auto-select UTXOs
+            input_holding_cids: None, // Library will auto-select UTXOs
             meta: None,
         },
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
@@ -90,12 +65,12 @@ async fn main() -> Result<(), String> {
         decentralized_party_id: decentralized_party,
     };
 
-    println!("\n⏳ Submitting transfer...");
+    // Submit transfer
+    println!("\nSubmitting transfer...");
     cbtc::transfer::submit(transfer_params).await?;
 
-    println!("\n✅ Transfer submitted successfully!");
-    println!("\nℹ️  Note: The receiver must accept the transfer for it to complete.");
-    println!("    The receiver can use the accept_transfers example to accept it.");
+    println!("✅ Transfer submitted successfully!");
+    println!("\nNote: The receiver must accept the transfer for it to complete.");
 
     Ok(())
 }

@@ -18,7 +18,7 @@ All examples should be run from the workspace root directory.
 ### Check Balance
 Check your CBTC balance and UTXO count:
 ```bash
-cargo run -p examples --example check_balance
+cargo run -p examples --bin check_balance
 ```
 
 ### Send CBTC
@@ -27,23 +27,59 @@ Send CBTC to another party:
 # Set the amount and receiver in .env or environment
 export TRANSFER_AMOUNT=0.1
 export LIB_TEST_RECEIVER_PARTY_ID="receiver-party::1220..."
-cargo run -p examples --example send_cbtc
+cargo run -p examples --bin send_cbtc
 ```
+
+### List Incoming Offers
+List all pending CBTC transfer offers where you are the receiver:
+```bash
+cargo run -p examples --bin list_incoming_offers
+```
+
+This example lists all pending transfers waiting for you to accept.
+
+### List Outgoing Offers
+List all pending CBTC transfer offers where you are the sender:
+```bash
+cargo run -p examples --bin list_outgoing_offers
+```
+
+This example shows all transfers you've sent that haven't been accepted yet.
 
 ### Accept Pending Transfers
 Accept all pending CBTC transfers for your party:
 ```bash
-cargo run -p examples --example accept_transfers
+cargo run -p examples --bin accept_transfers
 ```
 
 This example automatically fetches all pending TransferInstruction contracts and accepts them in a loop. Useful for automated acceptance of incoming transfers.
+
+### Withdraw Pending Transfers
+Withdraw all pending outgoing transfers that haven't been accepted:
+```bash
+cargo run -p examples --bin withdraw_offers
+```
+
+This example withdraws all transfer offers you've sent that are still pending, returning the CBTC to your account.
+
+### Stream CBTC
+Stream CBTC to a single receiver multiple times:
+```bash
+# Set the streaming parameters
+export RECEIVER_PARTY="receiver-party::1220..."
+export TRANSFER_COUNT=10
+export TRANSFER_AMOUNT=0.001
+cargo run -p examples --bin stream_cbtc
+```
+
+This example sends multiple transfers to the same receiver, useful for streaming payments or testing repeated transfers.
 
 ### Consolidate UTXOs
 Check and consolidate UTXOs if needed:
 ```bash
 # Optional: set custom threshold (default is 10)
 export CONSOLIDATION_THRESHOLD=8
-cargo run -p examples --example consolidate_utxos
+cargo run -p examples --bin consolidate_utxos
 ```
 
 ### Batch Distribute
@@ -55,11 +91,11 @@ Distribute CBTC to multiple recipients from a CSV file:
 # party2::1220...,3.5
 
 # Run the example
-cargo run -p examples --example batch_distribute
+cargo run -p examples --bin batch_distribute
 
 # Or specify a custom CSV path
 export RECIPIENTS_CSV=my_recipients.csv
-cargo run -p examples --example batch_distribute
+cargo run -p examples --bin batch_distribute
 ```
 
 See `recipients_example.csv` for the CSV format.
@@ -67,7 +103,7 @@ See `recipients_example.csv` for the CSV format.
 ### Batch Distribute with Callback
 Distribute CBTC to multiple recipients with real-time result logging:
 ```bash
-cargo run -p examples --example batch_with_callback
+cargo run -p examples --bin batch_with_callback
 ```
 
 This example demonstrates the callback feature, which allows you to process transfer results as they complete. The callback writes one line per transfer to a timestamped log file.
@@ -264,3 +300,8 @@ Optional:
 - `LIB_TEST_RECEIVER_PARTY_ID` - Receiver party for transfers
 - `CONSOLIDATION_THRESHOLD` - UTXO threshold for consolidation (default: 10)
 - `RECIPIENTS_CSV` - Path to CSV file for batch distribution (default: recipients.csv)
+
+For stream example:
+- `RECEIVER_PARTY` - The party ID to receive all stream transfers
+- `TRANSFER_COUNT` - Number of transfers to send in the stream
+- `TRANSFER_AMOUNT` - Amount per transfer

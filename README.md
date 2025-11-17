@@ -227,6 +227,10 @@ This library provides several high-level operations for working with CBTC tokens
 | **Check Balance** | [`check_balance.rs`](crates/examples/src/check_balance.rs) | `cargo run -p examples --bin check_balance` | View your CBTC balance and UTXO count |
 | **Send CBTC** | [`send_cbtc.rs`](crates/examples/src/send_cbtc.rs) | `cargo run -p examples --bin send_cbtc` | Transfer tokens to another party |
 | **Accept CBTC** | [`accept_transfers.rs`](crates/examples/src/accept_transfers.rs) | `cargo run -p examples --bin accept_transfers` | Accept incoming transfers |
+| **List Incoming Offers** | [`list_incoming_offers.rs`](crates/examples/src/list_incoming_offers.rs) | `cargo run -p examples --bin list_incoming_offers` | List pending transfers where you're the receiver |
+| **List Outgoing Offers** | [`list_outgoing_offers.rs`](crates/examples/src/list_outgoing_offers.rs) | `cargo run -p examples --bin list_outgoing_offers` | List pending transfers where you're the sender |
+| **Withdraw Offers** | [`withdraw_transfers.rs`](crates/examples/src/withdraw_transfers.rs) | `cargo run -p examples --bin withdraw_offers` | Withdraw all pending outgoing transfers |
+| **Stream CBTC** | [`stream.rs`](crates/examples/src/stream.rs) | `cargo run -p examples --bin stream_cbtc` | Stream CBTC to a single receiver multiple times |
 | **Batch Distribution** | [`batch_distribute.rs`](crates/examples/src/batch_distribute.rs) | `cargo run -p examples --bin batch_distribute` | Distribute to multiple recipients from CSV |
 | **Consolidate UTXOs** | [`consolidate_utxos.rs`](crates/examples/src/consolidate_utxos.rs) | `cargo run -p examples --bin consolidate_utxos` | Merge multiple UTXOs into one |
 
@@ -352,6 +356,10 @@ See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_wi
 
 #### `cbtc::accept`
 - `submit(Params)` - Accept an incoming CBTC transfer
+
+#### `cbtc::withdraw`
+- `withdraw_all(WithdrawAllParams)` - Withdraw all pending outgoing transfers
+- `submit(Params)` - Withdraw a specific transfer offer
 
 #### `cbtc::distribute`
 - `submit(Params)` - Distribute CBTC to multiple recipients

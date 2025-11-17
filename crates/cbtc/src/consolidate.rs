@@ -72,7 +72,7 @@ pub struct ConsolidateParams {
 /// };
 ///
 /// let count = consolidate::get_utxo_count(params).await?;
-/// println!("Party has {} CBTC UTXOs", count);
+/// log::debug!("Party has {} CBTC UTXOs", count);
 /// ```
 pub async fn get_utxo_count(params: GetUtxoCountParams) -> Result<usize, String> {
     let contracts = active_contracts::get(active_contracts::Params {
@@ -108,7 +108,7 @@ pub async fn get_utxo_count(params: GetUtxoCountParams) -> Result<usize, String>
 /// };
 ///
 /// let result_cids = consolidate::consolidate_utxos(params).await?;
-/// println!("Consolidated into {} UTXO(s)", result_cids.len());
+/// log::debug!("Consolidated into {} UTXO(s)", result_cids.len());
 /// ```
 pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>, String> {
     // Get the holdings to consolidate
@@ -307,9 +307,9 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
 ///
 /// let result = consolidate::check_and_consolidate(params).await?;
 /// if result.consolidated {
-///     println!("Consolidated {} UTXOs into {}", result.utxos_before, result.utxos_after);
+///     log::debug!("Consolidated {} UTXOs into {}", result.utxos_before, result.utxos_after);
 /// } else {
-///     println!("No consolidation needed. Party has {} UTXOs", result.utxos_before);
+///     log::debug!("No consolidation needed. Party has {} UTXOs", result.utxos_before);
 /// }
 /// ```
 pub async fn check_and_consolidate(

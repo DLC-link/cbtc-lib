@@ -22,7 +22,13 @@ pub async fn fetch_incoming_transfers(
     party: String,
     access_token: String,
 ) -> Result<Vec<ledger::models::JsActiveContract>, String> {
-    fetch_transfers(ledger_host, party, access_token, TransferDirection::Incoming).await
+    fetch_transfers(
+        ledger_host,
+        party,
+        access_token,
+        TransferDirection::Incoming,
+    )
+    .await
 }
 
 /// Fetch all pending CBTC TransferInstruction contracts for a party where the party is the sender
@@ -31,7 +37,13 @@ pub async fn fetch_outgoing_transfers(
     party: String,
     access_token: String,
 ) -> Result<Vec<ledger::models::JsActiveContract>, String> {
-    fetch_transfers(ledger_host, party, access_token, TransferDirection::Outgoing).await
+    fetch_transfers(
+        ledger_host,
+        party,
+        access_token,
+        TransferDirection::Outgoing,
+    )
+    .await
 }
 
 enum TransferDirection {
@@ -75,7 +87,7 @@ async fn fetch_transfers(
     })
     .await?;
 
-    println!(
+    log::debug!(
         "Total active TransferInstruction contracts fetched: {}",
         result.len()
     );

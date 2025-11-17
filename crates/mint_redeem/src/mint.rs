@@ -220,7 +220,7 @@ pub async fn create_deposit_account(
 ///     chain: "canton-devnet".to_string(),
 /// }).await?;
 ///
-/// println!("Send BTC to: {}", bitcoin_address);
+/// log::debug!("Send BTC to: {}", bitcoin_address);
 /// ```
 pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<String, String> {
     attestor::get_bitcoin_address(
@@ -245,7 +245,7 @@ pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<Stri
 /// }).await?;
 ///
 /// for request in requests {
-///     println!("Deposit: {} BTC in tx {}", request.amount, request.btc_tx_id);
+///     log::debug!("Deposit: {} BTC in tx {}", request.amount, request.btc_tx_id);
 /// }
 /// ```
 pub async fn list_deposit_requests(
@@ -301,7 +301,7 @@ pub async fn list_deposit_requests(
 ///     account_contract_id: deposit_account.contract_id,
 /// }).await?;
 ///
-/// println!("Bitcoin address: {}", status.bitcoin_address);
+/// log::debug!("Bitcoin address: {}", status.bitcoin_address);
 /// ```
 pub async fn get_deposit_account_status(
     params: GetDepositAccountStatusParams,

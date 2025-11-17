@@ -37,7 +37,7 @@ pub struct Params {
 /// If reference_base is provided, each transfer gets a unique ID:
 /// base64(reference_base + sender + receiver) in the meta field.
 pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult, String> {
-    println!("Distributing to {} recipients", params.recipients.len());
+    log::debug!("Distributing to {} recipients", params.recipients.len());
 
     // Authenticate with Keycloak
     let mut token_state = transfer::TokenState::new(
@@ -69,11 +69,11 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
         .map(|c| c.created_event.contract_id.clone())
         .collect();
 
-    println!("Using {} initial UTXOs", initial_holding_cids.len());
+    log::debug!("Using {} initial UTXOs", initial_holding_cids.len());
 
     // Generate run reference if reference_base is provided
     if let Some(ref reference_base) = params.reference_base {
-        println!("Using reference base: {}", reference_base);
+        log::debug!("Using reference base: {}", reference_base);
     }
 
     // Convert recipients to the format expected by submit_sequential_chained

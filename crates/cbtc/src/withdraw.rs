@@ -142,7 +142,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
 ///
 /// Returns a summary of successful and failed withdrawals.
 pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult, String> {
-    println!("Authenticating with Keycloak...");
+    log::debug!("Authenticating with Keycloak...");
     let auth = keycloak::login::password(keycloak::login::PasswordParams {
         client_id: params.keycloak_client_id,
         username: params.keycloak_username,
@@ -152,13 +152,13 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
     .await
     .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    println!("✓ Authenticated successfully");
+    log::debug!("✓ Authenticated successfully");
 
-    println!(
+    log::debug!(
         "\nChecking for pending transfers sent by party: {}",
         params.sender_party
     );
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    log::debug!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     // Fetch pending transfer instructions sent by this party
     let pending_transfers = crate::utils::fetch_outgoing_transfers(
@@ -169,7 +169,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
     .await?;
 
     if pending_transfers.is_empty() {
-        println!("No pending outgoing transfers found");
+        log::debug!("No pending outgoing transfers found");
         return Ok(WithdrawAllResult {
             results: Vec::new(),
             successful_count: 0,
@@ -177,13 +177,13 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         });
     }
 
-    println!(
+    log::debug!(
         "Found {} pending outgoing transfer(s)",
         pending_transfers.len()
     );
 
     // OPTIMIZATION 1: Fetch withdraw_context once (same for all CBTC transfers)
-    println!("Fetching withdraw context (shared for all CBTC transfers)...");
+    log::debug!("Fetching withdraw context (shared for all CBTC transfers)...");
     let first_contract_id = &pending_transfers[0].created_event.contract_id;
     let withdraw_context = registry::accept_context::get(registry::accept_context::Params {
         registry_url: params.registry_url.clone(),
@@ -196,16 +196,18 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         },
     })
     .await?;
-    println!("✓ Withdraw context fetched\n");
+    log::debug!("✓ Withdraw context fetched\n");
 
     // OPTIMIZATION 2: Build and submit commands in batches of 5
     const BATCH_SIZE: usize = 5;
     let total_transfers = pending_transfers.len();
     let num_batches = (total_transfers + BATCH_SIZE - 1) / BATCH_SIZE;
 
-    println!(
+    log::debug!(
         "\nSubmitting {} withdrawals in {} batch(es) of up to {}...",
-        total_transfers, num_batches, BATCH_SIZE
+        total_transfers,
+        num_batches,
+        BATCH_SIZE
     );
 
     let mut results = Vec::new();
@@ -218,7 +220,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         let start_idx = batch_idx * BATCH_SIZE;
         let end_idx = std::cmp::min(start_idx + batch_transfers.len(), total_transfers);
 
-        println!(
+        log::debug!(
             "\n--- Batch {}/{}: Preparing withdrawals {}-{} ---",
             batch_num,
             num_batches,
@@ -243,7 +245,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
                 contract_id.clone()
             };
 
-            println!("  {}. Preparing {}", global_idx + 1, short_id);
+            log::debug!("  {}. Preparing {}", global_idx + 1, short_id);
 
             // Extract transfer details from create_argument
             let mut amount = None;
@@ -253,11 +255,11 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
                 if let Some(transfer_data) = create_arg.get("transfer") {
                     if let Some(amt) = transfer_data.get("amount") {
                         amount = amt.as_str().map(|s| s.to_string());
-                        println!("     Amount: {}", amt);
+                        log::debug!("     Amount: {}", amt);
                     }
                     if let Some(rcvr) = transfer_data.get("receiver") {
                         receiver = rcvr.as_str().map(|s| s.to_string());
-                        println!("     To: {}", rcvr.as_str().unwrap_or("unknown"));
+                        log::debug!("     To: {}", rcvr.as_str().unwrap_or("unknown"));
                     }
                 }
             }
@@ -298,7 +300,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         }
 
         // Submit this batch
-        println!("\n  Submitting batch {}/{}...", batch_num, num_batches);
+        log::debug!("\n  Submitting batch {}/{}...", batch_num, num_batches);
 
         let submission_request = common::submission::Submission {
             act_as: vec![params.sender_party.clone()],
@@ -315,7 +317,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         .await
         {
             Ok(_) => {
-                println!("  ✓ Batch {}/{} successful", batch_num, num_batches);
+                log::debug!("  ✓ Batch {}/{} successful", batch_num, num_batches);
                 // Mark this batch's results as successful
                 for (idx_in_batch, result) in batch_results.iter_mut().enumerate() {
                     result.success = true;
@@ -330,7 +332,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
                     } else {
                         result.contract_id.clone()
                     };
-                    println!(
+                    log::debug!(
                         "    {}. {} [SUCCESS]",
                         start_idx + idx_in_batch + 1,
                         short_id
@@ -338,7 +340,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
                 }
             }
             Err(e) => {
-                println!("  ✗ Batch {}/{} failed: {}", batch_num, num_batches, e);
+                log::debug!("  ✗ Batch {}/{} failed: {}", batch_num, num_batches, e);
                 // Mark this batch's results as failed
                 for (idx_in_batch, result) in batch_results.iter_mut().enumerate() {
                     result.error = Some(e.clone());
@@ -353,7 +355,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
                     } else {
                         result.contract_id.clone()
                     };
-                    println!(
+                    log::debug!(
                         "    {}. {} [FAILED]",
                         start_idx + idx_in_batch + 1,
                         short_id
@@ -366,10 +368,10 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         results.extend(batch_results);
     }
 
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("Summary:");
-    println!("  Withdrawn: {}", successful_count);
-    println!("  Failed: {}", failed_count);
+    log::debug!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    log::debug!("Summary:");
+    log::debug!("  Withdrawn: {}", successful_count);
+    log::debug!("  Failed: {}", failed_count);
 
     Ok(WithdrawAllResult {
         successful_count,

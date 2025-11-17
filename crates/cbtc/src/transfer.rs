@@ -264,7 +264,7 @@ pub async fn submit_sequential_chained(
     }
 
     if params.verbose {
-        println!(
+        log::debug!(
             "Starting sequential chained transfers: {} transfers from {}",
             params.recipients.len(),
             params.sender
@@ -296,7 +296,7 @@ pub async fn submit_sequential_chained(
             };
 
             if params.verbose {
-                println!("Fetching transfer factory context from registry (once)...");
+                log::debug!("Fetching transfer factory context from registry (once)...");
             }
             let additional_information =
                 registry::transfer_factory::get(registry::transfer_factory::Params {
@@ -328,7 +328,7 @@ pub async fn submit_sequential_chained(
     let disclosed_contracts = additional_information.choice_context.disclosed_contracts;
 
     if params.verbose {
-        println!("✓ Registry context fetched successfully");
+        log::debug!("✓ Registry context fetched successfully");
     }
 
     // Track results and current holdings
@@ -343,16 +343,19 @@ pub async fn submit_sequential_chained(
     for (idx, recipient) in params.recipients.into_iter().enumerate() {
         let transfer_num = idx + 1;
         if params.verbose {
-            println!(
+            log::debug!(
                 "\n[{}/{}] Transferring {} to {}...",
-                transfer_num, total_transfers, recipient.amount, recipient.receiver
+                transfer_num,
+                total_transfers,
+                recipient.amount,
+                recipient.receiver
             );
         }
 
         if current_holding_cids.is_empty() {
             let error_msg = "No UTXOs available for transfer".to_string();
             if params.verbose {
-                println!("  ✗ {}", error_msg);
+                log::debug!("  ✗ {}", error_msg);
             }
             let result = TransferResult {
                 success: false,
@@ -382,7 +385,7 @@ pub async fn submit_sequential_chained(
             Err(e) => {
                 let error_msg = format!("Failed to get fresh token: {}", e);
                 if params.verbose {
-                    println!("  ✗ {}", error_msg);
+                    log::debug!("  ✗ {}", error_msg);
                 }
                 let result = TransferResult {
                     success: false,
@@ -488,10 +491,10 @@ pub async fn submit_sequential_chained(
                 match parse_transfer_response(&response_raw) {
                     Ok((sender_change_cids, transfer_offer_cid, update_id)) => {
                         if params.verbose {
-                            println!("  ✓ Transfer successful");
-                            println!("    Transfer Offer: {}", transfer_offer_cid);
-                            println!("    Update ID: {}", update_id);
-                            println!("    Change UTXOs: {} remaining", sender_change_cids.len());
+                            log::debug!("  ✓ Transfer successful");
+                            log::debug!("    Transfer Offer: {}", transfer_offer_cid);
+                            log::debug!("    Update ID: {}", update_id);
+                            log::debug!("    Change UTXOs: {} remaining", sender_change_cids.len());
                         }
 
                         let result = TransferResult {
@@ -520,8 +523,8 @@ pub async fn submit_sequential_chained(
                     Err(e) => {
                         let error_msg = format!("Failed to parse transfer response: {}", e);
                         if params.verbose {
-                            println!("  ✗ {}", error_msg);
-                            println!("    Note: Change UTXOs preserved for next transfer");
+                            log::debug!("  ✗ {}", error_msg);
+                            log::debug!("    Note: Change UTXOs preserved for next transfer");
                         }
                         let result = TransferResult {
                             success: false,
@@ -549,8 +552,8 @@ pub async fn submit_sequential_chained(
             Err(e) => {
                 let error_msg = format!("Ledger submission failed: {}", e);
                 if params.verbose {
-                    println!("  ✗ {}", error_msg);
-                    println!("    Note: Change UTXOs preserved, will retry next transfer");
+                    log::debug!("  ✗ {}", error_msg);
+                    log::debug!("    Note: Change UTXOs preserved, will retry next transfer");
                 }
                 let result = TransferResult {
                     success: false,
@@ -577,11 +580,11 @@ pub async fn submit_sequential_chained(
     }
 
     if params.verbose {
-        println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        println!("Transfer Summary:");
-        println!("  Successful: {}", successful_count);
-        println!("  Failed: {}", failed_count);
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        log::debug!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        log::debug!("Transfer Summary:");
+        log::debug!("  Successful: {}", successful_count);
+        log::debug!("  Failed: {}", failed_count);
+        log::debug!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
 
     Ok(SequentialChainedResult {
@@ -649,7 +652,7 @@ pub fn parse_transfer_response(
 
 /// Generate a unique reference by concatenating reference_base + sender + receiver and base64 encoding
 fn generate_unique_reference(reference_base: &str, sender: &str, receiver: &str) -> String {
-    use base64::{Engine as _, engine::general_purpose};
+    use base64::{engine::general_purpose, Engine as _};
 
     let combined = format!("{}-{}-{}", reference_base, sender, receiver);
     general_purpose::STANDARD.encode(combined.as_bytes())
@@ -658,7 +661,7 @@ fn generate_unique_reference(reference_base: &str, sender: &str, receiver: &str)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{PasswordParams, password, password_url};
+    use keycloak::login::{password, password_url, PasswordParams};
     use std::env;
     use std::ops::Add;
 

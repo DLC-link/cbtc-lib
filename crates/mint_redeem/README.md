@@ -95,7 +95,7 @@ async fn main() -> Result<(), String> {
         }
     ).await?;
 
-    println!("Deposit account created: {}", deposit_account.id);
+    log::debug!("Deposit account created: {}", deposit_account.id);
 
     // Step 4: Get the Bitcoin address for this deposit account
     // The attestor generates a unique BTC address for your deposit account
@@ -109,8 +109,8 @@ async fn main() -> Result<(), String> {
         }
     ).await?;
 
-    println!("Send BTC to: {}", bitcoin_address);
-    println!("Waiting for BTC deposit (requires 6+ confirmations)...");
+    log::debug!("Send BTC to: {}", bitcoin_address);
+    log::debug!("Waiting for BTC deposit (requires 6+ confirmations)...");
 
     // Step 5: Monitor for deposit requests
     // Once the attestor confirms your BTC deposit (6+ blocks), it automatically
@@ -126,9 +126,9 @@ async fn main() -> Result<(), String> {
         ).await?;
 
         if !requests.is_empty() {
-            println!("CBTC minted! {} deposit request(s) found", requests.len());
+            log::debug!("CBTC minted! {} deposit request(s) found", requests.len());
             for request in &requests {
-                println!("  Amount: {} BTC (tx: {})", request.amount, request.btc_tx_id);
+                log::debug!("  Amount: {} BTC (tx: {})", request.amount, request.btc_tx_id);
             }
             break;
         }
@@ -182,8 +182,8 @@ async fn main() -> Result<(), String> {
         }
     ).await?;
 
-    println!("Withdraw account created: {}", withdraw_account.contract_id);
-    println!("BTC will be sent to: {}", withdraw_account.destination_btc_address);
+    log::debug!("Withdraw account created: {}", withdraw_account.contract_id);
+    log::debug!("BTC will be sent to: {}", withdraw_account.destination_btc_address);
 
     // Step 4: List your CBTC holdings to select which to burn
     // Holdings are UTXO-based, similar to Bitcoin. You may have multiple
@@ -255,9 +255,9 @@ async fn main() -> Result<(), String> {
         }
     ).await?;
 
-    println!("Withdrawal requested!");
-    println!("CBTC burned: {}", burn_amount);
-    println!("BTC will be sent to: {}", withdraw_account.destination_btc_address);
+    log::debug!("Withdrawal requested!");
+    log::debug!("CBTC burned: {}", burn_amount);
+    log::debug!("BTC will be sent to: {}", withdraw_account.destination_btc_address);
 
     // Step 8: Monitor withdrawal status
     // The attestor processes withdrawals and updates the btc_tx_id field
@@ -273,12 +273,12 @@ async fn main() -> Result<(), String> {
 
         if let Some(request) = requests.iter().find(|r| r.contract_id == withdraw_request.contract_id) {
             if let Some(tx_id) = &request.btc_tx_id {
-                println!("BTC sent! Transaction ID: {}", tx_id);
+                log::debug!("BTC sent! Transaction ID: {}", tx_id);
                 break;
             }
         }
 
-        println!("Waiting for attestor to process withdrawal...");
+        log::debug!("Waiting for attestor to process withdrawal...");
         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
     }
 
@@ -312,16 +312,16 @@ let status = mint::get_deposit_account_status(
 ).await?;
 
 // The Bitcoin address where you should send BTC
-println!("Bitcoin Address: {}", status.bitcoin_address);
+log::debug!("Bitcoin Address: {}", status.bitcoin_address);
 
 // Pending balance indicates BTC detected but not yet confirmed (< 6 confirmations)
 // Once confirmed, this returns to "0" and a DepositRequest is created
-println!("Pending Balance: {} BTC", status.pending_balance);
-println!("Has Pending: {}", status.has_pending_balance);
+log::debug!("Pending Balance: {} BTC", status.pending_balance);
+log::debug!("Has Pending: {}", status.has_pending_balance);
 
 // The last Bitcoin block height that was scanned for deposits
 // Useful for debugging if deposits aren't being detected
-println!("Last Processed Block: {}", status.last_processed_bitcoin_block);
+log::debug!("Last Processed Block: {}", status.last_processed_bitcoin_block);
 ```
 
 ### Running the Complete Examples

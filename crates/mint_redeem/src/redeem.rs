@@ -273,7 +273,7 @@ pub async fn create_withdraw_account(
 ///     .filter(|h| h.instrument_id == "CBTC")
 ///     .map(|h| h.amount.parse::<f64>().unwrap_or(0.0))
 ///     .sum();
-/// println!("Total CBTC holdings: {}", total_cbtc);
+/// log::debug!("Total CBTC holdings: {}", total_cbtc);
 /// ```
 pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, String> {
     // Get ledger end offset
@@ -572,9 +572,9 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
 ///
 /// for request in requests {
 ///     if let Some(tx_id) = request.btc_tx_id {
-///         println!("Withdrawal complete: {} BTC sent in tx {}", request.amount, tx_id);
+///         log::debug!("Withdrawal complete: {} BTC sent in tx {}", request.amount, tx_id);
 ///     } else {
-///         println!("Withdrawal pending: {} BTC to {}", request.amount, request.destination_btc_address);
+///         log::debug!("Withdrawal pending: {} BTC to {}", request.amount, request.destination_btc_address);
 ///     }
 /// }
 /// ```

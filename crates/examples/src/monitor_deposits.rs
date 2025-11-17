@@ -4,10 +4,10 @@
 ///
 /// Usage:
 /// cargo run --example monitor_deposits
-use keycloak::login::{password, password_url, PasswordParams};
+use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::mint::ListDepositRequestsParams;
 use std::env;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 #[tokio::main]
 async fn main() -> Result<(), String> {

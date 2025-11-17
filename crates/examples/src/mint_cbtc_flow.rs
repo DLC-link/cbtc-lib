@@ -13,7 +13,7 @@
 /// To run this example:
 /// 1. Copy .env.example to .env and fill in your values
 /// 2. cargo run --example mint_cbtc_flow
-use keycloak::login::{password, password_url, PasswordParams};
+use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::attestor;
 use mint_redeem::mint::{
     CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,

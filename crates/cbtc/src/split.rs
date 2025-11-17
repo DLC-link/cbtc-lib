@@ -191,7 +191,7 @@ pub async fn submit(params: Params) -> Result<SplitResult, String> {
 mod tests {
     use super::*;
     use crate::active_contracts;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
 
     #[tokio::test]

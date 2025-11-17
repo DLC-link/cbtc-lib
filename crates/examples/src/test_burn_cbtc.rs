@@ -5,7 +5,7 @@
 ///
 /// Usage:
 /// cargo run --example test_burn_cbtc
-use keycloak::login::{password, password_url, PasswordParams};
+use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, RequestWithdrawParams};
 use std::env;
 

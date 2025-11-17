@@ -367,7 +367,7 @@ pub async fn check_and_consolidate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
 
     #[tokio::test]

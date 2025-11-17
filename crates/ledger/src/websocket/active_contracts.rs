@@ -3,8 +3,8 @@ use canton_api_client::models;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tokio_tungstenite::tungstenite::handshake::client::Request;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::handshake::client::Request;
 
 #[derive(Debug, Clone)]
 pub struct Params {
@@ -157,7 +157,7 @@ pub async fn get(params: Params) -> Result<Vec<models::JsActiveContract>, String
 mod tests {
     use super::*;
     use crate::ledger_end;
-    use keycloak::login::{client_credentials, client_credentials_url, ClientCredentialsParams};
+    use keycloak::login::{ClientCredentialsParams, client_credentials, client_credentials_url};
     use std::env;
     use tokio::time::Duration;
 
@@ -211,8 +211,8 @@ mod tests {
 
         if let Ok(connection_result) = result {
             match connection_result {
-                Ok(_) => {},
-                Err(_e) => {},
+                Ok(_) => {}
+                Err(_e) => {}
             }
         }
     }

@@ -28,4 +28,5 @@ pub const CREATE_WITHDRAW_ACCOUNT_CHOICE: &str = "CBTCWithdrawAccountRules_Creat
 pub const WITHDRAW_CHOICE: &str = "CBTCWithdrawAccount_Withdraw";
 
 /// Template ID for Holding contracts (CBTC tokens)
-pub const HOLDING_TEMPLATE_ID: &str = "#utility-registry-holding-v0:Utility.Registry.Holding.V0.Holding:Holding";
+pub const HOLDING_TEMPLATE_ID: &str =
+    "#utility-registry-holding-v0:Utility.Registry.Holding.V0.Holding:Holding";

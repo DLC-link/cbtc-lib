@@ -346,7 +346,7 @@ pub async fn get_deposit_account_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
 
     #[tokio::test]

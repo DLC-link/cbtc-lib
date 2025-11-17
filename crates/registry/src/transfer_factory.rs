@@ -50,7 +50,7 @@ pub async fn get(params: Params) -> Result<common::transfer_factory::Response, S
 mod tests {
     use super::*;
     use crate::consts;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::collections::HashMap;
     use std::env;
     use std::ops::Add;
@@ -100,22 +100,29 @@ mod tests {
                     expected_admin: common::consts::DEVNET_DECENTRALIZED_PARTY_ID.to_string(),
                     transfer: common::transfer::Transfer {
                         sender: env::var("PARTY_ID").expect("PARTY_ID must be set"),
-                        receiver: env::var("LIB_TEST_RECEIVER_PARTY_ID").expect("LIB_TEST_RECEIVER_PARTY_ID must be set"),
+                        receiver: env::var("LIB_TEST_RECEIVER_PARTY_ID")
+                            .expect("LIB_TEST_RECEIVER_PARTY_ID must be set"),
                         amount: "0.02".to_string(),
                         instrument_id: common::transfer::InstrumentId {
                             admin: common::consts::DEVNET_DECENTRALIZED_PARTY_ID.to_string(),
                             id: "CBTC".to_string(),
                         },
                         requested_at: chrono::Utc::now().to_rfc3339(),
-                        execute_before: chrono::Utc::now().add(chrono::Duration::hours(5)).to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .add(chrono::Duration::hours(5))
+                            .to_rfc3339(),
                         input_holding_cids: Some(input_contract_ids),
-                        meta: Some(common::transfer::Meta{
+                        meta: Some(common::transfer::Meta {
                             values: Some(transfer_meta),
                         }),
                     },
                     extra_args: common::transfer_factory::ExtraArgs {
-                        context: common::transfer_factory::Context { values: HashMap::new() },
-                        meta: common::transfer_factory::Meta { values: common::transfer_factory::MetaValue {} }
+                        context: common::transfer_factory::Context {
+                            values: HashMap::new(),
+                        },
+                        meta: common::transfer_factory::Meta {
+                            values: common::transfer_factory::MetaValue {},
+                        },
                     },
                 },
                 exclude_debug_fields: true,

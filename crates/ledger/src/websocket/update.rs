@@ -126,7 +126,7 @@ pub async fn subscribe(
 mod tests {
     use super::*;
     use crate::ledger_end;
-    use keycloak::login::{client_credentials, client_credentials_url, ClientCredentialsParams};
+    use keycloak::login::{ClientCredentialsParams, client_credentials, client_credentials_url};
     use std::env;
     use tokio::time::Duration;
 
@@ -135,8 +135,8 @@ mod tests {
         dotenvy::dotenv().ok();
 
         let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-        let party_id = env::var("DECENTRALIZED_PARTY_ID")
-            .expect("DECENTRALIZED_PARTY_ID must be set");
+        let party_id =
+            env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
         let params = ClientCredentialsParams {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
@@ -177,17 +177,15 @@ mod tests {
                     access_token: login_response.access_token,
                     ledger_end: ledger_end_response.offset,
                 },
-                |_msg| {
-                    Ok(())
-                },
+                |_msg| Ok(()),
             ),
         )
         .await;
 
         if let Ok(connection_result) = result {
             match connection_result {
-                Ok(_) => {},
-                Err(_e) => {},
+                Ok(_) => {}
+                Err(_e) => {}
             }
         }
     }

@@ -13,7 +13,7 @@
 /// 1. Make sure you have .env configured with your credentials
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
 /// 3. cargo run --example redeem_cbtc_flow
-use keycloak::login::{password, password_url, PasswordParams};
+use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::attestor;
 use mint_redeem::redeem::{
     CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,

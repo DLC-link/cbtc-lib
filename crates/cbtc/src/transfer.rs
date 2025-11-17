@@ -652,7 +652,7 @@ pub fn parse_transfer_response(
 
 /// Generate a unique reference by concatenating reference_base + sender + receiver and base64 encoding
 fn generate_unique_reference(reference_base: &str, sender: &str, receiver: &str) -> String {
-    use base64::{engine::general_purpose, Engine as _};
+    use base64::{Engine as _, engine::general_purpose};
 
     let combined = format!("{}-{}-{}", reference_base, sender, receiver);
     general_purpose::STANDARD.encode(combined.as_bytes())
@@ -661,7 +661,7 @@ fn generate_unique_reference(reference_base: &str, sender: &str, receiver: &str)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
     use std::ops::Add;
 

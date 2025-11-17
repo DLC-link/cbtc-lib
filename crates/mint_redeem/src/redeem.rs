@@ -4,7 +4,6 @@ use crate::constants::{
     WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
 };
 use crate::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
-use base64::Engine;
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -621,7 +620,7 @@ pub async fn list_withdraw_requests(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
 
     #[tokio::test]

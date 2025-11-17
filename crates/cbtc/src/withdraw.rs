@@ -155,10 +155,9 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
     log::debug!("✓ Authenticated successfully");
 
     log::debug!(
-        "\nChecking for pending transfers sent by party: {}",
+        "Checking for pending transfers sent by party: {}",
         params.sender_party
     );
-    log::debug!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     // Fetch pending transfer instructions sent by this party
     let pending_transfers = crate::utils::fetch_outgoing_transfers(
@@ -221,7 +220,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         let end_idx = std::cmp::min(start_idx + batch_transfers.len(), total_transfers);
 
         log::debug!(
-            "\n--- Batch {}/{}: Preparing withdrawals {}-{} ---",
+            "--- Batch {}/{}: Preparing withdrawals {}-{} ---",
             batch_num,
             num_batches,
             start_idx + 1,
@@ -300,7 +299,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         }
 
         // Submit this batch
-        log::debug!("\n  Submitting batch {}/{}...", batch_num, num_batches);
+        log::debug!("  Submitting batch {}/{}...", batch_num, num_batches);
 
         let submission_request = common::submission::Submission {
             act_as: vec![params.sender_party.clone()],
@@ -368,10 +367,11 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         results.extend(batch_results);
     }
 
-    log::debug!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    log::debug!("Summary:");
-    log::debug!("  Withdrawn: {}", successful_count);
-    log::debug!("  Failed: {}", failed_count);
+    log::debug!(
+        "Summary: Withdrawn: {}, Failed: {}",
+        successful_count,
+        failed_count
+    );
 
     Ok(WithdrawAllResult {
         successful_count,

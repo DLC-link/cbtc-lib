@@ -580,11 +580,11 @@ pub async fn submit_sequential_chained(
     }
 
     if params.verbose {
-        log::debug!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        log::debug!("Transfer Summary:");
-        log::debug!("  Successful: {}", successful_count);
-        log::debug!("  Failed: {}", failed_count);
-        log::debug!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        log::debug!(
+            "Transfer Summary: Successful: {}, Failed: {}",
+            successful_count,
+            failed_count
+        );
     }
 
     Ok(SequentialChainedResult {

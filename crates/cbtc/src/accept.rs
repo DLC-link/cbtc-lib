@@ -154,11 +154,9 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
     log::debug!("✓ Authenticated successfully");
 
     log::debug!(
-        "\nChecking for pending transfers for party: {}",
+        "Checking for pending transfers for party: {}",
         params.receiver_party
     );
-    log::debug!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-
     // Fetch pending transfer instructions
     let pending_transfers = crate::utils::fetch_incoming_transfers(
         params.ledger_host.clone(),
@@ -200,7 +198,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
     let num_batches = (total_transfers + BATCH_SIZE - 1) / BATCH_SIZE;
 
     log::debug!(
-        "\nSubmitting {} acceptances in {} batch(es) of up to {}...",
+        "Submitting {} acceptances in {} batch(es) of up to {}...",
         total_transfers,
         num_batches,
         BATCH_SIZE
@@ -217,7 +215,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         let end_idx = std::cmp::min(start_idx + batch_transfers.len(), total_transfers);
 
         log::debug!(
-            "\n--- Batch {}/{}: Preparing acceptances {}-{} ---",
+            "--- Batch {}/{}: Preparing acceptances {}-{} ---",
             batch_num,
             num_batches,
             start_idx + 1,
@@ -241,7 +239,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
                 contract_id.clone()
             };
 
-            log::debug!("  {}. Preparing {}", global_idx + 1, short_id);
+            log::debug!("{}. Preparing {}", global_idx + 1, short_id);
 
             // Extract transfer details from create_argument
             let mut amount = None;
@@ -251,11 +249,11 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
                 if let Some(transfer_data) = create_arg.get("transfer") {
                     if let Some(amt) = transfer_data.get("amount") {
                         amount = amt.as_str().map(|s| s.to_string());
-                        log::debug!("     Amount: {}", amt);
+                        log::debug!("Amount: {}", amt);
                     }
                     if let Some(sndr) = transfer_data.get("sender") {
                         sender = sndr.as_str().map(|s| s.to_string());
-                        log::debug!("     From: {}", sndr.as_str().unwrap_or("unknown"));
+                        log::debug!("From: {}", sndr.as_str().unwrap_or("unknown"));
                     }
                 }
             }
@@ -296,7 +294,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         }
 
         // Submit this batch
-        log::debug!("\n  Submitting batch {}/{}...", batch_num, num_batches);
+        log::debug!("Submitting batch {}/{}...", batch_num, num_batches);
 
         let submission_request = common::submission::Submission {
             act_as: vec![params.receiver_party.clone()],
@@ -364,10 +362,11 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         results.extend(batch_results);
     }
 
-    log::debug!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    log::debug!("Summary:");
-    log::debug!("  Accepted: {}", successful_count);
-    log::debug!("  Failed: {}", failed_count);
+    log::debug!(
+        "Summary: Accepted: {}, Failed: {}",
+        successful_count,
+        failed_count
+    );
 
     Ok(AcceptAllResult {
         successful_count,

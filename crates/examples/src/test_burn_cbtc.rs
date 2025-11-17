@@ -5,16 +5,14 @@
 ///
 /// Usage:
 /// cargo run --example test_burn_cbtc
-
 use keycloak::login::{password, password_url, PasswordParams};
-use mint_redeem::redeem::{
-    ListHoldingsParams, ListWithdrawAccountsParams, RequestWithdrawParams,
-};
+use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, RequestWithdrawParams};
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     let params = PasswordParams {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
@@ -33,21 +31,19 @@ async fn main() -> Result<(), String> {
     let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
     let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
 
-    let accounts =
-        mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            access_token: access_token.clone(),
-        })
-        .await?;
+    let accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
 
-    let my_accounts: Vec<_> = accounts
-        .iter()
-        .filter(|a| a.owner == party_id)
-        .collect();
+    let my_accounts: Vec<_> = accounts.iter().filter(|a| a.owner == party_id).collect();
 
     if my_accounts.is_empty() {
-        return Err("No withdraw accounts found. Run 'redeem_cbtc_flow' example first.".to_string());
+        return Err(
+            "No withdraw accounts found. Run 'redeem_cbtc_flow' example first.".to_string(),
+        );
     }
 
     let withdraw_account = my_accounts[0];
@@ -84,22 +80,24 @@ async fn main() -> Result<(), String> {
     }
 
     if selected_total < burn_amount_f64 {
-        return Err(format!("Insufficient balance. Have {}, need {}", selected_total, burn_amount));
+        return Err(format!(
+            "Insufficient balance. Have {}, need {}",
+            selected_total, burn_amount
+        ));
     }
 
-    let _withdraw_request =
-        mint_redeem::redeem::request_withdraw(RequestWithdrawParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
-            access_token: access_token.clone(),
-            attestor_url: attestor_url.clone(),
-            chain: chain.clone(),
-            withdraw_account_contract_id: withdraw_account.contract_id.clone(),
-            amount: burn_amount.to_string(),
-            holding_contract_ids: selected_holdings,
-        })
-        .await?;
+    let _withdraw_request = mint_redeem::redeem::request_withdraw(RequestWithdrawParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+        access_token: access_token.clone(),
+        attestor_url: attestor_url.clone(),
+        chain: chain.clone(),
+        withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+        amount: burn_amount.to_string(),
+        holding_contract_ids: selected_holdings,
+    })
+    .await?;
 
     Ok(())
 }

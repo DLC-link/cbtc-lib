@@ -9,6 +9,7 @@ use std::env;
 #[tokio::main]
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     // Load configuration from environment
     let sender_party = env::var("PARTY_ID").expect("PARTY_ID must be set");

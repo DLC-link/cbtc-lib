@@ -4,7 +4,6 @@
 ///
 /// Usage:
 /// cargo run --example monitor_deposits
-
 use keycloak::login::{password, password_url, PasswordParams};
 use mint_redeem::mint::ListDepositRequestsParams;
 use std::env;
@@ -13,6 +12,7 @@ use tokio::time::{sleep, Duration};
 #[tokio::main]
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     println!("=== CBTC Deposit Monitor ===\n");
 

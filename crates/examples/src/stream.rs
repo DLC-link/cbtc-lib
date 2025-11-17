@@ -16,6 +16,7 @@ use std::pin::Pin;
 #[tokio::main]
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     // Load configuration
     let sender = env::var("PARTY_ID").expect("PARTY_ID must be set");

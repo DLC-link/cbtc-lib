@@ -12,6 +12,7 @@ use std::pin::Pin;
 #[tokio::main]
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     let csv_path = std::env::var("CSV_PATH").unwrap_or_else(|_| "recipients.csv".to_string());
     let sender = std::env::var("PARTY_ID").expect("PARTY_ID must be set");

@@ -13,7 +13,6 @@
 /// To run this example:
 /// 1. Copy .env.example to .env and fill in your values
 /// 2. cargo run --example mint_cbtc_flow
-
 use keycloak::login::{password, password_url, PasswordParams};
 use mint_redeem::attestor;
 use mint_redeem::mint::{
@@ -26,6 +25,7 @@ use std::env;
 async fn main() -> Result<(), String> {
     // Load environment variables
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     println!("=== CBTC Minting Flow Example ===\n");
 
@@ -82,15 +82,14 @@ async fn main() -> Result<(), String> {
 
     // Step 4: Create a new deposit account
     println!("Step 4: Creating a new deposit account...");
-    let deposit_account =
-        mint_redeem::mint::create_deposit_account(CreateDepositAccountParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
-            access_token: access_token.clone(),
-            account_rules: account_rules.clone(),
-        })
-        .await?;
+    let deposit_account = mint_redeem::mint::create_deposit_account(CreateDepositAccountParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+        access_token: access_token.clone(),
+        account_rules: account_rules.clone(),
+    })
+    .await?;
 
     println!("✓ Deposit account created successfully!");
     println!("  - Contract ID: {}", deposit_account.contract_id);
@@ -116,16 +115,15 @@ async fn main() -> Result<(), String> {
 
     // Step 6: Get full account status
     println!("Step 6: Getting full account status...");
-    let status =
-        mint_redeem::mint::get_deposit_account_status(GetDepositAccountStatusParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            access_token: access_token.clone(),
-            attestor_url: attestor_url.clone(),
-            chain: chain.clone(),
-            account_contract_id: deposit_account.contract_id.clone(),
-        })
-        .await?;
+    let status = mint_redeem::mint::get_deposit_account_status(GetDepositAccountStatusParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+        attestor_url: attestor_url.clone(),
+        chain: chain.clone(),
+        account_contract_id: deposit_account.contract_id.clone(),
+    })
+    .await?;
 
     println!("✓ Account status:");
     println!("  - Bitcoin Address: {}", status.bitcoin_address);
@@ -138,13 +136,12 @@ async fn main() -> Result<(), String> {
 
     // Step 7: Check for deposit requests
     println!("Step 7: Checking for deposit requests...");
-    let deposit_requests =
-        mint_redeem::mint::list_deposit_requests(ListDepositRequestsParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            access_token: access_token.clone(),
-        })
-        .await?;
+    let deposit_requests = mint_redeem::mint::list_deposit_requests(ListDepositRequestsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
 
     if deposit_requests.is_empty() {
         println!("  No deposit requests found yet.");
@@ -162,7 +159,10 @@ async fn main() -> Result<(), String> {
     println!("=== Example Complete ===");
     println!();
     println!("Summary:");
-    println!("  • Your deposit account contract ID: {}", deposit_account.contract_id);
+    println!(
+        "  • Your deposit account contract ID: {}",
+        deposit_account.contract_id
+    );
     println!("  • Send BTC to: {}", bitcoin_address);
     println!("  • The attestor network will monitor this address");
     println!("  • Once BTC is confirmed, CBTC will be minted to your party");

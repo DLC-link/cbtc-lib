@@ -9,6 +9,7 @@ use std::env;
 async fn main() -> Result<(), String> {
     // Load environment variables
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     // Authenticate
     println!("Authenticating...");

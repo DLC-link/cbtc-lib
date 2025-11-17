@@ -13,7 +13,6 @@
 /// 1. Make sure you have .env configured with your credentials
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
 /// 3. cargo run --example redeem_cbtc_flow
-
 use keycloak::login::{password, password_url, PasswordParams};
 use mint_redeem::attestor;
 use mint_redeem::redeem::{
@@ -26,6 +25,7 @@ use std::env;
 async fn main() -> Result<(), String> {
     // Load environment variables
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     println!("=== CBTC Redeeming (Withdrawal) Flow Example ===\n");
 
@@ -52,13 +52,12 @@ async fn main() -> Result<(), String> {
 
     // Step 2: List existing withdraw accounts
     println!("Step 2: Listing existing withdraw accounts...");
-    let accounts =
-        mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            access_token: access_token.clone(),
-        })
-        .await?;
+    let accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
 
     println!("✓ Found {} existing withdraw account(s)", accounts.len());
     for account in &accounts {
@@ -93,7 +92,10 @@ async fn main() -> Result<(), String> {
     println!("✓ Found {} CBTC holding(s)", cbtc_holdings.len());
     println!("  Total CBTC balance: {} BTC", total_cbtc);
     for holding in &cbtc_holdings {
-        println!("    - {} BTC (CID: {})", holding.amount, holding.contract_id);
+        println!(
+            "    - {} BTC (CID: {})",
+            holding.amount, holding.contract_id
+        );
     }
     println!();
 
@@ -154,13 +156,17 @@ async fn main() -> Result<(), String> {
     // Use the first account (either existing or newly created)
     let withdraw_account = if accounts.is_empty() {
         // Fetch the newly created account
-        let updated_accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            access_token: access_token.clone(),
-        })
-        .await?;
-        updated_accounts.into_iter().next().ok_or("Failed to find newly created withdraw account")?
+        let updated_accounts =
+            mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                access_token: access_token.clone(),
+            })
+            .await?;
+        updated_accounts
+            .into_iter()
+            .next()
+            .ok_or("Failed to find newly created withdraw account")?
     } else {
         accounts[0].clone()
     };
@@ -196,21 +202,24 @@ async fn main() -> Result<(), String> {
         }
     }
 
-    println!("  Using {} holding(s) totaling {} BTC", selected_holdings.len(), selected_total);
+    println!(
+        "  Using {} holding(s) totaling {} BTC",
+        selected_holdings.len(),
+        selected_total
+    );
 
-    let withdraw_request =
-        mint_redeem::redeem::request_withdraw(RequestWithdrawParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
-            access_token: access_token.clone(),
-            attestor_url: attestor_url.clone(),
-            chain: chain.clone(),
-            withdraw_account_contract_id: withdraw_account.contract_id.clone(),
-            amount: withdraw_amount.to_string(),
-            holding_contract_ids: selected_holdings,
-        })
-        .await?;
+    let withdraw_request = mint_redeem::redeem::request_withdraw(RequestWithdrawParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+        access_token: access_token.clone(),
+        attestor_url: attestor_url.clone(),
+        chain: chain.clone(),
+        withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+        amount: withdraw_amount.to_string(),
+        holding_contract_ids: selected_holdings,
+    })
+    .await?;
 
     println!("✓ Withdraw request created successfully!");
     println!("  - Contract ID: {}", withdraw_request.contract_id);
@@ -219,7 +228,13 @@ async fn main() -> Result<(), String> {
         "  - Destination: {}",
         withdraw_request.destination_btc_address
     );
-    println!("  - BTC TX ID: {}", withdraw_request.btc_tx_id.as_ref().unwrap_or(&"Pending...".to_string()));
+    println!(
+        "  - BTC TX ID: {}",
+        withdraw_request
+            .btc_tx_id
+            .as_ref()
+            .unwrap_or(&"Pending...".to_string())
+    );
     println!();
 
     // Step 7: List all withdraw requests

@@ -8,17 +8,16 @@
 ///   receiver2-party::1220...,3.5
 ///
 /// Make sure to set up your .env file with the required configuration.
-
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
     // Load environment variables
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     // Get CSV file path from environment or use default
-    let csv_path = env::var("RECIPIENTS_CSV")
-        .unwrap_or_else(|_| "recipients.csv".to_string());
+    let csv_path = env::var("RECIPIENTS_CSV").unwrap_or_else(|_| "recipients.csv".to_string());
 
     if !std::path::Path::new(&csv_path).exists() {
         return Err(format!(
@@ -32,8 +31,8 @@ async fn main() -> Result<(), String> {
     println!("CSV File: {}", csv_path);
 
     let sender_party = env::var("PARTY_ID").expect("PARTY_ID must be set");
-    let decentralized_party = env::var("DECENTRALIZED_PARTY_ID")
-        .expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
     let batch_params = cbtc::batch::Params {
         csv_path: csv_path.clone(),

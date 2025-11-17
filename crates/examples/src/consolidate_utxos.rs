@@ -3,13 +3,13 @@
 /// Run with: cargo run -p examples --example consolidate_utxos
 ///
 /// Make sure to set up your .env file with the required configuration.
-
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
     // Load environment variables
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     // Authenticate
     println!("Authenticating...");
@@ -60,7 +60,7 @@ async fn main() -> Result<(), String> {
         println!("   Resulting holding CIDs:");
         for cid in &result.holding_cids {
             let short_id = if cid.len() > 16 {
-                format!("{}...{}", &cid[..8], &cid[cid.len()-8..])
+                format!("{}...{}", &cid[..8], &cid[cid.len() - 8..])
             } else {
                 cid.clone()
             };

@@ -12,41 +12,6 @@ use ledger::ledger_end;
 use ledger::submit;
 use serde_json::json;
 
-/// Extract the user ID (subject claim) from a JWT access token
-// fn extract_user_id_from_jwt(access_token: &str) -> Result<String, String> {
-//     // JWT format: header.payload.signature
-//     let parts: Vec<&str> = access_token.split('.').collect();
-//     if parts.len() != 3 {
-//         return Err("Invalid JWT format".to_string());
-//     }
-
-//     // Decode the payload (second part)
-//     let payload = parts[1];
-
-//     // URL-safe base64 without padding - we need to add padding for the decoder
-//     let padding_needed = (4 - (payload.len() % 4)) % 4;
-//     let padded = if padding_needed > 0 {
-//         format!("{}{}", payload, "=".repeat(padding_needed))
-//     } else {
-//         payload.to_string()
-//     };
-
-//     // Decode base64 - use STANDARD engine with padding since we added it
-//     let decoded = base64::engine::general_purpose::STANDARD
-//         .decode(&padded)
-//         .map_err(|e| format!("Failed to decode JWT payload: {}", e))?;
-
-//     // Parse JSON
-//     let json: serde_json::Value = serde_json::from_slice(&decoded)
-//         .map_err(|e| format!("Failed to parse JWT payload JSON: {}", e))?;
-
-//     // Extract 'sub' claim (user ID / UUID)
-//     json.get("sub")
-//         .and_then(|v| v.as_str())
-//         .map(|s| s.to_string())
-//         .ok_or_else(|| "JWT does not contain 'sub' claim".to_string())
-// }
-
 /// Parameters for listing withdraw accounts
 pub struct ListWithdrawAccountsParams {
     pub ledger_host: String,

@@ -44,12 +44,21 @@ upload_dar() {
     \"synchronize_vetting\": true
   }"
 
-  grpcurl \
-    -plaintext \
-    -H "Authorization: Bearer ${jwt_token}" \
-    -d @ \
-    ${canton_admin_api_url} ${canton_admin_api_grpc_package_service}.UploadDar \
-    < <(echo ${grpc_upload_dar_request} | json)
+  # Only include Authorization header if jwt_token is set
+  if [ -n "${jwt_token}" ]; then
+    grpcurl \
+      -plaintext \
+      -H "Authorization: Bearer ${jwt_token}" \
+      -d @ \
+      ${canton_admin_api_url} ${canton_admin_api_grpc_package_service}.UploadDar \
+      < <(echo ${grpc_upload_dar_request} | json)
+  else
+    grpcurl \
+      -plaintext \
+      -d @ \
+      ${canton_admin_api_url} ${canton_admin_api_grpc_package_service}.UploadDar \
+      < <(echo ${grpc_upload_dar_request} | json)
+  fi
 
   echo "Dar '${dar}' successfully uploaded"
 }

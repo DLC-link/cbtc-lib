@@ -109,7 +109,6 @@ async fn main() -> Result<(), String> {
     println!("  {}", bitcoin_address);
     println!();
     println!("📝 To mint CBTC, send BTC to this address.");
-    println!("   The attestor network will detect the deposit and create a DepositRequest.");
     println!("   Once confirmed, CBTC will be automatically minted to your Canton party.");
     println!();
 

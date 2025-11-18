@@ -115,8 +115,6 @@ pub async fn submit(params: Params) -> Result<(), String> {
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        read_as: None,
-        user_id: None,
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -247,7 +245,6 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         }
     }
 
-    
     log::debug!("Summary:");
     log::debug!("Accepted: {}", successful_count);
     if failed_count > 0 {

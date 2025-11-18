@@ -1,5 +1,8 @@
 use crate::attestor;
-use crate::constants::{CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID};
+use crate::constants::{
+    CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_TEMPLATE_ID,
+    WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
+};
 use crate::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
 use base64::Engine;
 use common::submission;
@@ -112,16 +115,15 @@ pub async fn list_withdraw_accounts(
     .await?;
 
     // Create template filter for WithdrawAccount contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(WITHDRAW_ACCOUNT_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {
@@ -208,8 +210,6 @@ pub async fn create_withdraw_account(
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
-        read_as: Some(vec![params.party.clone()]),
-        user_id: Some(user_id),
     };
 
     // Submit the transaction
@@ -231,9 +231,7 @@ pub async fn create_withdraw_account(
 
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
-            let template_id = created_event["value"]["templateId"]
-                .as_str()
-                .unwrap_or("");
+            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
@@ -289,16 +287,15 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
     .await?;
 
     // Create template filter for Holding contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(HOLDING_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {
@@ -474,7 +471,9 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
     });
 
     // Validate amount is a valid number
-    let _: f64 = params.amount.parse()
+    let _: f64 = params
+        .amount
+        .parse()
         .map_err(|e| format!("Invalid amount format: {}", e))?;
 
     // Build choice argument JSON manually to preserve decimal format
@@ -488,7 +487,7 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
             "extraArgs": {}
         }}"#,
         serde_json::to_string(&params.holding_contract_ids).unwrap(),
-        params.amount,  // Keep as quoted string
+        params.amount, // Keep as quoted string
         token_contracts.burn_mint_factory.contract_id,
         serde_json::to_string(&extra_args).unwrap()
     );
@@ -512,8 +511,6 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
-        read_as: Some(vec![params.party.clone()]),
-        user_id: Some(user_id),
     };
 
     // Submit the transaction
@@ -535,9 +532,7 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
 
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
-            let template_id = created_event["value"]["templateId"]
-                .as_str()
-                .unwrap_or("");
+            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawRequest:CBTCWithdrawRequest") {
@@ -601,16 +596,15 @@ pub async fn list_withdraw_requests(
     .await?;
 
     // Create template filter for WithdrawRequest contracts
-    let filter = ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-        TemplateIdentifierFilter {
+    let filter =
+        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
             template_filter: TemplateFilter {
                 value: TemplateFilterValue {
                     template_id: Some(WITHDRAW_REQUEST_TEMPLATE_ID.to_string()),
                     include_created_event_blob: true,
                 },
             },
-        },
-    );
+        });
 
     // Get active contracts
     let contracts = active_contracts::get_by_party(active_contracts::Params {

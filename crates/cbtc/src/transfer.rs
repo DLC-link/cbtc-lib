@@ -181,8 +181,6 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        read_as: None,
-        user_id: None,
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -425,8 +423,6 @@ pub async fn submit_sequential_chained(
             commands: vec![common::submission::Command::ExerciseCommand(
                 exercise_command,
             )],
-            read_as: None,
-            user_id: None,
         };
 
         // Submit to ledger with fresh token
@@ -525,10 +521,10 @@ pub async fn submit_sequential_chained(
     }
 
     log::debug!("Transfer Summary:");
-    
+
     log::debug!("Successful: {}", successful_count);
     log::debug!("Failed: {}", failed_count);
-    
+
 
     Ok(SequentialChainedResult {
         results,

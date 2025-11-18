@@ -146,7 +146,6 @@ async fn main() -> Result<(), String> {
     println!("  • Once BTC is confirmed, CBTC will be minted to your party");
     println!();
     println!("To monitor for deposits, you can periodically call:");
-    println!("  - list_deposit_requests() to see completed deposits");
     println!("  - get_deposit_account_status() to check account status");
 
     Ok(())

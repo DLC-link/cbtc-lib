@@ -1,5 +1,7 @@
 use crate::attestor;
-use crate::constants::{CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_TEMPLATE_ID};
+use crate::constants::{
+    CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_RULES_TEMPLATE_ID, DEPOSIT_ACCOUNT_TEMPLATE_ID,
+};
 use crate::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus};
 use common::submission;
 use common::transfer::DisclosedContract;
@@ -136,7 +138,7 @@ pub async fn create_deposit_account(
     // Build the exercise command
     let exercise_command = submission::ExerciseCommand {
         exercise_command: submission::ExerciseCommandData {
-            template_id: params.account_rules.da_rules.template_id.clone(),
+            template_id: DEPOSIT_ACCOUNT_RULES_TEMPLATE_ID.to_string(),
             contract_id: params.account_rules.da_rules.contract_id.clone(),
             choice: CREATE_DEPOSIT_ACCOUNT_CHOICE.to_string(),
             choice_argument: submission::ChoiceArgumentsVariations::Generic(choice_argument),

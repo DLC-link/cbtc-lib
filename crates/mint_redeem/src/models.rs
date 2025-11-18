@@ -84,55 +84,6 @@ impl DepositAccount {
     }
 }
 
-/// A deposit request contract representing a completed BTC deposit
-#[derive(Debug, Clone)]
-pub struct DepositRequest {
-    pub contract_id: String,
-    pub deposit_account_id: String,
-    pub amount: String,
-    pub btc_tx_id: String,
-}
-
-impl DepositRequest {
-    /// Parse a DepositRequest from a JsActiveContract
-    pub fn from_active_contract(contract: &JsActiveContract) -> Result<Self, String> {
-        let contract_id = contract.created_event.contract_id.clone();
-
-        let args = contract
-            .created_event
-            .create_argument
-            .as_ref()
-            .and_then(|opt| opt.as_ref())
-            .and_then(|v| v.as_object())
-            .ok_or("createArgument is not an object")?;
-
-        let deposit_account_id = args
-            .get("depositAccountId")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'depositAccountId' field")?
-            .to_string();
-
-        let amount = args
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'amount' field")?
-            .to_string();
-
-        let btc_tx_id = args
-            .get("btcTxId")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'btcTxId' field")?
-            .to_string();
-
-        Ok(Self {
-            contract_id,
-            deposit_account_id,
-            amount,
-            btc_tx_id,
-        })
-    }
-}
-
 /// Status of a deposit account including Bitcoin address
 #[derive(Debug, Clone)]
 pub struct DepositAccountStatus {

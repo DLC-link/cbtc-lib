@@ -3,17 +3,14 @@ pub const DEPOSIT_ACCOUNT_TEMPLATE_ID: &str = "#cbtc:CBTC.DepositAccount:CBTCDep
 
 /// Template ID for DepositAccountRules contracts
 pub const DEPOSIT_ACCOUNT_RULES_TEMPLATE_ID: &str =
-    "#cbtc:CBTC.DepositAccountRules:CBTCDepositAccountRules";
-
-/// Template ID for DepositRequest contracts
-pub const DEPOSIT_REQUEST_TEMPLATE_ID: &str = "#cbtc:CBTC.DepositRequest:CBTCDepositRequest";
+    "#cbtc:CBTC.DepositAccount:CBTCDepositAccountRules";
 
 /// Template ID for WithdrawAccount contracts
 pub const WITHDRAW_ACCOUNT_TEMPLATE_ID: &str = "#cbtc:CBTC.WithdrawAccount:CBTCWithdrawAccount";
 
 /// Template ID for WithdrawAccountRules contracts
 pub const WITHDRAW_ACCOUNT_RULES_TEMPLATE_ID: &str =
-    "#cbtc:CBTC.WithdrawAccountRules:CBTCWithdrawAccountRules";
+    "#cbtc:CBTC.WithdrawAccount:CBTCWithdrawAccountRules";
 
 /// Template ID for WithdrawRequest contracts
 pub const WITHDRAW_REQUEST_TEMPLATE_ID: &str = "#cbtc:CBTC.WithdrawRequest:CBTCWithdrawRequest";

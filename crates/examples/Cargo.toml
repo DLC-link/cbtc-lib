@@ -30,10 +30,6 @@ name = "mint_cbtc_flow"
 path = "src/mint_cbtc_flow.rs"
 
 [[bin]]
-name = "monitor_deposits"
-path = "src/monitor_deposits.rs"
-
-[[bin]]
 name = "redeem_cbtc_flow"
 path = "src/redeem_cbtc_flow.rs"
 

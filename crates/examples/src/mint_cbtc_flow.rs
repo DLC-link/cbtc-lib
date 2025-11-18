@@ -17,7 +17,7 @@ use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::attestor;
 use mint_redeem::mint::{
     CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,
-    ListDepositAccountsParams, ListDepositRequestsParams,
+    ListDepositAccountsParams,
 };
 use std::env;
 
@@ -132,28 +132,6 @@ async fn main() -> Result<(), String> {
         "  - Last Processed BTC Block: {}",
         status.last_processed_bitcoin_block
     );
-    println!();
-
-    // Step 7: Check for deposit requests
-    println!("Step 7: Checking for deposit requests...");
-    let deposit_requests = mint_redeem::mint::list_deposit_requests(ListDepositRequestsParams {
-        ledger_host: ledger_host.clone(),
-        party: party_id.clone(),
-        access_token: access_token.clone(),
-    })
-    .await?;
-
-    if deposit_requests.is_empty() {
-        println!("  No deposit requests found yet.");
-        println!("  (Deposit requests appear after BTC is sent and confirmed by attestors)");
-    } else {
-        println!("✓ Found {} deposit request(s):", deposit_requests.len());
-        for request in &deposit_requests {
-            println!("  - Amount: {} BTC", request.amount);
-            println!("    BTC TX ID: {}", request.btc_tx_id);
-            println!("    Deposit Account: {}", request.deposit_account_id);
-        }
-    }
     println!();
 
     println!("=== Example Complete ===");

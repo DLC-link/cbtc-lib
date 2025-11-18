@@ -1,8 +1,6 @@
 use crate::attestor;
-use crate::constants::{
-    CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_TEMPLATE_ID, DEPOSIT_REQUEST_TEMPLATE_ID,
-};
-use crate::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus, DepositRequest};
+use crate::constants::{CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_TEMPLATE_ID};
+use crate::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus};
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -32,13 +30,6 @@ pub struct GetBitcoinAddressParams {
     pub attestor_url: String,
     pub account_contract_id: String,
     pub chain: String,
-}
-
-/// Parameters for listing deposit requests
-pub struct ListDepositRequestsParams {
-    pub ledger_host: String,
-    pub party: String,
-    pub access_token: String,
 }
 
 /// Parameters for getting deposit account status
@@ -229,63 +220,6 @@ pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<Stri
         &params.chain,
     )
     .await
-}
-
-/// List all deposit requests for a party
-///
-/// A deposit request is created after BTC is sent to a deposit account's address
-/// and confirmed by the attestor network.
-///
-/// # Example
-/// ```ignore
-/// let requests = mint::list_deposit_requests(ListDepositRequestsParams {
-///     ledger_host: "https://participant.example.com".to_string(),
-///     party: "party::1220...".to_string(),
-///     access_token: "your-token".to_string(),
-/// }).await?;
-///
-/// for request in requests {
-///     log::debug!("Deposit: {} BTC in tx {}", request.amount, request.btc_tx_id);
-/// }
-/// ```
-pub async fn list_deposit_requests(
-    params: ListDepositRequestsParams,
-) -> Result<Vec<DepositRequest>, String> {
-    // Get ledger end offset
-    let ledger_end_response = ledger_end::get(ledger_end::Params {
-        access_token: params.access_token.clone(),
-        ledger_host: params.ledger_host.clone(),
-    })
-    .await?;
-
-    // Create template filter for DepositRequest contracts
-    let filter =
-        ledger::common::IdentifierFilter::TemplateIdentifierFilter(TemplateIdentifierFilter {
-            template_filter: TemplateFilter {
-                value: TemplateFilterValue {
-                    template_id: Some(DEPOSIT_REQUEST_TEMPLATE_ID.to_string()),
-                    include_created_event_blob: true,
-                },
-            },
-        });
-
-    // Get active contracts
-    let contracts = active_contracts::get_by_party(active_contracts::Params {
-        ledger_host: params.ledger_host,
-        party: params.party,
-        filter,
-        access_token: params.access_token,
-        ledger_end: ledger_end_response.offset,
-        unknown_contract_entry_handler: None,
-    })
-    .await?;
-
-    let deposit_requests: Result<Vec<DepositRequest>, String> = contracts
-        .iter()
-        .map(DepositRequest::from_active_contract)
-        .collect();
-
-    deposit_requests
 }
 
 /// Get the full status of a deposit account including its Bitcoin address

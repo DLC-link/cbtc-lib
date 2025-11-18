@@ -5,6 +5,7 @@ This directory contains example programs demonstrating how to use the Canton CBT
 ## Setup
 
 1. Copy `.env.example` to `.env` in the project root:
+
    ```bash
    cp ../../.env.example ../../.env
    ```
@@ -16,13 +17,17 @@ This directory contains example programs demonstrating how to use the Canton CBT
 All examples should be run from the workspace root directory.
 
 ### Check Balance
+
 Check your CBTC balance and UTXO count:
+
 ```bash
 cargo run -p examples --bin check_balance
 ```
 
 ### Send CBTC
+
 Send CBTC to another party:
+
 ```bash
 # Set the amount and receiver in .env or environment
 export TRANSFER_AMOUNT=0.1
@@ -31,7 +36,9 @@ cargo run -p examples --bin send_cbtc
 ```
 
 ### List Incoming Offers
+
 List all pending CBTC transfer offers where you are the receiver:
+
 ```bash
 cargo run -p examples --bin list_incoming_offers
 ```
@@ -39,7 +46,9 @@ cargo run -p examples --bin list_incoming_offers
 This example lists all pending transfers waiting for you to accept.
 
 ### List Outgoing Offers
+
 List all pending CBTC transfer offers where you are the sender:
+
 ```bash
 cargo run -p examples --bin list_outgoing_offers
 ```
@@ -47,23 +56,29 @@ cargo run -p examples --bin list_outgoing_offers
 This example shows all transfers you've sent that haven't been accepted yet.
 
 ### Accept Pending Transfers
+
 Accept all pending CBTC transfers for your party:
+
 ```bash
 cargo run -p examples --bin accept_transfers
 ```
 
 This example automatically fetches all pending TransferInstruction contracts and accepts them in a loop. Useful for automated acceptance of incoming transfers.
 
-### Withdraw Pending Transfers
-Withdraw all pending outgoing transfers that haven't been accepted:
+### Cancel Pending Transfers
+
+Cancel all pending outgoing transfers that haven't been accepted:
+
 ```bash
-cargo run -p examples --bin withdraw_offers
+cargo run -p examples --bin cancel_offers
 ```
 
 This example withdraws all transfer offers you've sent that are still pending, returning the CBTC to your account.
 
 ### Stream CBTC
+
 Stream CBTC to a single receiver multiple times:
+
 ```bash
 # Set the streaming parameters
 export RECEIVER_PARTY="receiver-party::1220..."
@@ -75,7 +90,9 @@ cargo run -p examples --bin stream_cbtc
 This example sends multiple transfers to the same receiver, useful for streaming payments or testing repeated transfers.
 
 ### Consolidate UTXOs
+
 Check and consolidate UTXOs if needed:
+
 ```bash
 # Optional: set custom threshold (default is 10)
 export CONSOLIDATION_THRESHOLD=8
@@ -83,7 +100,9 @@ cargo run -p examples --bin consolidate_utxos
 ```
 
 ### Batch Distribute
+
 Distribute CBTC to multiple recipients from a CSV file:
+
 ```bash
 # Create recipients.csv with format:
 # receiver,amount
@@ -101,7 +120,9 @@ cargo run -p examples --bin batch_distribute
 See `recipients_example.csv` for the CSV format.
 
 ### Batch Distribute with Callback
+
 Distribute CBTC to multiple recipients with real-time result logging:
+
 ```bash
 cargo run -p examples --bin batch_with_callback
 ```
@@ -205,6 +226,7 @@ let callback = Box::new(move |result: cbtc::transfer::TransferResult| -> Pin<Box
 ```
 
 Example output:
+
 ```
 2025-01-10T15:23:45.123Z | SUCCESS | idx=0 | to=merchant::1220... | amount=0.001 | ref=YmF0Y2gtMTIz... | offer=00123... | update_id=12208abc... | error=N/A
 2025-01-10T15:23:46.456Z | FAILED | idx=1 | to=validator::5678... | amount=0.002 | ref=YmF0Y2gtNDU2... | offer=N/A | update_id=N/A | error=Insufficient funds
@@ -285,6 +307,7 @@ See `examples/batch_with_callback.rs` for a complete working example.
 ## Environment Variables
 
 Required for all examples:
+
 - `KEYCLOAK_HOST` - Your Keycloak host
 - `KEYCLOAK_REALM` - Your Keycloak realm
 - `KEYCLOAK_CLIENT_ID` - Client ID
@@ -296,12 +319,14 @@ Required for all examples:
 - `REGISTRY_URL` - Canton registry URL
 
 Optional:
+
 - `TRANSFER_AMOUNT` - Amount to send (default: 0.1)
 - `LIB_TEST_RECEIVER_PARTY_ID` - Receiver party for transfers
 - `CONSOLIDATION_THRESHOLD` - UTXO threshold for consolidation (default: 10)
 - `RECIPIENTS_CSV` - Path to CSV file for batch distribution (default: recipients.csv)
 
 For stream example:
+
 - `RECEIVER_PARTY` - The party ID to receive all stream transfers
 - `TRANSFER_COUNT` - Number of transfers to send in the stream
 - `TRANSFER_AMOUNT` - Amount per transfer

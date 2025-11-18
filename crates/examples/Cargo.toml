@@ -58,8 +58,8 @@ name = "stream_cbtc"
 path = "src/stream.rs"
 
 [[bin]]
-name = "withdraw_offers"
-path = "src/withdraw_transfers.rs"
+name = "cancel_offers"
+path = "src/cancel_offers.rs"
 
 [dependencies]
 cbtc = { path = "../cbtc" }

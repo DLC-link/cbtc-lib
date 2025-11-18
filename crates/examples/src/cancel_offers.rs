@@ -34,7 +34,7 @@ async fn main() -> Result<(), String> {
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     // Withdraw all pending transfers
-    let result = cbtc::withdraw::withdraw_all(cbtc::withdraw::WithdrawAllParams {
+    let result = cbtc::cancel_offers::withdraw_all(cbtc::cancel_offers::WithdrawAllParams {
         sender_party,
         ledger_host,
         registry_url,

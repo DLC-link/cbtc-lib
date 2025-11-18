@@ -45,8 +45,6 @@ pub struct SequentialChainedParams {
     pub on_transfer_complete: Option<Box<TransferResultCallback>>,
     // Optional pre-fetched registry response to reuse context
     pub registry_response: Option<common::transfer_factory::Response>,
-    // Verbose means it prints more detailed logs
-    pub verbose: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -263,13 +261,11 @@ pub async fn submit_sequential_chained(
         return Err("No recipients to process".to_string());
     }
 
-    if params.verbose {
-        log::debug!(
-            "Starting sequential chained transfers: {} transfers from {}",
-            params.recipients.len(),
-            params.sender
-        );
-    }
+    log::debug!(
+        "Starting sequential chained transfers: {} transfers from {}",
+        params.recipients.len(),
+        params.sender
+    );
 
     let additional_information = match params.registry_response {
         Some(registry_response) => registry_response,
@@ -295,9 +291,8 @@ pub async fn submit_sequential_chained(
                 }),
             };
 
-            if params.verbose {
-                log::debug!("Fetching transfer factory context from registry (once)...");
-            }
+            log::debug!("Fetching transfer factory context from registry (once)...");
+
             let additional_information =
                 registry::transfer_factory::get(registry::transfer_factory::Params {
                     registry_url: params.registry_url.clone(),
@@ -327,9 +322,7 @@ pub async fn submit_sequential_chained(
     let choice_context_data = additional_information.choice_context.choice_context_data;
     let disclosed_contracts = additional_information.choice_context.disclosed_contracts;
 
-    if params.verbose {
-        log::debug!("✓ Registry context fetched successfully");
-    }
+    log::debug!("Registry context fetched successfully");
 
     // Track results and current holdings
     let mut results = Vec::new();
@@ -342,21 +335,17 @@ pub async fn submit_sequential_chained(
     // Process each recipient sequentially, building transfers on-the-fly
     for (idx, recipient) in params.recipients.into_iter().enumerate() {
         let transfer_num = idx + 1;
-        if params.verbose {
-            log::debug!(
-                "\n[{}/{}] Transferring {} to {}...",
-                transfer_num,
-                total_transfers,
-                recipient.amount,
-                recipient.receiver
-            );
-        }
+        log::trace!(
+            "\n[{}/{}] Transferring {} to {}...",
+            transfer_num,
+            total_transfers,
+            recipient.amount,
+            recipient.receiver
+        );
 
         if current_holding_cids.is_empty() {
             let error_msg = "No UTXOs available for transfer".to_string();
-            if params.verbose {
-                log::debug!("  ✗ {}", error_msg);
-            }
+            log::error!("{}", error_msg);
             let result = TransferResult {
                 success: false,
                 transfer_index: idx,
@@ -384,9 +373,8 @@ pub async fn submit_sequential_chained(
             Ok(token) => token,
             Err(e) => {
                 let error_msg = format!("Failed to get fresh token: {}", e);
-                if params.verbose {
-                    log::debug!("  ✗ {}", error_msg);
-                }
+                log::error!("{}", error_msg);
+
                 let result = TransferResult {
                     success: false,
                     transfer_index: idx,
@@ -490,12 +478,12 @@ pub async fn submit_sequential_chained(
                 // Parse response to extract change UTXOs, transfer offer CID, and update_id
                 match parse_transfer_response(&response_raw) {
                     Ok((sender_change_cids, transfer_offer_cid, update_id)) => {
-                        if params.verbose {
-                            log::debug!("  ✓ Transfer successful");
-                            log::debug!("    Transfer Offer: {}", transfer_offer_cid);
-                            log::debug!("    Update ID: {}", update_id);
-                            log::debug!("    Change UTXOs: {} remaining", sender_change_cids.len());
-                        }
+                        log::debug!(
+                            "Transfer successful | Transfer Offer: {} | Update ID: {} | Change UTXOs: {} remaining",
+                            transfer_offer_cid,
+                            update_id,
+                            sender_change_cids.len()
+                        );
 
                         let result = TransferResult {
                             success: true,
@@ -522,10 +510,10 @@ pub async fn submit_sequential_chained(
                     }
                     Err(e) => {
                         let error_msg = format!("Failed to parse transfer response: {}", e);
-                        if params.verbose {
-                            log::debug!("  ✗ {}", error_msg);
-                            log::debug!("    Note: Change UTXOs preserved for next transfer");
-                        }
+                        log::error!(
+                            "{} | Note: Change UTXOs preserved for next transfer",
+                            error_msg
+                        );
                         let result = TransferResult {
                             success: false,
                             transfer_index: idx,
@@ -551,10 +539,10 @@ pub async fn submit_sequential_chained(
             }
             Err(e) => {
                 let error_msg = format!("Ledger submission failed: {}", e);
-                if params.verbose {
-                    log::debug!("  ✗ {}", error_msg);
-                    log::debug!("    Note: Change UTXOs preserved, will retry next transfer");
-                }
+                log::error!(
+                    "{} | Note: Change UTXOs preserved, will retry next transfer",
+                    error_msg
+                );
                 let result = TransferResult {
                     success: false,
                     transfer_index: idx,
@@ -579,13 +567,11 @@ pub async fn submit_sequential_chained(
         }
     }
 
-    if params.verbose {
-        log::debug!(
-            "Transfer Summary: Successful: {}, Failed: {}",
-            successful_count,
-            failed_count
-        );
-    }
+    log::debug!(
+        "Transfer Summary: Successful: {}, Failed: {}",
+        successful_count,
+        failed_count
+    );
 
     Ok(SequentialChainedResult {
         results,

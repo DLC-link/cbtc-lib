@@ -8,7 +8,7 @@
 /// - TRANSFER_COUNT: Number of transfers to send
 /// - TRANSFER_AMOUNT: Amount per transfer
 ///
-/// Run with: cargo run -p examples --example stream
+/// Run with: cargo run -p examples --bin stream
 use std::env;
 use std::future::Future;
 use std::pin::Pin;

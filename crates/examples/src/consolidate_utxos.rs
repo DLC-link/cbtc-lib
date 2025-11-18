@@ -1,6 +1,6 @@
 /// Example: Check and consolidate UTXOs if needed
 ///
-/// Run with: cargo run -p examples --example consolidate_utxos
+/// Run with: cargo run -p examples --bin consolidate_utxos
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;

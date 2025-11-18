@@ -133,11 +133,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
 /// 1. Authenticates with Keycloak
 /// 2. Fetches all pending TransferInstruction contracts for the party
 /// 3. Filters for CBTC transfers where the party is the receiver
-/// 4. Batches acceptances into groups of 5 per submission (OPTIMIZED)
-///
-/// OPTIMIZATIONS:
-/// - Fetches accept_context once (same for all CBTC transfers)
-/// - Batches exercise commands in groups of 5 per submission
+/// 4. Batches acceptances into groups of 5 per submission
 ///
 /// Returns a summary of successful and failed acceptances.
 pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, String> {
@@ -157,7 +153,6 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
         "Checking for pending transfers for party: {}",
         params.receiver_party
     );
-    // Fetch pending transfer instructions
     let pending_transfers = crate::utils::fetch_incoming_transfers(
         params.ledger_host.clone(),
         params.receiver_party.clone(),
@@ -176,7 +171,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
 
     log::debug!("Found {} pending transfer(s)", pending_transfers.len());
 
-    // OPTIMIZATION 1: Fetch accept_context once (same for all CBTC transfers)
+    // Fetch accept_context once (assumed to be the same for all CBTC transfers in this run)
     log::debug!("Fetching accept context (shared for all CBTC transfers)...");
     let first_contract_id = &pending_transfers[0].created_event.contract_id;
     let accept_context = registry::accept_context::get(registry::accept_context::Params {
@@ -192,7 +187,6 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
     .await?;
     log::debug!("✓ Accept context fetched\n");
 
-    // OPTIMIZATION 2: Build and submit commands in batches of 5
     const BATCH_SIZE: usize = 5;
     let total_transfers = pending_transfers.len();
     let num_batches = (total_transfers + BATCH_SIZE - 1) / BATCH_SIZE;

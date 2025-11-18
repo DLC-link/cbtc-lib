@@ -3,7 +3,7 @@
 /// This example demonstrates how to withdraw all pending CBTC transfers
 /// that you have sent but have not yet been accepted by the receiver.
 ///
-/// Run with: cargo run -p examples --example withdraw_transfers
+/// Run with: cargo run -p examples --bin cancel_offers
 use std::env;
 
 #[tokio::main]

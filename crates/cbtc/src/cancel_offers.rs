@@ -134,11 +134,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
 /// 1. Authenticates with Keycloak
 /// 2. Fetches all pending TransferInstruction contracts sent by the party
 /// 3. Filters for CBTC transfers where the party is the sender
-/// 4. Batches withdrawals into groups of 5 per submission (OPTIMIZED)
-///
-/// OPTIMIZATIONS:
-/// - Fetches withdraw_context once (same for all CBTC transfers)
-/// - Batches exercise commands in groups of 5 per submission
+/// 4. Batches withdrawals into groups of 5 per submission
 ///
 /// Returns a summary of successful and failed withdrawals.
 pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult, String> {
@@ -181,7 +177,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
         pending_transfers.len()
     );
 
-    // OPTIMIZATION 1: Fetch withdraw_context once (same for all CBTC transfers)
+    // Fetch withdraw_context once (same for all CBTC transfers)
     log::debug!("Fetching withdraw context (shared for all CBTC transfers)...");
     let first_contract_id = &pending_transfers[0].created_event.contract_id;
     let withdraw_context = registry::accept_context::get(registry::accept_context::Params {
@@ -197,7 +193,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
     .await?;
     log::debug!("✓ Withdraw context fetched\n");
 
-    // OPTIMIZATION 2: Build and submit commands in batches of 5
+    // Build and submit commands in batches of 5
     const BATCH_SIZE: usize = 5;
     let total_transfers = pending_transfers.len();
     let num_batches = (total_transfers + BATCH_SIZE - 1) / BATCH_SIZE;

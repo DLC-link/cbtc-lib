@@ -3,7 +3,7 @@
 /// This example continuously monitors for deposit requests and prints them when found.
 ///
 /// Usage:
-/// cargo run --example monitor_deposits
+/// cargo run -p examples --bin monitor_deposits
 use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::mint::ListDepositRequestsParams;
 use std::env;

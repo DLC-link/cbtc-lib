@@ -3,7 +3,7 @@
 /// This example lists all pending CBTC transfer offers where you are the sender.
 /// Use this to see what transfers you've sent that haven't been accepted yet.
 ///
-/// Run with: cargo run -p examples --example list_outgoing_offers
+/// Run with: cargo run -p examples --bin list_outgoing_offers
 use std::env;
 
 #[tokio::main]
@@ -41,7 +41,6 @@ async fn main() -> Result<(), String> {
     .await
     .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    // Fetch outgoing transfers
     let transfers =
         cbtc::utils::fetch_outgoing_transfers(ledger_host, party.clone(), auth.access_token)
             .await?;

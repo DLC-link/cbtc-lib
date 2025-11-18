@@ -12,7 +12,7 @@
 /// To run this example:
 /// 1. Make sure you have .env configured with your credentials
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
-/// 3. cargo run --example redeem_cbtc_flow
+/// 3. cargo run -p examples --bin redeem_cbtc_flow
 use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::attestor;
 use mint_redeem::redeem::{

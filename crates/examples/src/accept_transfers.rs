@@ -1,6 +1,6 @@
 /// Example: Accept all pending CBTC transfers
 ///
-/// Run with: cargo run -p examples --example accept_transfers
+/// Run with: cargo run -p examples --bin accept_transfers
 ///
 /// This example uses the `cbtc::accept::accept_all` method to automatically
 /// fetch and accept all pending CBTC TransferInstruction contracts for your party.

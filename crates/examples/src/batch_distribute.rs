@@ -1,6 +1,6 @@
 /// Example: Batch distribute CBTC from a CSV file
 ///
-/// Run with: cargo run -p examples --example batch_distribute
+/// Run with: cargo run -p examples --bin batch_distribute
 ///
 /// CSV format (recipients.csv):
 ///   receiver,amount

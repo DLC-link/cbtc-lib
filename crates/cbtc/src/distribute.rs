@@ -100,7 +100,6 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
             reference_base: params.reference_base,
             on_transfer_complete: params.on_transfer_complete,
             registry_response: None,
-            verbose: true,
         },
         &mut token_state,
     )

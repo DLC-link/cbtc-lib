@@ -85,19 +85,19 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
+**Example Response:**
 
 ```json
 {
   "da_rules": {
     "template_id": "43a8452a56388d22c6058abe03e90dadbae9a20a682634568b07a93531dda1a3:CBTC.DepositAccount:CBTCDepositAccountRules",
-    "contract_id": "0085259d857d8808aaec759c9b734651e7e7f0e567b136fb79177edef3e23f8f7bca111220d3368772598c96b74570c3ba7b092cfb7549ab58c6e248b339eda9998091e597",
-    "created_event_blob": "CgMyLjES/QQKRQCFJZ2FfYgIqux1nJtzRlHn5/DlZ7E2+3kXft7z4j+Pe8oREiDTNodyWYyWt0Vww7p7CSz7dUmrWMbiSLM57amZgJHllxIEY2J0YxpxCkA0M2E4NDUyYTU2Mzg4ZDIyYzYwNThhYmUwM2U5MGRhZGJhZTlhMjBhNjgyNjM0NTY4YjA3YTkzNTMxZGRhMWEzEgRDQlRDEg5EZXBvc2l0QWNjb3VudBoXQ0JUQ0RlcG9zaXRBY2NvdW50UnVsZXMisQJqrgIKVgpUOlJjYnRjLW5ldHdvcms6OjEyMjA1YWYzYjk0OWEwNDc3NmZjNDhjZGNjMDVhMDYwZjZiZGEyZTQ3MDYzMjkzNWYzNzVkMTA0OWE4NTQ2YTNiMjYyCmwKajpoYXV0aDBfMDA3YzY2NDM1MzhmMmVhZGQzZTU3M2RkMDViOTo6MTIyMDViY2MxMDZlZmEwZWFhN2YxOGRjNDkxZTVjNmY1ZmI5YjBjYzY4ZGMxMTBhZTY2ZjRlZDY0Njc0NzVkN2M3OGUKZgpkamIKVgpUOlJjYnRjLW5ldHdvcms6OjEyMjA1YWYzYjk0OWEwNDc3NmZjNDhjZGNjMDVhMDYwZjZiZGEyZTQ3MDYzMjkzNWYzNzVkMTA0OWE4NTQ2YTNiMjYyCggKBkIEQ0JUQypSY2J0Yy1uZXR3b3JrOjoxMjIwNWFmM2I5NDlhMDQ3NzZmYzQ4Y2RjYzA1YTA2MGY2YmRhMmU0NzA2MzI5MzVmMzc1ZDEwNDlhODU0NmEzYjI2MjlxhYrw4T0GAEIqCiYKJAgBEiD/RkOrqwY2xAum/h6CtY8yKisHs/XfQscIYoAxS53Y7BAe"
+    "contract_id": "0085259d857d8808aaec759c9b734651e7e7f0e567b136fb79177edef3e23f8f7b...",
+    "created_event_blob": "CgMyLjES/QQKRQCFJZ2FfYgIqux1nJtzRlHn5/DlZ7E2+3kXft7z4j+Pe8o..."
   },
   "wa_rules": {
     "template_id": "43a8452a56388d22c6058abe03e90dadbae9a20a682634568b07a93531dda1a3:CBTC.WithdrawAccount:CBTCWithdrawAccountRules",
-    "contract_id": "00c007c8b886320cf18412333c614bc5a0b098015992aadc8387a6ed60139c7305ca1112208ae086cfa20aedaa1461a33f8569f148e100eb15280f7859f4f1985bc4033489",
-    "created_event_blob": "CgMyLjES/wQKRQDAB8i4hjIM8YQSMzxhS8WgsJgBWZKq3IOHpu1gE5xzBcoREiCK4IbPogrtqhRhoz+FafFI4QDrFSgPeFn08ZhbxAM0iRIEY2J0YxpzCkA0M2E4NDUyYTU2Mzg4ZDIyYzYwNThhYmUwM2U5MGRhZGJhZTlhMjBhNjgyNjM0NTY4YjA3YTkzNTMxZGRhMWEzEgRDQlRDEg9XaXRoZHJhd0FjY291bnQaGENCVENXaXRoZHJhd0FjY291bnRSdWxlcyKxAmquAgpWClQ6UmNidGMtbmV0d29yazo6MTIyMDVhZjNiOTQ5YTA0Nzc2ZmM0OGNkY2MwNWEwNjBmNmJkYTJlNDcwNjMyOTM1ZjM3NWQxMDQ5YTg1NDZhM2IyNjIKbApqOmhhdXRoMF8wMDdjNjY0MzUzOGYyZWFkZDNlNTczZGQwNWI5OjoxMjIwNWJjYzEwNmVmYTBlYWE3ZjE4ZGM0OTFlNWM2ZjVmYjliMGNjNjhkYzExMGFlNjZmNGVkNjQ2NzQ3NWQ3Yzc4ZQpmCmRqYgpWClQ6UmNidGMtbmV0d29yazo6MTIyMDVhZjNiOTQ5YTA0Nzc2ZmM0OGNkY2MwNWEwNjBmNmJkYTJlNDcwNjMyOTM1ZjM3NWQxMDQ5YTg1NDZhM2IyNjIKCAoGQgRDQlRDKlJjYnRjLW5ldHdvcms6OjEyMjA1YWYzYjk0OWEwNDc3NmZjNDhjZGNjMDVhMDYwZjZiZGEyZTQ3MDYzMjkzNWYzNzVkMTA0OWE4NTQ2YTNiMjYyOXhwmvDhPQYAQioKJgokCAESINqYs9g9Cgfl5Qt/FsMAv3jECAI3uLohwPKxeBLEmG5aEB4="
+    "contract_id": "00c007c8b886320cf18412333c614bc5a0b098015992aadc8387a6ed60139c730...",
+    "created_event_blob": "CgMyLjES/wQKRQDAB8i4hjIM8YQSMzxhS8WgsJgBWZKq3IOHpu1gE5xzBco..."
   }
 }
 ```
@@ -157,78 +157,120 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 
 ```json
 {
-  "actAs": ["party::1220abc..."],
-  "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
-  "disclosedContracts": [
-    {
-      "contractId": "00abc123...",
-      "createdEventBlob": "base64-encoded-da-rules-contract...",
-      "templateId": "Splice.DsoRules:DsoRules",
-      "synchronizerId": ""
-    }
-  ],
   "commands": [
     {
       "ExerciseCommand": {
-        "exerciseCommand": {
-          "templateId": "Splice.DsoRules:DsoRules",
-          "contractId": "00abc123...",
-          "choice": "CreateDepositAccount",
-          "choiceArgument": {
-            "owner": "party::1220abc..."
-          }
+        "templateId": "#cbtc:CBTC.DepositAccount:CBTCDepositAccountRules",
+        "contractId": "0085259d857d8808aaec759c9b734651e7e7f0e567b136fb79177edef3e23f8f7b...",
+        "choice": "CBTCDepositAccountRules_CreateDepositAccount",
+        "choiceArgument": {
+          "owner": "your-party::1220abcdef..."
         }
       }
     }
   ],
-  "readAs": ["party::1220abc..."],
-  "userId": "user-uuid-from-jwt-sub-claim"
+  "actAs": [
+    "your-party::1220abcdef..."
+  ],
+  "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
+  "disclosedContracts": [
+    {
+      "templateId": "43a8452a56388d22c6058abe03e90dadbae9a20a682634568b07a93531dda1a3:CBTC.DepositAccount:CBTCDepositAccountRules",
+      "contractId": "0085259d857d8808aaec759c9b734651e7e7f0e567b136fb79177edef3e23f8f7b...",
+      "createdEventBlob": "CgMyLjES/QQKRQCFJZ2FfYgIqux1nJtzRlHn5/DlZ7E2+3kXft7z4j+Pe8o...",
+      "synchronizerId": ""
+    }
+  ]
 }
 ```
 
-**Response:**
+**Example Response:**
 
 ```json
 {
   "transactionTree": {
+    "updateId": "1220013c383fa00c0fb34ca0b690ff63daa3be4c23ba8a8c8d3997733b92479f2d7d",
+    "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
+    "workflowId": "",
+    "effectiveAt": "2025-11-05T09:23:32.018640Z",
+    "offset": 3861240,
     "eventsById": {
-      "evt-123": {
+      "0": {
+        "ExercisedTreeEvent": {
+          "value": {
+            "contractId": "00658ca0d18a99a414de9f3d8bc40b01c21fceabac410cdafc637d3af79966187...",
+            "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.DepositAccount:CBTCDepositAccountRules",
+            "choice": "CBTCDepositAccountRules_CreateDepositAccount",
+            "choiceArgument": {
+              "owner": "your-party::1220abcdef..."
+            },
+            "actingParties": ["your-party::1220abcdef..."],
+            "consuming": false,
+            "exerciseResult": {
+              "depositAccountCid": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85..."
+            },
+            "packageName": "cbtc"
+          }
+        }
+      },
+      "1": {
         "CreatedTreeEvent": {
           "value": {
-            "contractId": "00depositabc123...",
-            "templateId": "...CBTC.DepositAccount:CBTCDepositAccount",
+            "contractId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+            "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.DepositAccount:CBTCDepositAccount",
             "createArgument": {
-              "id": "550e8400-e29b-41d4-a716-446655440001",
-              "owner": "party::1220abc...",
-              "operator": "party::1220operator...",
-              "registrar": "party::1220registrar...",
-              "lastProcessedBitcoinBlock": 0
+              "registrar": "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+              "operator": "operator-party::1220...",
+              "instrument": {
+                "admin": "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+                "id": "CBTC"
+              },
+              "owner": "your-party::1220abcdef...",
+              "id": null,
+              "lastProcessedBitcoinBlock": "0"
             },
-            "createdEventBlob": "base64-encoded-deposit-account..."
+            "createdEventBlob": "",
+            "witnessParties": ["your-party::1220abcdef..."],
+            "signatories": [
+              "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+              "your-party::1220abcdef..."
+            ],
+            "observers": [],
+            "createdAt": "2025-11-05T09:23:32.018640Z",
+            "packageName": "cbtc"
           }
         }
       }
     },
-    "updateId": "update-id-123",
-    "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
-    "offset": "12345679"
+    "synchronizerId": "global-domain::1220...",
+    "recordTime": "2025-11-05T09:23:32.689031Z"
   }
 }
 ```
 
 **Notes:**
 
+**Request:**
+- `templateId` in `ExerciseCommand` uses shorthand format `#cbtc:CBTC.DepositAccount:CBTCDepositAccountRules`
+- `choice` is `CBTCDepositAccountRules_CreateDepositAccount` (includes the template name prefix)
 - `actAs`: The party creating the account (must match authenticated user's party)
 - `commandId`: Unique identifier for idempotency (use UUID v4)
-- `disclosedContracts`: Must include the DepositAccountRules contract from step 2
-- `choice`: "CreateDepositAccount" is the Canton choice being exercised
-- `userId`: Extracted from JWT's `sub` claim
-- Response contains the created DepositAccount contract with its `id` field (UUID)
-- The `id` field in the contract's `createArgument` is what you'll use to get the Bitcoin address
+- `disclosedContracts`: Must include the full DepositAccountRules contract from step 2
+- `disclosedContracts[].templateId` uses full hash format (different from ExerciseCommand templateId)
+- `disclosedContracts[].synchronizerId` should be an empty string
+
+**Response:**
+- Contains two events in `eventsById`: `ExercisedTreeEvent` (index "0") and `CreatedTreeEvent` (index "1")
+- The `ExercisedTreeEvent` shows which choice was exercised on the rules contract
+- The `CreatedTreeEvent` contains the actual DepositAccount contract that was created
+- `createArgument.id` can be `null` or a UUID string
+- `createArgument.instrument` contains the token information with `id: "CBTC"`
+- `createArgument.lastProcessedBitcoinBlock` is a string `"0"`, not an integer
+- **To get Bitcoin address**: Use `createArgument.id` if it's not null, otherwise use `contractId` from the CreatedTreeEvent
 
 ---
 
@@ -246,12 +288,12 @@ POST {attestor_url}/app/get-bitcoin-address
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440001",
-  "chain": "canton-devnet"
+  "id": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+  "chain": "canton-mainnet"
 }
 ```
 
@@ -263,7 +305,8 @@ bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3
 
 **Notes:**
 
-- `id`: The UUID from the DepositAccount contract's `id` field (NOT the contract_id)
+- `id`: Use the UUID from `createArgument.id` if it's not null, otherwise use the `contractId` from the CreatedTreeEvent
+- `chain`: The Canton network identifier (e.g., "canton-devnet", "canton-testnet", "canton-mainnet")
 - Response is plain text containing just the Bitcoin address
 - This address is unique to your deposit account
 - Any BTC sent to this address will be tracked and converted to CBTC after 6+ confirmations
@@ -290,6 +333,7 @@ bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3
 Once the attestor has minted CBTC after 6+ confirmations, you can verify your balance by listing your CBTC holdings.
 
 **Quick Check**: You can use the `check_balance` example to monitor for minted CBTC:
+
 ```bash
 cargo run -p examples --bin check_balance
 ```
@@ -307,22 +351,23 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 
 ```json
 {
+  "verbose": true,
+  "activeAtOffset": 3896033,
   "filter": {
     "filtersByParty": {
-      "party::1220abc...": {
+      "your-party::1220abcdef...": {
         "cumulative": [
           {
             "identifierFilter": {
-              "TemplateIdentifierFilter": {
-                "templateFilter": {
-                  "value": {
-                    "templateId": "...Splice.Wallet:Holding",
-                    "includeCreatedEventBlob": true
-                  }
+              "InterfaceFilter": {
+                "value": {
+                  "interfaceId": "#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding",
+                  "includeInterfaceView": true,
+                  "includeCreatedEventBlob": true
                 }
               }
             }
@@ -330,14 +375,18 @@ Content-Type: application/json
         ]
       }
     }
-  },
-  "verbose": false,
-  "activeAtOffset": 12345680
+  }
 }
 ```
 
 **Notes:**
 
+- Uses `InterfaceFilter` instead of `TemplateIdentifierFilter` to query via Canton's interface system
+- `interfaceId` uses shorthand format: `#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding`
+- `includeInterfaceView: true` includes the interface view in the response
+- `includeCreatedEventBlob: true` includes the blob for disclosed contracts
+- `verbose: true` returns full contract details
+- `activeAtOffset` requires getting the ledger end offset first (step 3)
 - This queries for Holding contracts which represent CBTC UTXOs
 - Filter holdings where `instrument.id == "CBTC"` to see only CBTC holdings
 - Sum the `amount` fields to get your total CBTC balance
@@ -371,13 +420,17 @@ Content-Type: application/json
 ```
 Template: CBTC.DepositAccount:CBTCDepositAccount
 Fields:
+  - id: String | null (UUID if present, null otherwise)
   - owner: Party (your party ID)
   - operator: Party (attestor's party)
   - registrar: Party (attestor's party)
-  - lastProcessedBitcoinBlock: String (last scanned BTC block height)
+  - instrument: Object
+    - id: String (e.g., "CBTC")
+    - admin: Party (CBTC network party)
+  - lastProcessedBitcoinBlock: String (last scanned BTC block height, e.g., "0")
 ```
 
-**Note**: The contract_id of the DepositAccount is used to get the Bitcoin address from the attestor.
+**Note**: To get the Bitcoin address from the attestor, use the `id` field if it's not null, otherwise use the `contractId`.
 
 ### Holding Contract (CBTC Tokens)
 

@@ -10,6 +10,7 @@ members = [
   "crates/examples",
   "crates/mint_redeem",
 ]
+exclude = ["cbtc-dars"]
 resolver = "2"
 
 [workspace.package]

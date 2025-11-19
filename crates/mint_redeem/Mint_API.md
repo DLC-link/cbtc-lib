@@ -381,13 +381,15 @@ Content-Type: application/json
 
 **Notes:**
 
-- Uses `InterfaceFilter` instead of `TemplateIdentifierFilter` to query via Canton's interface system
+- **IMPORTANT**: There is no `Splice.Wallet:Holding` template - holdings are accessed via the `#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding` interface
+- Uses `InterfaceFilter` (not `TemplateIdentifierFilter`) to query via Canton's interface system
 - `interfaceId` uses shorthand format: `#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding`
 - `includeInterfaceView: true` includes the interface view in the response
 - `includeCreatedEventBlob: true` includes the blob for disclosed contracts
 - `verbose: true` returns full contract details
 - `activeAtOffset` requires getting the ledger end offset first (step 3)
-- This queries for Holding contracts which represent CBTC UTXOs
+- This queries for contracts that implement the HoldingV1 interface, which represent CBTC UTXOs
+- The actual template ID in responses will vary by implementation, but all holdings expose the standard `HoldingV1` interface
 - Filter holdings where `instrument.id == "CBTC"` to see only CBTC holdings
 - Sum the `amount` fields to get your total CBTC balance
 - This is the same query used by the `redeem::list_holdings()` function
@@ -435,16 +437,20 @@ Fields:
 ### Holding Contract (CBTC Tokens)
 
 ```
-Template: Splice.Wallet:Holding
-Fields:
+Interface: #splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding
+Note: There is no specific "Holding" template - various templates implement this interface
+Fields (via HoldingV1 interface):
   - owner: Party (token owner)
   - amount: String (CBTC amount in decimal format)
   - instrument: Object
     - id: String (e.g., "CBTC")
+    - admin: Party (CBTC network party)
   - lock: Optional (null if unlocked, present if locked in a transaction)
 ```
 
-**Note**: After attestors mint CBTC, it appears as Holding contracts. These are UTXO-style tokens that can be transferred or burned.
+**Important**: Holdings are queried using `InterfaceFilter` with the `HoldingV1` interface, not by a specific template. The actual template ID will vary depending on the implementation, but all holdings expose the standard interface fields listed above.
+
+**Note**: After attestors mint CBTC, it appears as contracts implementing the HoldingV1 interface. These are UTXO-style tokens that can be transferred or burned.
 
 ---
 

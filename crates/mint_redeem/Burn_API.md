@@ -63,32 +63,34 @@ POST {attestor_url}/app/get-account-contract-rules
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 ```json
 {
   "chain": "canton-devnet"
 }
 ```
 
-**Response:**
+**Example Response:**
 ```json
 {
   "da_rules": {
-    "contract_id": "00abc123...",
-    "template_id": "Splice.DsoRules:DsoRules",
-    "created_event_blob": "base64-encoded-contract-data..."
+    "template_id": "43a8452a56388d22c6058abe03e90dadbae9a20a682634568b07a93531dda1a3:CBTC.DepositAccount:CBTCDepositAccountRules",
+    "contract_id": "0085259d857d8808aaec759c9b734651e7e7f0e567b136fb79177edef3e23f8f7b...",
+    "created_event_blob": "CgMyLjES/QQKRQCFJZ2FfYgIqux1nJtzRlHn5/DlZ7E2+3kXft7z4j+Pe8o..."
   },
   "wa_rules": {
-    "contract_id": "00def456...",
-    "template_id": "Splice.DsoRules:DsoRules",
-    "created_event_blob": "base64-encoded-contract-data..."
+    "template_id": "43a8452a56388d22c6058abe03e90dadbae9a20a682634568b07a93531dda1a3:CBTC.WithdrawAccount:CBTCWithdrawAccountRules",
+    "contract_id": "00c007c8b886320cf18412333c614bc5a0b098015992aadc8387a6ed60139c730...",
+    "created_event_blob": "CgMyLjES/wQKRQDAB8i4hjIM8YQSMzxhS8WgsJgBWZKq3IOHpu1gE5xzBco..."
   }
 }
 ```
 
 **Notes:**
 - `wa_rules` = WithdrawAccountRules contract that governs withdraw account creation
-- The `created_event_blob` is required for Canton's disclosed contracts mechanism
+- The `created_event_blob` is a base64-encoded serialized contract used for Canton's disclosed contracts mechanism
+- These rules are singleton contracts maintained by the attestor network
+- Template IDs and contract IDs are unique to each environment (devnet/testnet/mainnet)
 
 ---
 
@@ -130,75 +132,118 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 ```json
 {
-  "actAs": ["party::1220abc..."],
-  "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
-  "disclosedContracts": [
-    {
-      "contractId": "00def456...",
-      "createdEventBlob": "base64-encoded-wa-rules-contract...",
-      "templateId": "Splice.DsoRules:DsoRules",
-      "synchronizerId": ""
-    }
-  ],
   "commands": [
     {
       "ExerciseCommand": {
-        "exerciseCommand": {
-          "templateId": "Splice.DsoRules:DsoRules",
-          "contractId": "00def456...",
-          "choice": "CreateWithdrawAccount",
-          "choiceArgument": {
-            "owner": "party::1220abc...",
-            "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3"
-          }
+        "templateId": "#cbtc:CBTC.WithdrawAccount:CBTCWithdrawAccountRules",
+        "contractId": "00c007c8b886320cf18412333c614bc5a0b098015992aadc8387a6ed60139c730...",
+        "choice": "CBTCWithdrawAccountRules_CreateWithdrawAccount",
+        "choiceArgument": {
+          "owner": "your-party::1220abcdef...",
+          "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3"
         }
       }
     }
   ],
-  "readAs": ["party::1220abc..."],
-  "userId": "user-uuid-from-jwt-sub-claim"
+  "actAs": [
+    "your-party::1220abcdef..."
+  ],
+  "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
+  "disclosedContracts": [
+    {
+      "templateId": "43a8452a56388d22c6058abe03e90dadbae9a20a682634568b07a93531dda1a3:CBTC.WithdrawAccount:CBTCWithdrawAccountRules",
+      "contractId": "00c007c8b886320cf18412333c614bc5a0b098015992aadc8387a6ed60139c730...",
+      "createdEventBlob": "CgMyLjES/wQKRQDAB8i4hjIM8YQSMzxhS8WgsJgBWZKq3IOHpu1gE5xzBco...",
+      "synchronizerId": ""
+    }
+  ]
 }
 ```
 
-**Response:**
+**Example Response:**
 ```json
 {
   "transactionTree": {
+    "updateId": "1220013c383fa00c0fb34ca0b690ff63daa3be4c23ba8a8c8d3997733b92479f2d7d",
+    "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
+    "workflowId": "",
+    "effectiveAt": "2025-11-05T09:23:32.018640Z",
+    "offset": 3861240,
     "eventsById": {
-      "evt-123": {
-        "CreatedTreeEvent": {
+      "0": {
+        "ExercisedTreeEvent": {
           "value": {
-            "contractId": "00withdrawabc123...",
-            "templateId": "...CBTC.WithdrawAccount:CBTCWithdrawAccount",
-            "createArgument": {
-              "id": "550e8400-e29b-41d4-a716-446655440001",
-              "owner": "party::1220abc...",
-              "operator": "party::1220operator...",
-              "registrar": "party::1220registrar...",
+            "contractId": "00c007c8b886320cf18412333c614bc5a0b098015992aadc8387a6ed60139c730...",
+            "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.WithdrawAccount:CBTCWithdrawAccountRules",
+            "choice": "CBTCWithdrawAccountRules_CreateWithdrawAccount",
+            "choiceArgument": {
+              "owner": "your-party::1220abcdef...",
               "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3"
             },
-            "createdEventBlob": "base64-encoded-withdraw-account..."
+            "actingParties": ["your-party::1220abcdef..."],
+            "consuming": false,
+            "exerciseResult": {
+              "withdrawAccountCid": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85..."
+            },
+            "packageName": "cbtc"
+          }
+        }
+      },
+      "1": {
+        "CreatedTreeEvent": {
+          "value": {
+            "contractId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+            "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.WithdrawAccount:CBTCWithdrawAccount",
+            "createArgument": {
+              "registrar": "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+              "operator": "operator-party::1220...",
+              "instrument": {
+                "admin": "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+                "id": "CBTC"
+              },
+              "owner": "your-party::1220abcdef...",
+              "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3"
+            },
+            "createdEventBlob": "",
+            "witnessParties": ["your-party::1220abcdef..."],
+            "signatories": [
+              "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+              "your-party::1220abcdef..."
+            ],
+            "observers": [],
+            "createdAt": "2025-11-05T09:23:32.018640Z",
+            "packageName": "cbtc"
           }
         }
       }
     },
-    "updateId": "update-id-123",
-    "commandId": "cmd-550e8400-e29b-41d4-a716-446655440000",
-    "offset": "12345679"
+    "synchronizerId": "global-domain::1220...",
+    "recordTime": "2025-11-05T09:23:32.689031Z"
   }
 }
 ```
 
 **Notes:**
-- `actAs`: The party creating the account
-- `disclosedContracts`: Must include the WithdrawAccountRules contract from step 2
-- `choice`: "CreateWithdrawAccount" is the Canton choice being exercised
-- `destinationBtcAddress`: The Bitcoin address where BTC will be sent (locked at creation time)
-- `userId`: Extracted from JWT's `sub` claim
-- Response contains the created WithdrawAccount contract
+
+**Request:**
+- `templateId` in `ExerciseCommand` uses shorthand format `#cbtc:CBTC.WithdrawAccount:CBTCWithdrawAccountRules`
+- `choice` is `CBTCWithdrawAccountRules_CreateWithdrawAccount` (includes the template name prefix)
+- `actAs`: The party creating the account (must match authenticated user's party)
+- `commandId`: Unique identifier for idempotency (use UUID v4)
+- `disclosedContracts`: Must include the full WithdrawAccountRules contract from step 2
+- `disclosedContracts[].templateId` uses full hash format (different from ExerciseCommand templateId)
+- `disclosedContracts[].synchronizerId` should be an empty string
+- `destinationBtcAddress`: The Bitcoin address where BTC will be sent (locked at creation time and cannot be changed)
+
+**Response:**
+- Contains two events in `eventsById`: `ExercisedTreeEvent` (index "0") and `CreatedTreeEvent` (index "1")
+- The `ExercisedTreeEvent` shows which choice was exercised on the rules contract
+- The `CreatedTreeEvent` contains the actual WithdrawAccount contract that was created
+- `createArgument.instrument` contains the token information with `id: "CBTC"`
+- The created WithdrawAccount contract ID is used in step 7 to burn CBTC
 
 ---
 
@@ -221,21 +266,22 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 ```json
 {
+  "verbose": true,
+  "activeAtOffset": 3896033,
   "filter": {
     "filtersByParty": {
-      "party::1220abc...": {
+      "your-party::1220abcdef...": {
         "cumulative": [
           {
             "identifierFilter": {
-              "TemplateIdentifierFilter": {
-                "templateFilter": {
-                  "value": {
-                    "templateId": "...Splice.Wallet:Holding",
-                    "includeCreatedEventBlob": true
-                  }
+              "InterfaceFilter": {
+                "value": {
+                  "interfaceId": "#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding",
+                  "includeInterfaceView": true,
+                  "includeCreatedEventBlob": true
                 }
               }
             }
@@ -243,13 +289,11 @@ Content-Type: application/json
         ]
       }
     }
-  },
-  "verbose": false,
-  "activeAtOffset": 12345680
+  }
 }
 ```
 
-**Response:**
+**Example Response:**
 ```json
 [
   {
@@ -257,18 +301,14 @@ Content-Type: application/json
       "JsActiveContract": {
         "createdEvent": {
           "contractId": "00holding123...",
-          "templateId": "...Splice.Wallet:Holding",
+          "templateId": "...(implementation-specific template that implements HoldingV1 interface)...",
           "createArgument": {
             "instrument": {
-              "id": {
-                "unpack": "CBTC"
-              },
-              "version": "0"
+              "id": "CBTC",
+              "admin": "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff"
             },
-            "amount": {
-              "quantity": "0.001"
-            },
-            "owner": "party::1220abc...",
+            "amount": "0.001",
+            "owner": "your-party::1220abcdef...",
             "lock": null
           },
           "createdEventBlob": "base64-encoded..."
@@ -283,18 +323,14 @@ Content-Type: application/json
       "JsActiveContract": {
         "createdEvent": {
           "contractId": "00holding456...",
-          "templateId": "...Splice.Wallet:Holding",
+          "templateId": "...(implementation-specific template that implements HoldingV1 interface)...",
           "createArgument": {
             "instrument": {
-              "id": {
-                "unpack": "CBTC"
-              },
-              "version": "0"
+              "id": "CBTC",
+              "admin": "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff"
             },
-            "amount": {
-              "quantity": "0.002"
-            },
-            "owner": "party::1220abc...",
+            "amount": "0.002",
+            "owner": "your-party::1220abcdef...",
             "lock": null
           },
           "createdEventBlob": "base64-encoded..."
@@ -308,8 +344,16 @@ Content-Type: application/json
 ```
 
 **Notes:**
+- **IMPORTANT**: There is no `Splice.Wallet:Holding` template - holdings are accessed via the `#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding` interface
+- Uses `InterfaceFilter` (not `TemplateIdentifierFilter`) to query via Canton's interface system
+- `interfaceId` uses shorthand format: `#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding`
+- `includeInterfaceView: true` includes the interface view in the response
+- `includeCreatedEventBlob: true` includes the blob for disclosed contracts
+- `verbose: true` returns full contract details
+- `activeAtOffset` requires getting the ledger end offset first (step 3)
 - Holdings are UTXO-based like Bitcoin - each holding is a separate contract
-- Filter for `instrument.id.unpack == "CBTC"` and `owner == your_party`
+- The actual template ID in responses will vary by implementation, but all holdings expose the standard `HoldingV1` interface
+- Filter for `instrument.id == "CBTC"` and `owner == your_party`
 - Exclude holdings where `lock != null` (locked holdings are unavailable)
 - Select enough holdings to cover your burn amount (similar to Bitcoin UTXO selection)
 - Collect the `contractId` values for the holdings you want to burn
@@ -387,75 +431,51 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 ```json
 {
-  "actAs": ["party::1220abc..."],
-  "commandId": "cmd-550e8400-e29b-41d4-a716-446655440001",
-  "disclosedContracts": [
-    {
-      "contractId": "00factory123...",
-      "createdEventBlob": "base64-encoded-burn-mint-factory...",
-      "templateId": "...Splice.TokenStandard:BurnMintFactory",
-      "synchronizerId": ""
-    },
-    {
-      "contractId": "00instrument123...",
-      "createdEventBlob": "base64-encoded-instrument-configuration...",
-      "templateId": "...Splice.TokenStandard:InstrumentConfiguration",
-      "synchronizerId": ""
-    },
-    {
-      "contractId": "00issuer123...",
-      "createdEventBlob": "base64-encoded-issuer-credential...",
-      "templateId": "...Splice.TokenStandard:IssuerCredential",
-      "synchronizerId": ""
-    }
-  ],
   "commands": [
     {
       "ExerciseCommand": {
-        "exerciseCommand": {
-          "templateId": "...CBTC.WithdrawAccount:CBTCWithdrawAccount",
-          "contractId": "00withdrawabc123...",
-          "choice": "Withdraw",
-          "choiceArgument": {
-            "tokens": [
-              "00holding123...",
-              "00holding456..."
-            ],
-            "amount": "0.001",
-            "burnMintFactoryCid": "00factory123...",
-            "extraArgs": {
-              "context": {
-                "values": {
-                  "utility.digitalasset.com/instrument-configuration": {
-                    "tag": "AV_ContractId",
-                    "value": "00instrument123..."
-                  },
-                  "utility.digitalasset.com/issuer-credentials": {
-                    "tag": "AV_List",
-                    "value": [
-                      {
-                        "tag": "AV_ContractId",
-                        "value": "00issuer123..."
-                      }
-                    ]
-                  },
-                  "utility.digitalasset.com/app-reward-configuration": {
-                    "tag": "AV_ContractId",
-                    "value": "00reward123..."
-                  },
-                  "utility.digitalasset.com/featured-app-right": {
-                    "tag": "AV_ContractId",
-                    "value": "00featured123..."
-                  }
+        "templateId": "#cbtc:CBTC.WithdrawAccount:CBTCWithdrawAccount",
+        "contractId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+        "choice": "CBTCWithdrawAccount_Withdraw",
+        "choiceArgument": {
+          "amount": "0.001",
+          "tokens": [
+            "00holding123...",
+            "00holding456..."
+          ],
+          "burnMintFactoryCid": "00factory123...",
+          "extraArgs": {
+            "context": {
+              "values": {
+                "utility.digitalasset.com/instrument-configuration": {
+                  "tag": "AV_ContractId",
+                  "value": "00instrument123..."
+                },
+                "utility.digitalasset.com/issuer-credentials": {
+                  "tag": "AV_List",
+                  "value": [
+                    {
+                      "tag": "AV_ContractId",
+                      "value": "00issuer123..."
+                    }
+                  ]
+                },
+                "utility.digitalasset.com/app-reward-configuration": {
+                  "tag": "AV_ContractId",
+                  "value": "00reward123..."
+                },
+                "utility.digitalasset.com/featured-app-right": {
+                  "tag": "AV_ContractId",
+                  "value": "00featured123..."
                 }
-              },
-              "meta": {
-                "values": {
-                  "splice.lfdecentralizedtrust.org/reason": "CBTC withdrawal"
-                }
+              }
+            },
+            "meta": {
+              "values": {
+                "splice.lfdecentralizedtrust.org/reason": "CBTC withdrawal"
               }
             }
           }
@@ -463,74 +483,146 @@ Content-Type: application/json
       }
     }
   ],
-  "readAs": ["party::1220abc..."],
-  "userId": "user-uuid-from-jwt-sub-claim"
+  "actAs": [
+    "your-party::1220abcdef..."
+  ],
+  "commandId": "cmd-550e8400-e29b-41d4-a716-446655440001",
+  "disclosedContracts": [
+    {
+      "templateId": "...Splice.TokenStandard:BurnMintFactory",
+      "contractId": "00factory123...",
+      "createdEventBlob": "base64-encoded-burn-mint-factory...",
+      "synchronizerId": ""
+    },
+    {
+      "templateId": "...Splice.TokenStandard:InstrumentConfiguration",
+      "contractId": "00instrument123...",
+      "createdEventBlob": "base64-encoded-instrument-configuration...",
+      "synchronizerId": ""
+    },
+    {
+      "templateId": "...Splice.TokenStandard:IssuerCredential",
+      "contractId": "00issuer123...",
+      "createdEventBlob": "base64-encoded-issuer-credential...",
+      "synchronizerId": ""
+    }
+  ]
 }
 ```
 
-**Response:**
+**Example Response:**
 ```json
 {
   "transactionTree": {
+    "updateId": "1220abc456...",
+    "commandId": "cmd-550e8400-e29b-41d4-a716-446655440001",
+    "workflowId": "",
+    "effectiveAt": "2025-11-05T10:30:15.123456Z",
+    "offset": 3896234,
     "eventsById": {
-      "evt-456": {
-        "CreatedTreeEvent": {
+      "0": {
+        "ExercisedTreeEvent": {
           "value": {
-            "contractId": "00withdraw-request-123...",
-            "templateId": "...CBTC.WithdrawRequest:CBTCWithdrawRequest",
-            "createArgument": {
-              "id": "550e8400-e29b-41d4-a716-446655440002",
-              "withdrawAccountId": "550e8400-e29b-41d4-a716-446655440001",
-              "owner": "party::1220abc...",
+            "contractId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+            "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.WithdrawAccount:CBTCWithdrawAccount",
+            "choice": "CBTCWithdrawAccount_Withdraw",
+            "choiceArgument": {
               "amount": "0.001",
-              "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3",
-              "btcTxId": null,
-              "processed": false
+              "tokens": [
+                "00holding123...",
+                "00holding456..."
+              ],
+              "burnMintFactoryCid": "00factory123...",
+              "extraArgs": { }
             },
-            "createdEventBlob": "base64-encoded-withdraw-request..."
+            "actingParties": ["your-party::1220abcdef..."],
+            "consuming": false,
+            "exerciseResult": {
+              "withdrawRequestCid": "00withdraw-request-123..."
+            },
+            "packageName": "cbtc"
           }
         }
       },
-      "evt-789": {
-        "ExercisedTreeEvent": {
-          "contractId": "00holding123...",
-          "templateId": "...Splice.Wallet:Holding",
-          "choice": "Archive"
+      "1": {
+        "CreatedTreeEvent": {
+          "value": {
+            "contractId": "00withdraw-request-123...",
+            "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.WithdrawRequest:CBTCWithdrawRequest",
+            "createArgument": {
+              "withdrawAccountId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+              "owner": "your-party::1220abcdef...",
+              "amount": "0.001",
+              "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3",
+              "btcTxId": null
+            },
+            "createdEventBlob": "",
+            "witnessParties": ["your-party::1220abcdef..."],
+            "signatories": [
+              "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff",
+              "your-party::1220abcdef..."
+            ],
+            "observers": [],
+            "createdAt": "2025-11-05T10:30:15.123456Z",
+            "packageName": "cbtc"
+          }
         }
       },
-      "evt-790": {
+      "2": {
         "ExercisedTreeEvent": {
-          "contractId": "00holding456...",
-          "templateId": "...Splice.Wallet:Holding",
-          "choice": "Archive"
+          "value": {
+            "contractId": "00holding123...",
+            "templateId": "...(implementation-specific holding template)...",
+            "choice": "Archive",
+            "consuming": true
+          }
+        }
+      },
+      "3": {
+        "ExercisedTreeEvent": {
+          "value": {
+            "contractId": "00holding456...",
+            "templateId": "...(implementation-specific holding template)...",
+            "choice": "Archive",
+            "consuming": true
+          }
         }
       }
     },
-    "updateId": "update-id-456",
-    "commandId": "cmd-550e8400-e29b-41d4-a716-446655440001",
-    "offset": "12345681"
+    "synchronizerId": "global-domain::1220...",
+    "recordTime": "2025-11-05T10:30:15.789012Z"
   }
 }
 ```
 
 **Notes:**
-- `choice`: "Withdraw" burns the CBTC and creates a WithdrawRequest
+
+**Request:**
+- `templateId` in `ExerciseCommand` uses shorthand format `#cbtc:CBTC.WithdrawAccount:CBTCWithdrawAccount`
+- `choice` is `CBTCWithdrawAccount_Withdraw` (includes the template name prefix)
+- `contractId`: The WithdrawAccount contract ID from step 4
+- `amount`: The amount of BTC to withdraw (must be <= sum of holding amounts)
 - `tokens`: Array of holding contract IDs to burn (must have sufficient total amount)
-- `amount`: The amount to burn (must be <= sum of holding amounts)
-- `burnMintFactoryCid`: The burn_mint_factory contract ID from step 6
-- `extraArgs.context`: Token standard context with all required contract references
-  - `instrument-configuration`: Always required
-  - `issuer-credentials`: List of issuer credentials (if present)
-  - `app-reward-configuration`: App reward config (if present)
-  - `featured-app-right`: Featured app right (if present)
-- `extraArgs.meta.values`: Metadata about the operation
+- `burnMintFactoryCid`: Optional burn_mint_factory contract ID from step 6 (can be null)
+- `extraArgs`: Optional token standard context with all required contract references
+  - `context.values["utility.digitalasset.com/instrument-configuration"]`: Always required
+  - `context.values["utility.digitalasset.com/issuer-credentials"]`: List of issuer credentials (if present)
+  - `context.values["utility.digitalasset.com/app-reward-configuration"]`: App reward config (if present)
+  - `context.values["utility.digitalasset.com/featured-app-right"]`: Featured app right (if present)
+  - `meta.values`: Metadata about the operation (optional)
 - **IMPORTANT**: The `amount` field must be a quoted decimal string (not scientific notation) or Canton will reject it
-- `disclosedContracts`: Must include all token standard contracts (burn_mint_factory, instrument_configuration, and any optional ones)
-- `userId`: Extracted from JWT's `sub` claim
-- Response shows:
-  - Created WithdrawRequest contract (with `btcTxId: null` initially)
-  - Archived (burned) holding contracts
-  - Any change holdings if amount < sum of selected holdings
+- `disclosedContracts`: Must include all token standard contracts from step 6 (burn_mint_factory, instrument_configuration, and any optional ones)
+- `disclosedContracts[].templateId` uses full hash format (different from ExerciseCommand templateId)
+- `actAs`: The party burning CBTC (must match authenticated user's party)
+- `commandId`: Unique identifier for idempotency (use UUID v4)
+
+**Response:**
+- Contains multiple events in `eventsById`:
+  - `ExercisedTreeEvent` (index "0"): Shows the Withdraw choice being exercised
+  - `CreatedTreeEvent` (index "1"): The created WithdrawRequest contract (with `btcTxId: null` initially)
+  - Additional `ExercisedTreeEvent`s: The archived (burned) holding contracts
+- If the sum of selected holdings exceeds the burn amount, Canton will create a change holding (not shown in this example)
+- The attestor network monitors for new WithdrawRequest contracts and processes the BTC withdrawal
 
 ---
 
@@ -553,21 +645,21 @@ Authorization: Bearer {access_token}
 Content-Type: application/json
 ```
 
-**Request Body:**
+**Example Request:**
 ```json
 {
+  "verbose": true,
+  "activeAtOffset": 3896235,
   "filter": {
     "filtersByParty": {
-      "party::1220abc...": {
+      "your-party::1220abcdef...": {
         "cumulative": [
           {
             "identifierFilter": {
               "TemplateIdentifierFilter": {
-                "templateFilter": {
-                  "value": {
-                    "templateId": "...CBTC.WithdrawRequest:CBTCWithdrawRequest",
-                    "includeCreatedEventBlob": true
-                  }
+                "value": {
+                  "templateId": "#cbtc:CBTC.WithdrawRequest:CBTCWithdrawRequest",
+                  "includeCreatedEventBlob": true
                 }
               }
             }
@@ -575,13 +667,11 @@ Content-Type: application/json
         ]
       }
     }
-  },
-  "verbose": false,
-  "activeAtOffset": 12345682
+  }
 }
 ```
 
-**Response (initially):**
+**Example Response (initially):**
 ```json
 [
   {
@@ -589,15 +679,13 @@ Content-Type: application/json
       "JsActiveContract": {
         "createdEvent": {
           "contractId": "00withdraw-request-123...",
-          "templateId": "...CBTC.WithdrawRequest:CBTCWithdrawRequest",
+          "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.WithdrawRequest:CBTCWithdrawRequest",
           "createArgument": {
-            "id": "550e8400-e29b-41d4-a716-446655440002",
-            "withdrawAccountId": "550e8400-e29b-41d4-a716-446655440001",
-            "owner": "party::1220abc...",
+            "withdrawAccountId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+            "owner": "your-party::1220abcdef...",
             "amount": "0.001",
             "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3",
-            "btcTxId": null,
-            "processed": false
+            "btcTxId": null
           },
           "createdEventBlob": "base64-encoded..."
         },
@@ -609,7 +697,7 @@ Content-Type: application/json
 ]
 ```
 
-**Response (after attestor processing):**
+**Example Response (after attestor processing):**
 ```json
 [
   {
@@ -617,15 +705,13 @@ Content-Type: application/json
       "JsActiveContract": {
         "createdEvent": {
           "contractId": "00withdraw-request-123...",
-          "templateId": "...CBTC.WithdrawRequest:CBTCWithdrawRequest",
+          "templateId": "61ed690af72fda469c2a2df960d81bf59be5ff8d0f4844e816944b5fce267d92:CBTC.WithdrawRequest:CBTCWithdrawRequest",
           "createArgument": {
-            "id": "550e8400-e29b-41d4-a716-446655440002",
-            "withdrawAccountId": "550e8400-e29b-41d4-a716-446655440001",
-            "owner": "party::1220abc...",
+            "withdrawAccountId": "0056b9c28cb6cd0e7c5a75e554aaced4e7312713862a72a25ed55f3e124e89c85...",
+            "owner": "your-party::1220abcdef...",
             "amount": "0.001",
             "destinationBtcAddress": "bc1q5j3x2h9z8y7k6m4n3p2r1s0t9u8v7w6x5y4z3",
-            "btcTxId": "def456abc789...",
-            "processed": true
+            "btcTxId": "abc123def456..."
           },
           "createdEventBlob": "base64-encoded..."
         },
@@ -639,10 +725,10 @@ Content-Type: application/json
 
 **Notes:**
 - Poll this endpoint periodically (e.g., every 30 seconds) to check withdrawal status
-- Initially `btcTxId` will be `null` and `processed` will be `false`
+- `templateId` can use shorthand format `#cbtc:CBTC.WithdrawRequest:CBTCWithdrawRequest` in the query
+- Initially `btcTxId` will be `null`
 - Once the attestor processes the withdrawal:
   - `btcTxId` is set to the Bitcoin transaction ID
-  - `processed` is set to `true`
   - BTC has been sent to the `destinationBtcAddress`
 - The attestor typically processes withdrawals within a few minutes
 
@@ -670,36 +756,42 @@ Content-Type: application/json
 ```
 Template: CBTC.WithdrawAccount:CBTCWithdrawAccount
 Fields:
-  - id: UUID
   - owner: Party (your party ID)
   - operator: Party (attestor's party)
   - registrar: Party (attestor's party)
-  - destinationBtcAddress: String (locked at creation)
+  - instrument: Object
+    - id: String (e.g., "CBTC")
+    - admin: Party (CBTC network party)
+  - destinationBtcAddress: String (locked at creation and cannot be changed)
 ```
 
 ### Holding Contract (CBTC UTXO)
 ```
-Template: Splice.Wallet:Holding
-Fields:
-  - instrument.id.unpack: String ("CBTC" for CBTC holdings)
-  - instrument.version: String
-  - amount.quantity: String (decimal amount)
-  - owner: Party
-  - lock: Optional (null = unlocked, otherwise locked)
+Interface: #splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding
+Note: There is no specific "Holding" template - various templates implement this interface
+Fields (via HoldingV1 interface):
+  - instrument: Object
+    - id: String (e.g., "CBTC")
+    - admin: Party (CBTC network party)
+  - amount: String (decimal amount of CBTC)
+  - owner: Party (token owner)
+  - lock: Optional (null = unlocked, otherwise locked in a transaction)
 ```
+
+**Important**: Holdings are queried using `InterfaceFilter` with the `HoldingV1` interface, not by a specific template. The actual template ID will vary depending on the implementation, but all holdings expose the standard interface fields listed above.
 
 ### WithdrawRequest Contract
 ```
 Template: CBTC.WithdrawRequest:CBTCWithdrawRequest
 Fields:
-  - id: UUID
-  - withdrawAccountId: UUID (links to WithdrawAccount)
+  - withdrawAccountId: String (contract ID of the WithdrawAccount)
   - owner: Party (your party)
   - amount: String (BTC amount in decimal format)
-  - destinationBtcAddress: String
-  - btcTxId: String or null (null until processed)
-  - processed: Bool (false until processed)
+  - destinationBtcAddress: String (where BTC will be sent)
+  - btcTxId: String or null (null until processed by attestor)
 ```
+
+**Note**: Once the attestor processes the withdrawal, the `btcTxId` field is updated with the Bitcoin transaction ID.
 
 ---
 

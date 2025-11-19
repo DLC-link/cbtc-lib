@@ -8,12 +8,11 @@ CBTC (Canton Bitcoin) is a tokenized representation of Bitcoin on the Canton net
 
 ### Minting Flow (BTC → CBTC)
 
-1. **Create Deposit Account** - Create a Canton contract that will hold your pending deposits
+1. **Create Deposit Account** - Create a Canton contract for receiving deposits
 2. **Get Bitcoin Address** - Request a unique Bitcoin address from the attestor network
-3. **Send BTC** - Send Bitcoin to the provided address
-4. **Attestor Confirmation** - The attestor network detects and confirms your deposit (requires 6+ confirmations)
-5. **Deposit Request Created** - A DepositRequest contract is automatically created on Canton
-6. **CBTC Minted** - CBTC tokens are minted to your Canton party
+3. **Send BTC** - Send Bitcoin to the provided address (external to this library)
+4. **Attestor Monitors** - The attestor network detects and confirms your deposit (requires 6+ confirmations)
+5. **CBTC Minted** - After confirmation, attestors automatically mint CBTC tokens directly to your Canton party
 
 ### Redemption Flow (CBTC → BTC)
 
@@ -56,7 +55,7 @@ CANTON_NETWORK=canton-devnet
 DESTINATION_BTC_ADDRESS=your-btc-address
 ```
 
-### Example: Mint CBTC
+### Example: Set Up Deposit Account for Minting
 
 ```rust
 use mint_redeem::{attestor, mint};
@@ -82,9 +81,7 @@ async fn main() -> Result<(), String> {
     ).await?;
 
     // Step 3: Create a deposit account on Canton
-    // This creates a DepositAccount contract that will track your BTC deposits
-    // The attestor network monitors these accounts and creates DepositRequests
-    // when BTC arrives at the associated Bitcoin address
+    // This creates a DepositAccount contract for receiving BTC deposits
     let deposit_account = mint::create_deposit_account(
         mint::CreateDepositAccountParams {
             ledger_host: "https://participant.example.com".to_string(),
@@ -95,7 +92,7 @@ async fn main() -> Result<(), String> {
         }
     ).await?;
 
-    log::debug!("Deposit account created: {}", deposit_account.id);
+    log::debug!("Deposit account created: {}", deposit_account.contract_id);
 
     // Step 4: Get the Bitcoin address for this deposit account
     // The attestor generates a unique BTC address for your deposit account
@@ -104,38 +101,24 @@ async fn main() -> Result<(), String> {
     let bitcoin_address = mint::get_bitcoin_address(
         mint::GetBitcoinAddressParams {
             attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
-            account_id: deposit_account.id.clone(),
+            account_contract_id: deposit_account.contract_id.clone(),
             chain: "canton-devnet".to_string(),
         }
     ).await?;
 
     log::debug!("Send BTC to: {}", bitcoin_address);
-    log::debug!("Waiting for BTC deposit (requires 6+ confirmations)...");
+    log::debug!("After 6+ confirmations, attestors will automatically mint CBTC to your party");
 
-    // Step 5: Monitor for deposit requests
-    // Once the attestor confirms your BTC deposit (6+ blocks), it automatically
-    // creates a DepositRequest contract on Canton and mints CBTC to your party
-    // We poll periodically to detect when the CBTC has been minted
-    loop {
-        let requests = mint::list_deposit_requests(
-            mint::ListDepositRequestsParams {
-                ledger_host: "https://participant.example.com".to_string(),
-                party: "party::1220...".to_string(),
-                access_token: login_response.access_token.clone(),
-            }
-        ).await?;
-
-        if !requests.is_empty() {
-            log::debug!("CBTC minted! {} deposit request(s) found", requests.len());
-            for request in &requests {
-                log::debug!("  Amount: {} BTC (tx: {})", request.amount, request.btc_tx_id);
-            }
-            break;
-        }
-
-        // Check every 30 seconds for new deposits
-        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-    }
+    // That's it! The attestor network handles everything else:
+    // - Monitors Bitcoin for deposits to this address
+    // - Waits for 6+ confirmations
+    // - Automatically mints CBTC tokens to your party
+    //
+    // To monitor for minted CBTC, you can periodically run:
+    // cargo run -p examples --bin check_balance
+    //
+    // Or programmatically check your holdings:
+    // redeem::list_holdings() will show your CBTC balance
 
     Ok(())
 }
@@ -286,20 +269,16 @@ async fn main() -> Result<(), String> {
 }
 ```
 
-### Example: Check Account Status
+### Example: Check Deposit Account Status
 
-The `get_deposit_account_status()` function provides a unified view of your deposit account by combining data from both the Canton ledger and the attestor network. This is useful for:
-
-- **Checking if deposits are pending**: See if BTC has been detected but not yet confirmed
-- **Getting your Bitcoin address**: Retrieve the BTC address without making a separate attestor API call
-- **Monitoring account state**: Track the last processed Bitcoin block height
+The `get_deposit_account_status()` function provides a view of your deposit account by combining data from both the Canton ledger and the attestor network:
 
 ```rust
 use mint_redeem::mint;
 
-// Get comprehensive status for a deposit account
-// This combines Canton ledger data (owner, contract_id) with attestor data
-// (bitcoin_address, pending_balance) to give you a complete view
+// Get status for a deposit account
+// This combines Canton ledger data (owner, contract_id, last processed block)
+// with attestor data (bitcoin_address)
 let status = mint::get_deposit_account_status(
     mint::GetDepositAccountStatusParams {
         ledger_host: "https://participant.example.com".to_string(),
@@ -307,40 +286,32 @@ let status = mint::get_deposit_account_status(
         access_token: access_token.clone(),
         attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
         chain: "canton-devnet".to_string(),
-        account_id: "your-account-id".to_string(),
+        account_contract_id: "your-account-contract-id".to_string(),
     }
 ).await?;
 
 // The Bitcoin address where you should send BTC
 log::debug!("Bitcoin Address: {}", status.bitcoin_address);
 
-// Pending balance indicates BTC detected but not yet confirmed (< 6 confirmations)
-// Once confirmed, this returns to "0" and a DepositRequest is created
-log::debug!("Pending Balance: {} BTC", status.pending_balance);
-log::debug!("Has Pending: {}", status.has_pending_balance);
-
-// The last Bitcoin block height that was scanned for deposits
-// Useful for debugging if deposits aren't being detected
+// The last Bitcoin block height that was scanned by attestors
 log::debug!("Last Processed Block: {}", status.last_processed_bitcoin_block);
+
+// Contract details
+log::debug!("Owner: {}", status.owner);
+log::debug!("Contract ID: {}", status.contract_id);
 ```
 
-### Running the Complete Examples
+### Running Tests
 
-Complete end-to-end examples are available:
+Run the mint_redeem crate tests:
 
 ```bash
 # Copy and configure your environment
 cp .env.example .env
 # Edit .env with your values
 
-# Run the mint flow example (BTC → CBTC)
-cargo run --example mint_cbtc_flow
-
-# Run the redeem flow example (CBTC → BTC)
-cargo run --example redeem_cbtc_flow
-
-# Monitor deposits in real-time
-cargo run --example monitor_deposits
+# Run all tests for mint_redeem crate
+cargo test --package mint_redeem
 ```
 
 ## API Reference
@@ -359,17 +330,9 @@ Create a new deposit account that can receive BTC deposits.
 
 Get the Bitcoin address for a deposit account from the attestor network.
 
-#### `list_deposit_requests()`
-
-List all deposit requests (completed deposits that have been confirmed and minted).
-
 #### `get_deposit_account_status()`
 
-Get the full status of a deposit account including Bitcoin address, pending balance, and last processed block height. This combines data from both Canton and the attestor network.
-
-#### `mint_cbtc()`
-
-Manually mint CBTC from a confirmed deposit request. Usually this happens automatically, but this function allows manual triggering if needed.
+Get the full status of a deposit account including Bitcoin address and last processed block height. This combines data from both Canton and the attestor network.
 
 ### Redeem Module
 
@@ -444,11 +407,11 @@ Make sure your `.env` file is configured with valid credentials before running t
    - Get a Bitcoin address from the attestor
    - Send BTC to that address
    - Wait for attestor confirmation (6+ blocks)
-   - Check for DepositRequests on Canton
+   - Attestors automatically mint CBTC to your party
 
-2. **Pending Balance**: When BTC is detected but not yet fully confirmed (< 6 blocks), the deposit account's `pending_balance` field will be non-zero and `has_pending_balance` will be true. Once confirmed (6+ blocks), the balance returns to "0" and a DepositRequest is created with CBTC minted.
+2. **No DepositRequest Contracts**: There are no DepositRequest contracts. After 6+ Bitcoin confirmations, attestors directly mint CBTC tokens (as Holding contracts) to your party.
 
-3. **Multiple Deposits**: You can send multiple BTC deposits to the same Bitcoin address. Each confirmed deposit will create a separate DepositRequest and mint CBTC independently.
+3. **Multiple Deposits**: You can send multiple BTC deposits to the same Bitcoin address. Each confirmed deposit will mint CBTC independently.
 
 4. **UTXO Model**: CBTC uses a UTXO model similar to Bitcoin. When burning CBTC, you must select specific holdings (UTXOs) to burn, and any excess will be returned as change in a new holding.
 

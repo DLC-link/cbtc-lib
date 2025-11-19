@@ -228,9 +228,8 @@ This library provides several high-level operations for working with CBTC tokens
 
 | Operation                | Example File                                                             | Run Command                                        | Description                                      |
 | ------------------------ | ------------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------ |
-| **Mint CBTC**            | [`mint_cbtc_flow.rs`](crates/examples/src/mint_cbtc_flow.rs)             | `cargo run -p examples --bin mint_cbtc_flow`       | Deposit BTC and mint CBTC tokens                 |
+| **Mint CBTC**            | [`mint_cbtc_flow.rs`](crates/examples/src/mint_cbtc_flow.rs)             | `cargo run -p examples --bin mint_cbtc_flow`       | Set up deposit account for BTC deposits          |
 | **Redeem CBTC**          | [`redeem_cbtc_flow.rs`](crates/examples/src/redeem_cbtc_flow.rs)         | `cargo run -p examples --bin redeem_cbtc_flow`     | Burn CBTC and withdraw BTC                       |
-| **Monitor Deposits**     | [`monitor_deposits.rs`](crates/examples/src/monitor_deposits.rs)         | `cargo run -p examples --bin monitor_deposits`     | Watch for BTC deposits in real-time              |
 | **Check Balance**        | [`check_balance.rs`](crates/examples/src/check_balance.rs)               | `cargo run -p examples --bin check_balance`        | View your CBTC balance and UTXO count            |
 | **Send CBTC**            | [`send_cbtc.rs`](crates/examples/src/send_cbtc.rs)                       | `cargo run -p examples --bin send_cbtc`            | Transfer tokens to another party                 |
 | **Accept CBTC**          | [`accept_transfers.rs`](crates/examples/src/accept_transfers.rs)         | `cargo run -p examples --bin accept_transfers`     | Accept incoming transfers                        |
@@ -254,7 +253,7 @@ This library provides several high-level operations for working with CBTC tokens
 
 **BTC ↔ CBTC Bridge**: The mint/redeem flow allows you to bridge between native Bitcoin and CBTC tokens:
 
-- **Minting**: Deposit BTC → Attestor network confirms → Mint CBTC tokens
+- **Minting**: Create deposit account → Get BTC address → Send BTC → Attestor network confirms (6+ blocks) → CBTC automatically minted
 - **Redeeming**: Burn CBTC → Create withdraw request → Attestor network sends BTC
 
 See the [examples README](crates/examples/README.md) for detailed usage instructions.
@@ -272,22 +271,24 @@ The mint/redeem functionality allows you to bridge between native Bitcoin and CB
 **Flow**:
 
 1. Create a deposit account with the `mint_redeem` module
-2. Receive a unique BTC deposit address
-3. Send BTC to that address
-4. Monitor deposits using the attestor network
-5. Once confirmed (6+ blocks), mint CBTC tokens
+2. Receive a unique BTC deposit address from the attestor
+3. Send BTC to that address (external to this library)
+4. Attestor network monitors and confirms your deposit (6+ blocks)
+5. Attestors automatically mint CBTC tokens to your party
 
 **Example**:
 
 ```bash
-# Run the mint flow example
+# Run the mint flow example to set up deposit account
 cargo run -p examples --bin mint_cbtc_flow
 
-# Monitor deposits in real-time
-cargo run -p examples --bin monitor_deposits
+# After sending BTC, monitor for minted CBTC by checking your balance
+cargo run -p examples --bin check_balance
 ```
 
 See [mint_cbtc_flow.rs](crates/examples/src/mint_cbtc_flow.rs) for complete code.
+
+**Note**: This library does NOT monitor Bitcoin transactions. The attestor network handles all monitoring and automatically mints CBTC after confirmation. You can periodically run `check_balance` to see when CBTC has been minted to your account.
 
 ### Redeeming CBTC (CBTC → BTC)
 
@@ -402,11 +403,10 @@ See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_wi
 
 #### `mint_redeem::mint`
 
-- `list_deposit_accounts(Params)` - Get all deposit accounts
-- `create_deposit_account(Params)` - Create new deposit account for minting
-- `list_deposits(Params)` - Get all deposit transactions
-- `mint_cbtc(Params)` - Mint CBTC from confirmed BTC deposit
-- `monitor_deposits(Params)` - Real-time monitoring of BTC deposits via WebSocket
+- `list_deposit_accounts(Params)` - Get all deposit accounts for your party
+- `create_deposit_account(Params)` - Create new deposit account for receiving BTC
+- `get_bitcoin_address(Params)` - Get Bitcoin address for a deposit account
+- `get_deposit_account_status(Params)` - Get full status including Bitcoin address and last processed block
 
 #### `mint_redeem::redeem`
 

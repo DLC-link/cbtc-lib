@@ -58,7 +58,7 @@ pub struct AcceptAllResult {
 /// 3. Submits the transaction to the ledger
 ///
 /// # Example
-/// ```ignore
+/// ```no_run
 /// use cbtc::accept;
 ///
 /// let params = accept::Params {
@@ -115,8 +115,6 @@ pub async fn submit(params: Params) -> Result<(), String> {
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        read_as: None,
-        user_id: None,
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -135,7 +133,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
 /// 1. Authenticates with Keycloak
 /// 2. Fetches all pending TransferInstruction contracts for the party
 /// 3. Filters for CBTC transfers where the party is the receiver
-/// 4. Accepts each transfer sequentially
+/// 4. Batches acceptances into groups of 5 per submission
 ///
 /// Returns a summary of successful and failed acceptances.
 pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, String> {
@@ -149,15 +147,13 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
     .await
     .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    log::debug!("Authenticated successfully");
+    log::debug!("✓ Authenticated successfully");
 
     log::debug!(
         "Checking for pending transfers for party: {}",
         params.receiver_party
     );
-
-    // Fetch pending transfer instructions
-    let pending_transfers = fetch_pending_transfers(
+    let pending_transfers = crate::utils::fetch_incoming_transfers(
         params.ledger_host.clone(),
         params.receiver_party.clone(),
         auth.access_token.clone(),
@@ -175,172 +171,202 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
 
     log::debug!("Found {} pending transfer(s)", pending_transfers.len());
 
-    // Accept each transfer
+    // Fetch accept_context once (assumed to be the same for all CBTC transfers in this run)
+    log::debug!("Fetching accept context (shared for all CBTC transfers)...");
+    let first_contract_id = &pending_transfers[0].created_event.contract_id;
+    let accept_context = registry::accept_context::get(registry::accept_context::Params {
+        registry_url: params.registry_url.clone(),
+        decentralized_party_id: params.decentralized_party_id.clone(),
+        transfer_offer_contract_id: first_contract_id.clone(),
+        request: registry::accept_context::Request {
+            meta: registry::accept_context::Meta {
+                values: String::new(),
+            },
+        },
+    })
+    .await?;
+    log::debug!("✓ Accept context fetched\n");
+
+    const BATCH_SIZE: usize = 5;
+    let total_transfers = pending_transfers.len();
+    let num_batches = (total_transfers + BATCH_SIZE - 1) / BATCH_SIZE;
+
+    log::debug!(
+        "Submitting {} acceptances in {} batch(es) of up to {}...",
+        total_transfers,
+        num_batches,
+        BATCH_SIZE
+    );
+
     let mut results = Vec::new();
     let mut successful_count = 0;
     let mut failed_count = 0;
 
-    for (idx, transfer) in pending_transfers.iter().enumerate() {
-        let contract_id = &transfer.created_event.contract_id;
-        let short_id = if contract_id.len() > 16 {
-            format!(
-                "{}...{}",
-                &contract_id[..8],
-                &contract_id[contract_id.len() - 8..]
-            )
-        } else {
-            contract_id.clone()
-        };
+    // Process transfers in chunks of BATCH_SIZE
+    for (batch_idx, batch_transfers) in pending_transfers.chunks(BATCH_SIZE).enumerate() {
+        let batch_num = batch_idx + 1;
+        let start_idx = batch_idx * BATCH_SIZE;
+        let end_idx = std::cmp::min(start_idx + batch_transfers.len(), total_transfers);
 
-        log::debug!("{}. Accepting transfer {}", idx + 1, short_id);
+        log::debug!(
+            "--- Batch {}/{}: Preparing acceptances {}-{} ---",
+            batch_num,
+            num_batches,
+            start_idx + 1,
+            end_idx
+        );
 
-        // Extract transfer details from create_argument
-        let mut amount = None;
-        let mut sender = None;
+        // Build exercise commands for this batch
+        let mut batch_commands = Vec::new();
+        let mut batch_results = Vec::new();
 
-        if let Some(Some(create_arg)) = &transfer.created_event.create_argument {
-            if let Some(transfer_data) = create_arg.get("transfer") {
-                if let Some(amt) = transfer_data.get("amount") {
-                    amount = amt.as_str().map(|s| s.to_string());
-                    log::debug!("Amount: {}", amt);
-                }
-                if let Some(sndr) = transfer_data.get("sender") {
-                    sender = sndr.as_str().map(|s| s.to_string());
-                    log::debug!("From: {}", sndr.as_str().unwrap_or("unknown"));
+        for (idx_in_batch, transfer) in batch_transfers.iter().enumerate() {
+            let global_idx = start_idx + idx_in_batch;
+            let contract_id = &transfer.created_event.contract_id;
+            let short_id = if contract_id.len() > 16 {
+                format!(
+                    "{}...{}",
+                    &contract_id[..8],
+                    &contract_id[contract_id.len() - 8..]
+                )
+            } else {
+                contract_id.clone()
+            };
+
+            log::debug!("{}. Preparing {}", global_idx + 1, short_id);
+
+            // Extract transfer details from create_argument
+            let mut amount = None;
+            let mut sender = None;
+
+            if let Some(Some(create_arg)) = &transfer.created_event.create_argument {
+                if let Some(transfer_data) = create_arg.get("transfer") {
+                    if let Some(amt) = transfer_data.get("amount") {
+                        amount = amt.as_str().map(|s| s.to_string());
+                        log::debug!("Amount: {}", amt);
+                    }
+                    if let Some(sndr) = transfer_data.get("sender") {
+                        sender = sndr.as_str().map(|s| s.to_string());
+                        log::debug!("From: {}", sndr.as_str().unwrap_or("unknown"));
+                    }
                 }
             }
+
+            // Build exercise command using shared context
+            let exercise_command = common::submission::ExerciseCommand {
+                exercise_command: common::submission::ExerciseCommandData {
+                    template_id: common::consts::TEMPLATE_TRANSFER_INSTRUCTION.to_string(),
+                    contract_id: contract_id.clone(),
+                    choice: "TransferInstruction_Accept".to_string(),
+                    choice_argument: common::submission::ChoiceArgumentsVariations::Accept(
+                        common::accept::ChoiceArguments {
+                            extra_args: common::accept::ExtraArgs {
+                                context: common::accept::Context {
+                                    values: accept_context.choice_context_data.values.clone(),
+                                },
+                                meta: common::accept::Meta {
+                                    values: common::accept::MetaValue {},
+                                },
+                            },
+                        },
+                    ),
+                },
+            };
+
+            batch_commands.push(common::submission::Command::ExerciseCommand(
+                exercise_command,
+            ));
+
+            // Prepare result tracking for this transfer
+            batch_results.push(AcceptResult {
+                success: false, // Will update after submission
+                contract_id: contract_id.clone(),
+                amount,
+                sender,
+                error: None,
+            });
         }
 
-        // Accept the transfer
-        let accept_params = Params {
-            transfer_offer_contract_id: contract_id.clone(),
-            receiver_party: params.receiver_party.clone(),
+        // Submit this batch
+        log::debug!("Submitting batch {}/{}...", batch_num, num_batches);
+
+        let submission_request = common::submission::Submission {
+            act_as: vec![params.receiver_party.clone()],
+            command_id: uuid::Uuid::new_v4().to_string(),
+            disclosed_contracts: accept_context.disclosed_contracts.clone(),
+            commands: batch_commands,
+        };
+
+        match ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
             ledger_host: params.ledger_host.clone(),
             access_token: auth.access_token.clone(),
-            registry_url: params.registry_url.clone(),
-            decentralized_party_id: params.decentralized_party_id.clone(),
-        };
-
-        match submit(accept_params).await {
+            request: submission_request,
+        })
+        .await
+        {
             Ok(_) => {
-                log::debug!("Accepted");
-                results.push(AcceptResult {
-                    success: true,
-                    contract_id: contract_id.clone(),
-                    amount: amount.clone(),
-                    sender: sender.clone(),
-                    error: None,
-                });
-                successful_count += 1;
-            }
-            Err(e) => {
-                log::debug!("Failed: {}", e);
-                results.push(AcceptResult {
-                    success: false,
-                    contract_id: contract_id.clone(),
-                    amount: amount.clone(),
-                    sender: sender.clone(),
-                    error: Some(e),
-                });
-                failed_count += 1;
-            }
-        }
-    }
+                log::debug!("  ✓ Batch {}/{} successful", batch_num, num_batches);
+                // Mark this batch's results as successful
+                for (idx_in_batch, result) in batch_results.iter_mut().enumerate() {
+                    result.success = true;
+                    successful_count += 1;
 
-    
-    log::debug!("Summary:");
-    log::debug!("Accepted: {}", successful_count);
-    if failed_count > 0 {
-        log::debug!("Failed: {}", failed_count);
-    }
-
-    Ok(AcceptAllResult {
-        results,
-        successful_count,
-        failed_count,
-    })
-}
-
-/// Fetch all pending TransferInstruction contracts for a party
-async fn fetch_pending_transfers(
-    ledger_host: String,
-    party: String,
-    access_token: String,
-) -> Result<Vec<ledger::models::JsActiveContract>, String> {
-    use ledger::ledger_end;
-    use ledger::websocket::active_contracts;
-
-    // Get current ledger end
-    let ledger_end_result = ledger_end::get(ledger_end::Params {
-        access_token: access_token.clone(),
-        ledger_host: ledger_host.clone(),
-    })
-    .await?;
-
-    // Fetch all active contracts with TransferInstruction template filter
-    let result = active_contracts::get(active_contracts::Params {
-        ledger_host,
-        party: party.clone(),
-        filter: ledger::common::IdentifierFilter::TemplateIdentifierFilter(
-            ledger::common::TemplateIdentifierFilter {
-                template_filter: ledger::common::TemplateFilter {
-                    value: ledger::common::TemplateFilterValue {
-                        template_id: Some(common::consts::TEMPLATE_TRANSFER_OFFER.to_string()),
-                        include_created_event_blob: true,
-                    },
-                },
-            },
-        ),
-        access_token,
-        ledger_end: ledger_end_result.offset,
-    })
-    .await?;
-
-    log::debug!(
-        "Total active TransferInstruction contracts fetched: {}",
-        result.len()
-    );
-
-    // Filter for CBTC transfers where this party is the receiver
-    let filtered: Vec<ledger::models::JsActiveContract> = result
-        .into_iter()
-        .filter(|ac| {
-            if let Some(Some(create_arg)) = &ac.created_event.create_argument {
-                if let Some(transfer) = create_arg.get("transfer") {
-                    // Check if instrumentId is CBTC
-                    let is_cbtc = if let Some(instrument_id) = transfer.get("instrumentId") {
-                        if let Some(id) = instrument_id.get("id") {
-                            if let Some(id_str) = id.as_str() {
-                                id_str.to_lowercase() == "cbtc"
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
+                    let short_id = if result.contract_id.len() > 16 {
+                        format!(
+                            "{}...{}",
+                            &result.contract_id[..8],
+                            &result.contract_id[result.contract_id.len() - 8..]
+                        )
                     } else {
-                        false
+                        result.contract_id.clone()
                     };
-
-                    // Check if we are the receiver
-                    let is_receiver = if let Some(receiver) = transfer.get("receiver") {
-                        if let Some(receiver_str) = receiver.as_str() {
-                            receiver_str == party
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    };
-
-                    return is_cbtc && is_receiver;
+                    log::debug!(
+                        "    {}. {} [SUCCESS]",
+                        start_idx + idx_in_batch + 1,
+                        short_id
+                    );
                 }
             }
-            false
-        })
-        .collect();
+            Err(e) => {
+                log::debug!("  ✗ Batch {}/{} failed: {}", batch_num, num_batches, e);
+                // Mark this batch's results as failed
+                for (idx_in_batch, result) in batch_results.iter_mut().enumerate() {
+                    result.error = Some(e.clone());
+                    failed_count += 1;
 
-    Ok(filtered)
+                    let short_id = if result.contract_id.len() > 16 {
+                        format!(
+                            "{}...{}",
+                            &result.contract_id[..8],
+                            &result.contract_id[result.contract_id.len() - 8..]
+                        )
+                    } else {
+                        result.contract_id.clone()
+                    };
+                    log::debug!(
+                        "    {}. {} [FAILED]",
+                        start_idx + idx_in_batch + 1,
+                        short_id
+                    );
+                }
+            }
+        }
+
+        // Append batch results to overall results
+        results.extend(batch_results);
+    }
+
+    log::debug!(
+        "Summary: Accepted: {}, Failed: {}",
+        successful_count,
+        failed_count
+    );
+
+    Ok(AcceptAllResult {
+        successful_count,
+        failed_count,
+        results,
+    })
 }
 
 #[cfg(test)]
@@ -354,6 +380,10 @@ mod tests {
         let transfer_offer_cid = std::env::var("LIB_TEST_TRANSFER_OFFER_CID").ok();
 
         if transfer_offer_cid.is_none() {
+            log::debug!("Skipping test: LIB_TEST_TRANSFER_OFFER_CID not set");
+            log::debug!(
+                "To test this, first create a transfer and set LIB_TEST_TRANSFER_OFFER_CID to the TransferOffer contract ID"
+            );
             return;
         }
 
@@ -361,5 +391,6 @@ mod tests {
         // 1. A valid transfer_offer_contract_id from a pending transfer
         // 2. Authentication as the receiver party
         // 3. The transfer must be in a state ready for acceptance
+        log::debug!("Accept transfer test would run here with valid transfer offer");
     }
 }

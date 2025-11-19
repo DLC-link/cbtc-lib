@@ -12,6 +12,7 @@ use std::pin::Pin;
 #[tokio::main]
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     let csv_path = std::env::var("CSV_PATH").unwrap_or_else(|_| "recipients.csv".to_string());
     let sender = std::env::var("PARTY_ID").expect("PARTY_ID must be set");
@@ -70,17 +71,17 @@ async fn main() -> Result<(), String> {
                 let error = result.error.as_deref().unwrap_or("N/A");
 
                 let log_line = format!(
-                "{} | {} | idx={} | to={} | amount={} | ref={} | offer={} | update_id={} | error={}\n",
-                chrono::Utc::now().to_rfc3339(),
-                status,
-                result.transfer_index,
-                result.receiver,
-                result.amount,
-                reference,
-                offer_cid,
-                update_id,
-                error
-            );
+                    "{} | {} | idx={} | to={} | amount={} | ref={} | offer={} | update_id={} | error={}\n",
+                    chrono::Utc::now().to_rfc3339(),
+                    status,
+                    result.transfer_index,
+                    result.receiver,
+                    result.amount,
+                    reference,
+                    offer_cid,
+                    update_id,
+                    error
+                );
 
                 // Write to file
                 if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_file) {

@@ -170,10 +170,7 @@ pub async fn refresh(params: RefreshParams) -> Result<Response, String> {
         .await
         .map_err(|e| format!("Failed to read response (refresh): {}", e))?;
     if !status.is_success() {
-        return Err(format!(
-            "Failed to refresh token [{}]: {}",
-            status, body
-        ));
+        return Err(format!("Failed to refresh token [{}]: {}", status, body));
     }
     let response: Response = serde_json::from_str(&body)
         .map_err(|e| format!("Failed to parse response (refresh): {}", e))?;

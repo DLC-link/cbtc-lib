@@ -56,7 +56,7 @@ pub async fn get(params: Params) -> Result<AmuletRules, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{client_credentials, client_credentials_url, ClientCredentialsParams};
+    use keycloak::login::{ClientCredentialsParams, client_credentials, client_credentials_url};
     use std::env;
     use tokio;
 

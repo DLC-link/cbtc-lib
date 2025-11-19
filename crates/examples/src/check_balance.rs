@@ -5,7 +5,7 @@
 /// 2. Calculate total balance across all UTXOs
 /// 3. Monitor UTXO count and warn about consolidation needs
 ///
-/// Run with: cargo run -p examples --example check_balance
+/// Run with: cargo run -p examples --bin check_balance
 ///
 /// Required environment variables:
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
@@ -16,13 +16,13 @@
 /// Each CBTC holding is a separate UTXO (like Bitcoin). Canton has a soft
 /// limit of 10 UTXOs per party per token type. Regular consolidation keeps
 /// your account healthy and operations efficient.
-
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
     // Load environment variables
     dotenvy::dotenv().ok();
+    env_logger::init();
 
     // Authenticate
     println!("Authenticating...");
@@ -85,7 +85,11 @@ async fn main() -> Result<(), String> {
             let amount = cbtc::utils::extract_amount(holding).unwrap_or(0.0);
             let contract_id = &holding.created_event.contract_id;
             let short_id = if contract_id.len() > 12 {
-                format!("{}...{}", &contract_id[..6], &contract_id[contract_id.len()-6..])
+                format!(
+                    "{}...{}",
+                    &contract_id[..6],
+                    &contract_id[contract_id.len() - 6..]
+                )
             } else {
                 contract_id.clone()
             };

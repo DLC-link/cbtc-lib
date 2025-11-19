@@ -1,7 +1,7 @@
 [package]
 name = "examples"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license.workspace = true
 publish = false
 
@@ -30,10 +30,6 @@ name = "mint_cbtc_flow"
 path = "src/mint_cbtc_flow.rs"
 
 [[bin]]
-name = "monitor_deposits"
-path = "src/monitor_deposits.rs"
-
-[[bin]]
 name = "redeem_cbtc_flow"
 path = "src/redeem_cbtc_flow.rs"
 
@@ -44,6 +40,22 @@ path = "src/send_cbtc.rs"
 [[bin]]
 name = "test_burn_cbtc"
 path = "src/test_burn_cbtc.rs"
+
+[[bin]]
+name = "list_incoming_offers"
+path = "src/list_incoming_offers.rs"
+
+[[bin]]
+name = "list_outgoing_offers"
+path = "src/list_outgoing_offers.rs"
+
+[[bin]]
+name = "stream_cbtc"
+path = "src/stream.rs"
+
+[[bin]]
+name = "cancel_offers"
+path = "src/cancel_offers.rs"
 
 [dependencies]
 cbtc = { path = "../cbtc" }

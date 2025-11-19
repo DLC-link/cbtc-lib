@@ -42,6 +42,7 @@ This library provides a high-level Rust interface for interacting with CBTC (Can
 ### Prerequisites
 
 Before using this library, you need:
+
 1. **A Canton Participant Node** - Access to a Canton participant node (devnet, testnet, or mainnet)
 2. **Keycloak Credentials** - Authentication credentials for your participant node
 3. **A Party ID** - Your unique party identifier on the Canton network
@@ -72,6 +73,7 @@ See [Quick Start with Examples](#quick-start-with-examples) for more details.
 #### 2. Use as a Library in Your Project
 
 Add to your `Cargo.toml`:
+
 ```toml
 [dependencies]
 cbtc = { path = "path/to/cbtc-lib/crates/cbtc" }
@@ -82,6 +84,7 @@ keycloak = { path = "path/to/cbtc-lib/crates/keycloak" }
 ```
 
 Then in your code:
+
 ```rust
 use cbtc::transfer;
 use keycloak::login;
@@ -106,13 +109,13 @@ For advanced users who want direct control, see [Direct Canton API Usage](#direc
 
 ### Common Operations
 
-| Task | Function | Section |
-|------|----------|---------|
-| Check balance | `cbtc::active_contracts::get()` | [UTXO Management](#utxo-management) |
-| Send tokens | `cbtc::transfer::submit()` | [Sending CBTC](#sending-cbtc) |
-| Accept tokens | `cbtc::accept::submit()` | [Accepting CBTC](#accepting-cbtc) |
-| Batch send | `cbtc::batch::submit_from_csv()` | [Batch Distribution](#batch-distribution) |
-| Consolidate UTXOs | `cbtc::consolidate::check_and_consolidate()` | [UTXO Management](#utxo-management) |
+| Task              | Function                                     | Section                                   |
+| ----------------- | -------------------------------------------- | ----------------------------------------- |
+| Check balance     | `cbtc::active_contracts::get()`              | [UTXO Management](#utxo-management)       |
+| Send tokens       | `cbtc::transfer::submit()`                   | [Sending CBTC](#sending-cbtc)             |
+| Accept tokens     | `cbtc::accept::submit()`                     | [Accepting CBTC](#accepting-cbtc)         |
+| Batch send        | `cbtc::batch::submit_from_csv()`             | [Batch Distribution](#batch-distribution) |
+| Consolidate UTXOs | `cbtc::consolidate::check_and_consolidate()` | [UTXO Management](#utxo-management)       |
 
 ---
 
@@ -169,6 +172,7 @@ CANTON_NETWORK=devnet  # or testnet/mainnet
 ### Environment-Specific Values
 
 #### Devnet
+
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com
@@ -177,6 +181,7 @@ CANTON_NETWORK=devnet
 ```
 
 #### Testnet
+
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f
 REGISTRY_URL=https://api.utilities.digitalasset-staging.com
@@ -185,6 +190,7 @@ CANTON_NETWORK=testnet
 ```
 
 #### Mainnet
+
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262
 REGISTRY_URL=https://api.utilities.digitalasset.com
@@ -205,6 +211,7 @@ For quick experimentation, this library includes ready-to-run example programs. 
 - `batch_distribute` - Distribute tokens to multiple recipients from a CSV file
 
 Run examples from the workspace root:
+
 ```bash
 cargo run -p examples --bin check_balance
 ```
@@ -219,16 +226,20 @@ This library provides several high-level operations for working with CBTC tokens
 
 ### Core Operations
 
-| Operation | Example File | Run Command | Description |
-|-----------|-------------|-------------|-------------|
-| **Mint CBTC** | [`mint_cbtc_flow.rs`](crates/examples/src/mint_cbtc_flow.rs) | `cargo run -p examples --bin mint_cbtc_flow` | Deposit BTC and mint CBTC tokens |
-| **Redeem CBTC** | [`redeem_cbtc_flow.rs`](crates/examples/src/redeem_cbtc_flow.rs) | `cargo run -p examples --bin redeem_cbtc_flow` | Burn CBTC and withdraw BTC |
-| **Monitor Deposits** | [`monitor_deposits.rs`](crates/examples/src/monitor_deposits.rs) | `cargo run -p examples --bin monitor_deposits` | Watch for BTC deposits in real-time |
-| **Check Balance** | [`check_balance.rs`](crates/examples/src/check_balance.rs) | `cargo run -p examples --bin check_balance` | View your CBTC balance and UTXO count |
-| **Send CBTC** | [`send_cbtc.rs`](crates/examples/src/send_cbtc.rs) | `cargo run -p examples --bin send_cbtc` | Transfer tokens to another party |
-| **Accept CBTC** | [`accept_transfers.rs`](crates/examples/src/accept_transfers.rs) | `cargo run -p examples --bin accept_transfers` | Accept incoming transfers |
-| **Batch Distribution** | [`batch_distribute.rs`](crates/examples/src/batch_distribute.rs) | `cargo run -p examples --bin batch_distribute` | Distribute to multiple recipients from CSV |
-| **Consolidate UTXOs** | [`consolidate_utxos.rs`](crates/examples/src/consolidate_utxos.rs) | `cargo run -p examples --bin consolidate_utxos` | Merge multiple UTXOs into one |
+| Operation                | Example File                                                             | Run Command                                        | Description                                      |
+| ------------------------ | ------------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------ |
+| **Mint CBTC**            | [`mint_cbtc_flow.rs`](crates/examples/src/mint_cbtc_flow.rs)             | `cargo run -p examples --bin mint_cbtc_flow`       | Deposit BTC and mint CBTC tokens                 |
+| **Redeem CBTC**          | [`redeem_cbtc_flow.rs`](crates/examples/src/redeem_cbtc_flow.rs)         | `cargo run -p examples --bin redeem_cbtc_flow`     | Burn CBTC and withdraw BTC                       |
+| **Monitor Deposits**     | [`monitor_deposits.rs`](crates/examples/src/monitor_deposits.rs)         | `cargo run -p examples --bin monitor_deposits`     | Watch for BTC deposits in real-time              |
+| **Check Balance**        | [`check_balance.rs`](crates/examples/src/check_balance.rs)               | `cargo run -p examples --bin check_balance`        | View your CBTC balance and UTXO count            |
+| **Send CBTC**            | [`send_cbtc.rs`](crates/examples/src/send_cbtc.rs)                       | `cargo run -p examples --bin send_cbtc`            | Transfer tokens to another party                 |
+| **Accept CBTC**          | [`accept_transfers.rs`](crates/examples/src/accept_transfers.rs)         | `cargo run -p examples --bin accept_transfers`     | Accept incoming transfers                        |
+| **List Incoming Offers** | [`list_incoming_offers.rs`](crates/examples/src/list_incoming_offers.rs) | `cargo run -p examples --bin list_incoming_offers` | List pending transfers where you're the receiver |
+| **List Outgoing Offers** | [`list_outgoing_offers.rs`](crates/examples/src/list_outgoing_offers.rs) | `cargo run -p examples --bin list_outgoing_offers` | List pending transfers where you're the sender   |
+| **Cancel Offers**        | [`cancel_offers.rs`](crates/examples/src/cancel_offers.rs)               | `cargo run -p examples --bin cancel_offers`        | Cancel all pending outgoing transfers            |
+| **Stream CBTC**          | [`stream.rs`](crates/examples/src/stream.rs)                             | `cargo run -p examples --bin stream_cbtc`          | Stream CBTC to a single receiver multiple times  |
+| **Batch Distribution**   | [`batch_distribute.rs`](crates/examples/src/batch_distribute.rs)         | `cargo run -p examples --bin batch_distribute`     | Distribute to multiple recipients from CSV       |
+| **Consolidate UTXOs**    | [`consolidate_utxos.rs`](crates/examples/src/consolidate_utxos.rs)       | `cargo run -p examples --bin consolidate_utxos`    | Merge multiple UTXOs into one                    |
 
 ### Key Concepts
 
@@ -237,10 +248,12 @@ This library provides several high-level operations for working with CBTC tokens
 **UTXO Model**: CBTC uses a UTXO (Unspent Transaction Output) model similar to Bitcoin. Each holding is a separate UTXO that can be split or combined.
 
 **Two-Phase Transfers**:
+
 1. Sender creates a transfer offer
 2. Receiver must accept the transfer to complete it
 
 **BTC ↔ CBTC Bridge**: The mint/redeem flow allows you to bridge between native Bitcoin and CBTC tokens:
+
 - **Minting**: Deposit BTC → Attestor network confirms → Mint CBTC tokens
 - **Redeeming**: Burn CBTC → Create withdraw request → Attestor network sends BTC
 
@@ -257,6 +270,7 @@ The mint/redeem functionality allows you to bridge between native Bitcoin and CB
 ### Minting CBTC (BTC → CBTC)
 
 **Flow**:
+
 1. Create a deposit account with the `mint_redeem` module
 2. Receive a unique BTC deposit address
 3. Send BTC to that address
@@ -264,6 +278,7 @@ The mint/redeem functionality allows you to bridge between native Bitcoin and CB
 5. Once confirmed (6+ blocks), mint CBTC tokens
 
 **Example**:
+
 ```bash
 # Run the mint flow example
 cargo run -p examples --bin mint_cbtc_flow
@@ -277,12 +292,14 @@ See [mint_cbtc_flow.rs](crates/examples/src/mint_cbtc_flow.rs) for complete code
 ### Redeeming CBTC (CBTC → BTC)
 
 **Flow**:
+
 1. Create a withdraw account with your destination BTC address
 2. Burn CBTC tokens to create a withdraw request
 3. Attestor network processes the request
 4. Receive BTC at your destination address
 
 **Example**:
+
 ```bash
 # Run the redeem flow example
 cargo run -p examples --bin redeem_cbtc_flow
@@ -309,6 +326,7 @@ CANTON_NETWORK=devnet  # or testnet/mainnet
 Every CBTC holding is a UTXO (Unspent Transaction Output), similar to Bitcoin. Each transfer can create new UTXOs, and over time you may accumulate many small ones.
 
 **Why Consolidate?**
+
 - **Performance**: Canton has a soft limit of **10 UTXOs per party** per token type
 - **Node Efficiency**: Fewer UTXOs reduce database and memory usage
 - **Network Load**: Smaller transactions with fewer inputs
@@ -347,30 +365,43 @@ See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_wi
 ### Core Modules
 
 #### `cbtc::transfer`
+
 - `submit(Params)` - Send CBTC to a single recipient
 - `submit_multi(MultiParams)` - Send CBTC to multiple recipients in one transaction
 
 #### `cbtc::accept`
+
 - `submit(Params)` - Accept an incoming CBTC transfer
 
+#### `cbtc::withdraw`
+
+- `withdraw_all(WithdrawAllParams)` - Withdraw all pending outgoing transfers
+- `submit(Params)` - Withdraw a specific transfer offer
+
 #### `cbtc::distribute`
+
 - `submit(Params)` - Distribute CBTC to multiple recipients
 
 #### `cbtc::batch`
+
 - `submit_from_csv(Params)` - Batch distribution from CSV file
 
 #### `cbtc::consolidate`
+
 - `check_and_consolidate(CheckConsolidateParams)` - Check and consolidate if needed
 - `get_utxo_count(GetUtxoCountParams)` - Get UTXO count
 - `consolidate_utxos(ConsolidateParams)` - Force consolidation
 
 #### `cbtc::split`
+
 - `submit(Params)` - Split holdings into specific amounts
 
 #### `cbtc::active_contracts`
+
 - `get(Params)` - Get active CBTC holdings
 
 #### `mint_redeem::mint`
+
 - `list_deposit_accounts(Params)` - Get all deposit accounts
 - `create_deposit_account(Params)` - Create new deposit account for minting
 - `list_deposits(Params)` - Get all deposit transactions
@@ -378,6 +409,7 @@ See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_wi
 - `monitor_deposits(Params)` - Real-time monitoring of BTC deposits via WebSocket
 
 #### `mint_redeem::redeem`
+
 - `list_withdraw_accounts(Params)` - Get all withdraw accounts
 - `create_withdraw_account(Params)` - Create withdraw account with BTC destination
 - `list_holdings(Params)` - Get CBTC holdings for burning
@@ -387,14 +419,17 @@ See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_wi
 ### Helper Modules
 
 #### `keycloak::login`
+
 - `password(PasswordParams)` - Authenticate with username/password
 - `client_credentials(ClientCredentialsParams)` - Service account authentication
 
 #### `ledger`
+
 - Low-level ledger API operations
 - WebSocket streaming for real-time updates
 
 #### `registry`
+
 - Registry service integration
 - Factory contract queries
 
@@ -518,6 +553,7 @@ We welcome contributions from the Canton ecosystem! This library is designed to 
 #### Reporting Issues
 
 Found a bug or have a feature request?
+
 1. Check [existing issues](../../issues) to avoid duplicates
 2. Open a new issue with:
    - Clear description of the problem or feature
@@ -528,17 +564,20 @@ Found a bug or have a feature request?
 #### Contributing Code
 
 1. **Fork the repository** and create a feature branch
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
 2. **Make your changes**
+
    - Follow Rust best practices and naming conventions
    - Keep library code free of environment variable dependencies
    - Add tests for new functionality (when applicable)
    - Update documentation and examples
 
 3. **Test your changes**
+
    ```bash
    # Build the library
    cargo build --release
@@ -563,6 +602,7 @@ Found a bug or have a feature request?
 #### Code Organization
 
 - **Library code** (`crates/cbtc`, `crates/ledger`, etc.) should:
+
   - Accept all configuration as function parameters (no `env::var()` calls)
   - Be environment-agnostic and testable
   - Follow dependency injection patterns
@@ -604,17 +644,20 @@ This library includes integration tests that validate real-world interactions wi
 ### Running Tests
 
 Tests require:
+
 - Access to a Canton participant node
 - Valid Keycloak credentials
 - Network connectivity
 
 Set up your environment:
+
 ```bash
 cp .env.example .env
 # Edit .env with your Canton credentials
 ```
 
 Run tests:
+
 ```bash
 # Build the library (always works)
 cargo build --release
@@ -629,6 +672,7 @@ cargo test --lib
 ### Why Tests Require Credentials
 
 Unlike unit tests, these are **integration tests** that:
+
 - Connect to actual Canton participant nodes
 - Perform real ledger operations
 - Validate end-to-end workflows

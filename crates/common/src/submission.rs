@@ -15,7 +15,7 @@ pub struct ExerciseCommandData {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum ChoiceArgumentsVariations {
-    TransferFactory(Box<transfer_factory::ChoiceArguments>),
+    TransferFactory(transfer_factory::ChoiceArguments),
     Accept(accept::ChoiceArguments),
     Generic(serde_json::Value),
 }
@@ -41,8 +41,4 @@ pub struct Submission {
     #[serde(rename = "disclosedContracts")]
     pub disclosed_contracts: Vec<transfer::DisclosedContract>,
     pub commands: Vec<Command>,
-    #[serde(rename = "readAs", skip_serializing_if = "Option::is_none")]
-    pub read_as: Option<Vec<String>>,
-    #[serde(rename = "userId", skip_serializing_if = "Option::is_none")]
-    pub user_id: Option<String>,
 }

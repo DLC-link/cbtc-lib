@@ -33,8 +33,7 @@ pub async fn wait_for_transaction_tree(params: Params) -> Result<String, String>
             status, body_raw
         ));
     }
-    log::debug!("Submit success: {}", body_raw);
+    log::trace!("Submit success: {}", body_raw);
 
-    //let body: common::transfer_factory::Response = serde_json::from_str(&body_raw).map_err(|e| format!("Failed to parse response in wait_for_transaction_tree: {}", e))?;
     Ok(body_raw)
 }

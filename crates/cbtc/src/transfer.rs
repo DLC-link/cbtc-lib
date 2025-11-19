@@ -24,9 +24,11 @@ pub struct MultiParams {
     pub decentralized_party_id: String,
 }
 
+#[derive(Clone)]
 pub struct Recipient {
     pub receiver: String,
     pub amount: String,
+    pub reference: Option<String>,
 }
 
 pub struct SequentialChainedParams {
@@ -35,17 +37,14 @@ pub struct SequentialChainedParams {
     pub instrument_id: common::transfer::InstrumentId,
     pub initial_holding_cids: Vec<String>,
     pub ledger_host: String,
-    pub access_token: String,
     pub registry_url: String,
     pub decentralized_party_id: String,
-    // Optional JWT refresh support
-    pub refresh_token: Option<String>,
-    pub keycloak_client_id: Option<String>,
-    pub keycloak_url: Option<String>,
     // Optional reference base for unique transfer IDs
     pub reference_base: Option<String>,
     // Optional callback for handling each transfer result
     pub on_transfer_complete: Option<Box<TransferResultCallback>>,
+    // Optional pre-fetched registry response to reuse context
+    pub registry_response: Option<common::transfer_factory::Response>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,31 +68,81 @@ pub struct SequentialChainedResult {
 }
 
 /// Simple token state that tracks expiry and refreshes when needed
-struct TokenState {
+pub struct TokenState {
     access_token: String,
     refresh_token: String,
     client_id: String,
     url: String,
+    username: String,
+    password: String,
     expires_at: std::time::SystemTime,
 }
 
 impl TokenState {
+    pub async fn new(
+        username: String,
+        password: String,
+        client_id: String,
+        url: String,
+    ) -> Result<Self, String> {
+        let token = keycloak::login::password(keycloak::login::PasswordParams {
+            client_id: client_id.clone(),
+            username: username.clone(),
+            password: password.clone(),
+            url: url.clone(),
+        })
+        .await?;
+
+        Ok(TokenState {
+            access_token: token.access_token,
+            refresh_token: token.refresh_token,
+
+            username,
+            password,
+
+            client_id,
+            url,
+            expires_at: std::time::SystemTime::now()
+                .checked_sub(std::time::Duration::from_secs(
+                    (token.expires_in - 20) as u64,
+                ))
+                .unwrap_or(std::time::SystemTime::now()),
+        })
+    }
+
     /// Get a fresh token, refreshing if needed (within 1 minute of expiry)
-    async fn get_fresh_token(&mut self) -> Result<String, String> {
+    pub async fn get_fresh_token(&mut self) -> Result<String, String> {
         let now = std::time::SystemTime::now();
         let needs_refresh = now >= self.expires_at;
 
         if needs_refresh {
-            log::debug!("Refreshing JWT token...");
-            let auth = keycloak::login::refresh(keycloak::login::RefreshParams {
+            let auth = match keycloak::login::refresh(keycloak::login::RefreshParams {
                 client_id: self.client_id.clone(),
                 refresh_token: self.refresh_token.clone(),
                 url: self.url.clone(),
             })
             .await
-            .map_err(|e| format!("Failed to refresh JWT: {}", e))?;
+            {
+                Ok(auth_response) => auth_response,
+                Err(e) => {
+                    if e.contains("Token is not active") {
+                        // Try full password login as fallback
+                        let auth_response =
+                            keycloak::login::password(keycloak::login::PasswordParams {
+                                client_id: self.client_id.clone(),
+                                username: self.username.clone(),
+                                password: self.password.clone(),
+                                url: self.url.clone(),
+                            })
+                            .await?;
 
-            log::debug!("JWT token refreshed successfully");
+                        auth_response
+                    } else {
+                        return Err(format!("Failed to refresh JWT: {}", e));
+                    }
+                }
+            };
+
             self.access_token = auth.access_token.clone();
             self.refresh_token = auth.refresh_token;
             // Set expiry to 1 minute before actual expiry
@@ -160,7 +209,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
             contract_id: additional_information.factory_id,
             choice: "TransferFactory_Transfer".to_string(),
             choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                Box::new(common::transfer_factory::ChoiceArguments {
+                common::transfer_factory::ChoiceArguments {
                     expected_admin: params.decentralized_party_id,
                     transfer: params.transfer.clone(),
                     extra_args: common::transfer_factory::ExtraArgs {
@@ -169,7 +218,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
                             values: common::transfer_factory::MetaValue {},
                         },
                     },
-                }),
+                },
             ),
         },
     };
@@ -181,8 +230,6 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        read_as: None,
-        user_id: None,
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -208,6 +255,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
 /// refreshed as needed, preventing failures due to token expiration during long operations.
 pub async fn submit_sequential_chained(
     params: SequentialChainedParams,
+    token_state: &mut TokenState,
 ) -> Result<SequentialChainedResult, String> {
     if params.recipients.is_empty() {
         return Err("No recipients to process".to_string());
@@ -219,68 +267,56 @@ pub async fn submit_sequential_chained(
         params.sender
     );
 
-    // Setup JWT auto-refresh if credentials provided
-    let mut token_state = if let (Some(refresh_token), Some(client_id), Some(url)) = (
-        params.refresh_token.clone(),
-        params.keycloak_client_id.clone(),
-        params.keycloak_url.clone(),
-    ) {
-        log::debug!("JWT auto-refresh enabled");
-        Some(TokenState {
-            access_token: params.access_token.clone(),
-            refresh_token,
-            client_id,
-            url,
-            // Initial expiry set to 5 minutes from now (will be updated after first refresh)
-            expires_at: std::time::SystemTime::now() + std::time::Duration::from_secs(300),
-        })
-    } else {
-        None
-    };
+    let additional_information = match params.registry_response {
+        Some(registry_response) => registry_response,
+        None => {
+            // Create a template transfer to fetch registry context
+            let template_transfer = common::transfer::Transfer {
+                sender: params.sender.clone(),
+                receiver: params.recipients[0].receiver.clone(),
+                amount: params.recipients[0].amount.clone(),
+                instrument_id: params.instrument_id.clone(),
+                requested_at: chrono::Utc::now().to_rfc3339(),
+                execute_before: (chrono::Utc::now() + chrono::Duration::hours(168)).to_rfc3339(),
+                input_holding_cids: Some(params.initial_holding_cids.clone()),
+                meta: Some(common::transfer::Meta {
+                    values: Some({
+                        let mut map = HashMap::new();
+                        map.insert(
+                            "splice.lfdecentralizedtrust.org/reason".to_string(),
+                            "".to_string(),
+                        );
+                        map
+                    }),
+                }),
+            };
 
-    // Create a template transfer to fetch registry context
-    let template_transfer = common::transfer::Transfer {
-        sender: params.sender.clone(),
-        receiver: params.recipients[0].receiver.clone(),
-        amount: params.recipients[0].amount.clone(),
-        instrument_id: params.instrument_id.clone(),
-        requested_at: chrono::Utc::now().to_rfc3339(),
-        execute_before: (chrono::Utc::now() + chrono::Duration::hours(5)).to_rfc3339(),
-        input_holding_cids: Some(params.initial_holding_cids.clone()),
-        meta: Some(common::transfer::Meta {
-            values: Some({
-                let mut map = HashMap::new();
-                map.insert(
-                    "splice.lfdecentralizedtrust.org/reason".to_string(),
-                    "".to_string(),
-                );
-                map
-            }),
-        }),
-    };
+            log::debug!("Fetching transfer factory context from registry (once)...");
 
-    log::debug!("Fetching transfer factory context from registry (once)...");
-    let additional_information =
-        registry::transfer_factory::get(registry::transfer_factory::Params {
-            registry_url: params.registry_url.clone(),
-            decentralized_party_id: params.decentralized_party_id.clone(),
-            request: registry::transfer_factory::Request {
-                choice_arguments: common::transfer_factory::ChoiceArguments {
-                    expected_admin: params.decentralized_party_id.clone(),
-                    transfer: template_transfer,
-                    extra_args: common::transfer_factory::ExtraArgs {
-                        context: common::transfer_factory::Context {
-                            values: HashMap::new(),
+            let additional_information =
+                registry::transfer_factory::get(registry::transfer_factory::Params {
+                    registry_url: params.registry_url.clone(),
+                    decentralized_party_id: params.decentralized_party_id.clone(),
+                    request: registry::transfer_factory::Request {
+                        choice_arguments: common::transfer_factory::ChoiceArguments {
+                            expected_admin: params.decentralized_party_id.clone(),
+                            transfer: template_transfer,
+                            extra_args: common::transfer_factory::ExtraArgs {
+                                context: common::transfer_factory::Context {
+                                    values: HashMap::new(),
+                                },
+                                meta: common::transfer_factory::Meta {
+                                    values: common::transfer_factory::MetaValue {},
+                                },
+                            },
                         },
-                        meta: common::transfer_factory::Meta {
-                            values: common::transfer_factory::MetaValue {},
-                        },
+                        exclude_debug_fields: true,
                     },
-                },
-                exclude_debug_fields: true,
-            },
-        })
-        .await?;
+                })
+                .await?;
+            additional_information
+        }
+    };
 
     let factory_id = additional_information.factory_id;
     let choice_context_data = additional_information.choice_context.choice_context_data;
@@ -299,14 +335,17 @@ pub async fn submit_sequential_chained(
     // Process each recipient sequentially, building transfers on-the-fly
     for (idx, recipient) in params.recipients.into_iter().enumerate() {
         let transfer_num = idx + 1;
-        log::debug!(
-            "[{}/{}] Transferring {} to {}...",
-            transfer_num, total_transfers, recipient.amount, recipient.receiver
+        log::trace!(
+            "\n[{}/{}] Transferring {} to {}...",
+            transfer_num,
+            total_transfers,
+            recipient.amount,
+            recipient.receiver
         );
 
         if current_holding_cids.is_empty() {
             let error_msg = "No UTXOs available for transfer".to_string();
-            log::debug!("Transfer failed: {}", error_msg);
+            log::error!("{}", error_msg);
             let result = TransferResult {
                 success: false,
                 transfer_index: idx,
@@ -330,42 +369,42 @@ pub async fn submit_sequential_chained(
         }
 
         // Get fresh JWT token (auto-refreshes if expired)
-        let current_token = if let Some(ref mut state) = token_state {
-            match state.get_fresh_token().await {
-                Ok(token) => token,
-                Err(e) => {
-                    let error_msg = format!("Failed to get fresh token: {}", e);
-                    log::debug!("Transfer failed: {}", error_msg);
-                    let result = TransferResult {
-                        success: false,
-                        transfer_index: idx,
-                        receiver: recipient.receiver.clone(),
-                        amount: recipient.amount.clone(),
-                        transfer_offer_cid: None,
-                        update_id: None,
-                        reference: None,
-                        raw_response: None,
-                        error: Some(error_msg),
-                    };
+        let current_token = match token_state.get_fresh_token().await {
+            Ok(token) => token,
+            Err(e) => {
+                let error_msg = format!("Failed to get fresh token: {}", e);
+                log::error!("{}", error_msg);
 
-                    // Call callback if provided
-                    if let Some(ref callback) = params.on_transfer_complete {
-                        callback(result.clone()).await;
-                    }
+                let result = TransferResult {
+                    success: false,
+                    transfer_index: idx,
+                    receiver: recipient.receiver.clone(),
+                    amount: recipient.amount.clone(),
+                    transfer_offer_cid: None,
+                    update_id: None,
+                    reference: None,
+                    raw_response: None,
+                    error: Some(error_msg),
+                };
 
-                    results.push(result);
-                    failed_count += 1;
-                    continue;
+                // Call callback if provided
+                if let Some(ref callback) = params.on_transfer_complete {
+                    callback(result.clone()).await;
                 }
+
+                results.push(result);
+                failed_count += 1;
+                continue;
             }
-        } else {
-            params.access_token.clone()
         };
 
         // Generate unique reference if reference_base is provided
-        let transfer_reference = params.reference_base.as_ref().map(|reference_base| {
+        let mut transfer_reference = params.reference_base.as_ref().map(|reference_base| {
             generate_unique_reference(reference_base, &params.sender, &recipient.receiver)
         });
+        if let Some(ref unique_ref) = recipient.reference {
+            transfer_reference = Some(unique_ref.clone());
+        }
 
         // Build transfer on-the-fly for this recipient
         let transfer = common::transfer::Transfer {
@@ -374,7 +413,7 @@ pub async fn submit_sequential_chained(
             amount: recipient.amount.clone(),
             instrument_id: params.instrument_id.clone(),
             requested_at: chrono::Utc::now().to_rfc3339(),
-            execute_before: (chrono::Utc::now() + chrono::Duration::hours(5)).to_rfc3339(),
+            execute_before: (chrono::Utc::now() + chrono::Duration::hours(168)).to_rfc3339(),
             input_holding_cids: Some(current_holding_cids.clone()),
             meta: Some(common::transfer::Meta {
                 values: Some({
@@ -404,7 +443,7 @@ pub async fn submit_sequential_chained(
                 contract_id: factory_id.clone(),
                 choice: "TransferFactory_Transfer".to_string(),
                 choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                    Box::new(common::transfer_factory::ChoiceArguments {
+                    common::transfer_factory::ChoiceArguments {
                         expected_admin: params.decentralized_party_id.clone(),
                         transfer: transfer.clone(),
                         extra_args: common::transfer_factory::ExtraArgs {
@@ -413,7 +452,7 @@ pub async fn submit_sequential_chained(
                                 values: common::transfer_factory::MetaValue {},
                             },
                         },
-                    }),
+                    },
                 ),
             },
         };
@@ -425,8 +464,6 @@ pub async fn submit_sequential_chained(
             commands: vec![common::submission::Command::ExerciseCommand(
                 exercise_command,
             )],
-            read_as: None,
-            user_id: None,
         };
 
         // Submit to ledger with fresh token
@@ -441,10 +478,12 @@ pub async fn submit_sequential_chained(
                 // Parse response to extract change UTXOs, transfer offer CID, and update_id
                 match parse_transfer_response(&response_raw) {
                     Ok((sender_change_cids, transfer_offer_cid, update_id)) => {
-                        log::debug!("Transfer successful");
-                        log::debug!("Transfer Offer: {}", transfer_offer_cid);
-                        log::debug!("Update ID: {}", update_id);
-                        log::debug!("Change UTXOs: {} remaining", sender_change_cids.len());
+                        log::debug!(
+                            "Transfer successful | Transfer Offer: {} | Update ID: {} | Change UTXOs: {} remaining",
+                            transfer_offer_cid,
+                            update_id,
+                            sender_change_cids.len()
+                        );
 
                         let result = TransferResult {
                             success: true,
@@ -471,8 +510,10 @@ pub async fn submit_sequential_chained(
                     }
                     Err(e) => {
                         let error_msg = format!("Failed to parse transfer response: {}", e);
-                        log::debug!("Transfer failed: {}", error_msg);
-                        log::debug!("Note: Change UTXOs preserved for next transfer");
+                        log::error!(
+                            "{} | Note: Change UTXOs preserved for next transfer",
+                            error_msg
+                        );
                         let result = TransferResult {
                             success: false,
                             transfer_index: idx,
@@ -498,8 +539,10 @@ pub async fn submit_sequential_chained(
             }
             Err(e) => {
                 let error_msg = format!("Ledger submission failed: {}", e);
-                log::debug!("Transfer failed: {}", error_msg);
-                log::debug!("Note: Change UTXOs preserved, will retry next transfer");
+                log::error!(
+                    "{} | Note: Change UTXOs preserved, will retry next transfer",
+                    error_msg
+                );
                 let result = TransferResult {
                     success: false,
                     transfer_index: idx,
@@ -524,11 +567,11 @@ pub async fn submit_sequential_chained(
         }
     }
 
-    log::debug!("Transfer Summary:");
-    
-    log::debug!("Successful: {}", successful_count);
-    log::debug!("Failed: {}", failed_count);
-    
+    log::debug!(
+        "Transfer Summary: Successful: {}, Failed: {}",
+        successful_count,
+        failed_count
+    );
 
     Ok(SequentialChainedResult {
         results,
@@ -538,7 +581,9 @@ pub async fn submit_sequential_chained(
 }
 
 /// Parse the transfer response to extract sender change CIDs, transfer offer CID, and update_id
-fn parse_transfer_response(response_raw: &str) -> Result<(Vec<String>, String, String), String> {
+pub fn parse_transfer_response(
+    response_raw: &str,
+) -> Result<(Vec<String>, String, String), String> {
     let response: serde_json::Value = serde_json::from_str(response_raw)
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
@@ -593,7 +638,7 @@ fn parse_transfer_response(response_raw: &str) -> Result<(Vec<String>, String, S
 
 /// Generate a unique reference by concatenating reference_base + sender + receiver and base64 encoding
 fn generate_unique_reference(reference_base: &str, sender: &str, receiver: &str) -> String {
-    use base64::{engine::general_purpose, Engine as _};
+    use base64::{Engine as _, engine::general_purpose};
 
     let combined = format!("{}-{}-{}", reference_base, sender, receiver);
     general_purpose::STANDARD.encode(combined.as_bytes())
@@ -602,7 +647,7 @@ fn generate_unique_reference(reference_base: &str, sender: &str, receiver: &str)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
     use std::ops::Add;
 
@@ -639,7 +684,7 @@ mod tests {
                 },
                 requested_at: chrono::Utc::now().to_rfc3339(),
                 execute_before: chrono::Utc::now()
-                    .add(chrono::Duration::hours(5))
+                    .add(chrono::Duration::hours(168))
                     .to_rfc3339(),
                 input_holding_cids: None,
                 meta: None,

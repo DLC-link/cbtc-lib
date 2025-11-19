@@ -1,6 +1,7 @@
 pub mod accept;
 pub mod active_contracts;
 pub mod batch;
+pub mod cancel_offers;
 pub mod consolidate;
 pub mod distribute;
 pub mod split;

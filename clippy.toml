@@ -1,2 +1,2 @@
-allow-mixed-uninlined-format-args = true
+uninlined_format_args = "allow"
 disallowed-names = []

@@ -108,7 +108,7 @@ fn filter_active_contracts_by_create_argument(
 mod tests {
     use super::*;
     use crate::ledger_end;
-    use keycloak::login::{client_credentials, client_credentials_url, ClientCredentialsParams};
+    use keycloak::login::{ClientCredentialsParams, client_credentials, client_credentials_url};
     use std::env;
 
     #[tokio::test]

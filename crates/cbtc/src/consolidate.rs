@@ -72,7 +72,7 @@ pub struct ConsolidateParams {
 /// };
 ///
 /// let count = consolidate::get_utxo_count(params).await?;
-/// println!("Party has {} CBTC UTXOs", count);
+/// log::debug!("Party has {} CBTC UTXOs", count);
 /// ```
 pub async fn get_utxo_count(params: GetUtxoCountParams) -> Result<usize, String> {
     let contracts = active_contracts::get(active_contracts::Params {
@@ -108,7 +108,7 @@ pub async fn get_utxo_count(params: GetUtxoCountParams) -> Result<usize, String>
 /// };
 ///
 /// let result_cids = consolidate::consolidate_utxos(params).await?;
-/// println!("Consolidated into {} UTXO(s)", result_cids.len());
+/// log::debug!("Consolidated into {} UTXO(s)", result_cids.len());
 /// ```
 pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>, String> {
     // Get the holdings to consolidate
@@ -220,7 +220,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
             contract_id: additional_information.factory_id,
             choice: "TransferFactory_Transfer".to_string(),
             choice_argument: common::submission::ChoiceArgumentsVariations::TransferFactory(
-                Box::new(common::transfer_factory::ChoiceArguments {
+                common::transfer_factory::ChoiceArguments {
                     expected_admin: params.decentralized_party_id,
                     transfer: transfer.clone(),
                     extra_args: common::transfer_factory::ExtraArgs {
@@ -229,7 +229,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
                             values: common::transfer_factory::MetaValue {},
                         },
                     },
-                }),
+                },
             ),
         },
     };
@@ -241,8 +241,6 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        read_as: None,
-        user_id: None,
     };
 
     let response_raw = ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -309,9 +307,9 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
 ///
 /// let result = consolidate::check_and_consolidate(params).await?;
 /// if result.consolidated {
-///     println!("Consolidated {} UTXOs into {}", result.utxos_before, result.utxos_after);
+///     log::debug!("Consolidated {} UTXOs into {}", result.utxos_before, result.utxos_after);
 /// } else {
-///     println!("No consolidation needed. Party has {} UTXOs", result.utxos_before);
+///     log::debug!("No consolidation needed. Party has {} UTXOs", result.utxos_before);
 /// }
 /// ```
 pub async fn check_and_consolidate(
@@ -327,7 +325,8 @@ pub async fn check_and_consolidate(
 
     log::debug!(
         "Party has {} CBTC UTXOs (threshold: {})",
-        utxo_count, params.threshold
+        utxo_count,
+        params.threshold
     );
 
     // Check if consolidation is needed
@@ -368,7 +367,7 @@ pub async fn check_and_consolidate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{password, password_url, PasswordParams};
+    use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
 
     #[tokio::test]

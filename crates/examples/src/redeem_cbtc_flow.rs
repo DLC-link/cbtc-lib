@@ -1,13 +1,17 @@
 /// CBTC Redeeming (Withdrawal) Flow Example
 ///
-/// This example demonstrates the complete flow of redeeming CBTC back to BTC:
+/// This example demonstrates the complete flow of submitting a CBTC withdrawal:
 ///
 /// 1. Authenticate with Keycloak
 /// 2. Get account rules from the attestor network
 /// 3. Create a withdraw account on Canton with destination BTC address
 /// 4. List existing CBTC holdings
-/// 5. Request withdrawal (burn CBTC and create withdraw request)
-/// 6. Monitor withdraw requests
+/// 5. Submit withdrawal (burn CBTC and increase pending balance)
+/// 6. Verify the withdrawal was submitted successfully
+///
+/// Note: WithdrawRequests are NOT created atomically with the withdrawal submission.
+/// The attestor network will create WithdrawRequests later. Use the separate
+/// `check_withdraw_requests` example to monitor for processed withdrawals.
 ///
 /// To run this example:
 /// 1. Make sure you have .env configured with your credentials
@@ -17,7 +21,7 @@ use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::attestor;
 use mint_redeem::redeem::{
     CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,
-    ListWithdrawRequestsParams, RequestWithdrawParams,
+    SubmitWithdrawParams,
 };
 use std::env;
 
@@ -171,7 +175,7 @@ async fn main() -> Result<(), String> {
         accounts[0].clone()
     };
 
-    // Step 6: Request withdrawal (burn CBTC)
+    // Step 6: Submit withdrawal (burn CBTC)
     // For this example, let's try to withdraw a small amount
     let withdraw_amount = "0.001"; // 0.001 BTC
     let withdraw_amount_f64: f64 = withdraw_amount.parse().unwrap();
@@ -184,7 +188,7 @@ async fn main() -> Result<(), String> {
         return Ok(());
     }
 
-    println!("Step 6: Requesting withdrawal (burning CBTC)...");
+    println!("Step 6: Submitting withdrawal (burning CBTC)...");
     println!("  Amount to withdraw: {} BTC", withdraw_amount);
 
     // Select holdings to burn - for simplicity, just use the first holding with enough balance
@@ -208,7 +212,7 @@ async fn main() -> Result<(), String> {
         selected_total
     );
 
-    let withdraw_request = mint_redeem::redeem::request_withdraw(RequestWithdrawParams {
+    let updated_account = mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
@@ -216,71 +220,39 @@ async fn main() -> Result<(), String> {
         attestor_url: attestor_url.clone(),
         chain: chain.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+        withdraw_account_template_id: withdraw_account.template_id.clone(),
+        withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: withdraw_amount.to_string(),
         holding_contract_ids: selected_holdings,
     })
     .await?;
 
-    println!("✓ Withdraw request created successfully!");
-    println!("  - Contract ID: {}", withdraw_request.contract_id);
-    println!("  - Amount: {} BTC", withdraw_request.amount);
+    println!("✓ Withdrawal submitted successfully!");
+    println!("  - Updated Account Contract ID: {}", updated_account.contract_id);
+    println!("  - Pending Balance: {} BTC", updated_account.pending_balance);
     println!(
         "  - Destination: {}",
-        withdraw_request.destination_btc_address
-    );
-    println!(
-        "  - BTC TX ID: {}",
-        withdraw_request
-            .btc_tx_id
-            .as_ref()
-            .unwrap_or(&"Pending...".to_string())
+        updated_account.destination_btc_address
     );
     println!();
-
-    // Step 7: List all withdraw requests
-    println!("Step 7: Checking all withdraw requests...");
-    let withdraw_requests =
-        mint_redeem::redeem::list_withdraw_requests(ListWithdrawRequestsParams {
-            ledger_host: ledger_host.clone(),
-            party: party_id.clone(),
-            access_token: access_token.clone(),
-        })
-        .await?;
-
-    if withdraw_requests.is_empty() {
-        println!("  No withdraw requests found.");
-    } else {
-        println!("✓ Found {} withdraw request(s):", withdraw_requests.len());
-        for request in &withdraw_requests {
-            println!("  - Amount: {} BTC", request.amount);
-            println!("    Destination: {}", request.destination_btc_address);
-            if let Some(tx_id) = &request.btc_tx_id {
-                println!("    BTC TX ID: {} ✓", tx_id);
-            } else {
-                println!("    Status: Pending attestor processing...");
-            }
-            println!();
-        }
-    }
 
     println!("=== Example Complete ===");
     println!();
     println!("Summary:");
     println!(
         "  • Your withdraw account contract ID: {}",
-        withdraw_account.contract_id
+        updated_account.contract_id
     );
-    println!("  • Withdraw request created for: {} BTC", withdraw_amount);
+    println!("  • Pending balance: {} BTC", updated_account.pending_balance);
     println!(
         "  • BTC will be sent to: {}",
-        withdraw_account.destination_btc_address
+        updated_account.destination_btc_address
     );
-    println!("  • The attestor network will process your withdrawal request");
-    println!("  • Once confirmed, BTC will be sent to your destination address");
     println!();
-    println!("To monitor withdrawals, you can periodically call:");
-    println!("  - list_withdraw_requests() to see withdrawal status");
-    println!("  - Check if btc_tx_id is populated to confirm BTC was sent");
+    println!("Important: WithdrawRequests are NOT created atomically with this call.");
+    println!("The attestor network will process your pending balance and create a");
+    println!("WithdrawRequest later. Use 'check_withdraw_requests' to monitor:");
+    println!("  cargo run -p examples --bin check_withdraw_requests");
 
     Ok(())
 }

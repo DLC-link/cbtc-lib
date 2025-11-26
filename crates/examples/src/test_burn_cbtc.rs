@@ -6,7 +6,7 @@
 /// Usage:
 /// cargo run -p examples --bin test_burn_cbtc
 use keycloak::login::{PasswordParams, password, password_url};
-use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, RequestWithdrawParams};
+use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, SubmitWithdrawParams};
 use std::env;
 
 #[tokio::main]
@@ -86,7 +86,7 @@ async fn main() -> Result<(), String> {
         ));
     }
 
-    let _withdraw_request = mint_redeem::redeem::request_withdraw(RequestWithdrawParams {
+    let updated_account = mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
@@ -94,10 +94,14 @@ async fn main() -> Result<(), String> {
         attestor_url: attestor_url.clone(),
         chain: chain.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+        withdraw_account_template_id: withdraw_account.template_id.clone(),
+        withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: burn_amount.to_string(),
         holding_contract_ids: selected_holdings,
     })
     .await?;
+
+    println!("Burn successful! Pending balance: {} BTC", updated_account.pending_balance);
 
     Ok(())
 }

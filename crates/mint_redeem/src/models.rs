@@ -99,16 +99,21 @@ pub struct DepositAccountStatus {
 #[derive(Debug, Clone)]
 pub struct WithdrawAccount {
     pub contract_id: String,
+    pub template_id: String,
     pub owner: String,
     pub operator: String,
     pub registrar: String,
     pub destination_btc_address: String,
+    pub pending_balance: String,
+    pub created_event_blob: String,
 }
 
 impl WithdrawAccount {
     /// Parse a WithdrawAccount from a JsActiveContract
     pub fn from_active_contract(contract: &JsActiveContract) -> Result<Self, String> {
         let contract_id = contract.created_event.contract_id.clone();
+        let template_id = contract.created_event.template_id.clone();
+        let created_event_blob = contract.created_event.created_event_blob.clone();
 
         let args = contract
             .created_event
@@ -142,24 +147,38 @@ impl WithdrawAccount {
             .ok_or("Missing 'destinationBtcAddress' field")?
             .to_string();
 
+        let pending_balance = args
+            .get("pendingBalance")
+            .and_then(|v| v.as_str())
+            .unwrap_or("0.0")
+            .to_string();
+
         Ok(Self {
             contract_id,
+            template_id,
             owner,
             operator,
             registrar,
             destination_btc_address,
+            pending_balance,
+            created_event_blob,
         })
     }
 }
 
 /// A withdraw request contract representing a CBTC burn and pending BTC withdrawal
+///
+/// Created by the registrar (attestor network) after the user submits a withdrawal.
+/// The btc_tx_id contains the Bitcoin transaction ID used to fulfill the withdrawal.
 #[derive(Debug, Clone)]
 pub struct WithdrawRequest {
     pub contract_id: String,
-    pub withdraw_account_id: String,
+    pub owner: String,
+    pub registrar: String,
     pub amount: String,
     pub destination_btc_address: String,
-    pub btc_tx_id: Option<String>,
+    pub btc_tx_id: String,
+    pub source_account_id: Option<String>,
 }
 
 impl WithdrawRequest {
@@ -175,10 +194,16 @@ impl WithdrawRequest {
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
-        let withdraw_account_id = args
-            .get("withdrawAccountId")
+        let owner = args
+            .get("owner")
             .and_then(|v| v.as_str())
-            .ok_or("Missing 'withdrawAccountId' field")?
+            .ok_or("Missing 'owner' field")?
+            .to_string();
+
+        let registrar = args
+            .get("registrar")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing 'registrar' field")?
             .to_string();
 
         let amount = args
@@ -196,14 +221,23 @@ impl WithdrawRequest {
         let btc_tx_id = args
             .get("btcTxId")
             .and_then(|v| v.as_str())
+            .ok_or("Missing 'btcTxId' field")?
+            .to_string();
+
+        // sourceAccountId is Optional in Daml, so handle both Some and None cases
+        let source_account_id = args
+            .get("sourceAccountId")
+            .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
         Ok(Self {
             contract_id,
-            withdraw_account_id,
+            owner,
+            registrar,
             amount,
             destination_btc_address,
             btc_tx_id,
+            source_account_id,
         })
     }
 }

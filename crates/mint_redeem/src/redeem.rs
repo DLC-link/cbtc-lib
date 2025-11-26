@@ -1,7 +1,7 @@
 use crate::attestor;
 use crate::constants::{
-    CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_TEMPLATE_ID,
-    WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
+    CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_RULES_TEMPLATE_ID,
+    WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
 };
 use crate::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
 use common::submission;
@@ -9,6 +9,7 @@ use common::transfer::DisclosedContract;
 use ledger::active_contracts;
 use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilter};
 use ledger::ledger_end;
+use ledger::models::JsActiveContract;
 use ledger::submit;
 use serde_json::json;
 
@@ -38,8 +39,12 @@ pub struct ListHoldingsParams {
     pub access_token: String,
 }
 
-/// Parameters for requesting a withdrawal (burning CBTC)
-pub struct RequestWithdrawParams {
+/// Parameters for submitting a withdrawal (burning CBTC)
+///
+/// After submitting, the user's tokens are burned and the pending_balance
+/// on their WithdrawAccount is increased. The attestor network will later
+/// create a WithdrawRequest to process the BTC payout.
+pub struct SubmitWithdrawParams {
     pub ledger_host: String,
     pub party: String,
     pub user_name: String,
@@ -47,6 +52,8 @@ pub struct RequestWithdrawParams {
     pub attestor_url: String,
     pub chain: String,
     pub withdraw_account_contract_id: String,
+    pub withdraw_account_template_id: String,
+    pub withdraw_account_created_event_blob: String,
     pub amount: String,
     pub holding_contract_ids: Vec<String>,
 }
@@ -158,7 +165,7 @@ pub async fn create_withdraw_account(
     // Build the exercise command
     let exercise_command = submission::ExerciseCommand {
         exercise_command: submission::ExerciseCommandData {
-            template_id: params.account_rules_template_id.clone(),
+            template_id: WITHDRAW_ACCOUNT_RULES_TEMPLATE_ID.to_string(),
             contract_id: params.account_rules_contract_id.clone(),
             choice: CREATE_WITHDRAW_ACCOUNT_CHOICE.to_string(),
             choice_argument: submission::ChoiceArgumentsVariations::Generic(choice_argument),
@@ -280,10 +287,14 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
     holdings
 }
 
-/// Request a withdrawal by burning CBTC holdings
+/// Submit a withdrawal by burning CBTC holdings
 ///
-/// This burns the specified CBTC holdings and creates a WithdrawRequest that will
-/// be processed by the attestor network to send BTC to the withdraw account's destination address.
+/// This burns the specified CBTC holdings and increases the pending_balance on
+/// the user's WithdrawAccount. The attestor network will later create a
+/// WithdrawRequest to process the BTC payout to the destination address.
+///
+/// Note: WithdrawRequests are NOT created atomically with this call. Use
+/// `list_withdraw_requests()` to periodically check for processed withdrawals.
 ///
 /// # Example
 /// ```ignore
@@ -301,19 +312,24 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     .map(|h| h.contract_id.clone())
 ///     .collect();
 ///
-/// // Request withdrawal
-/// let withdraw_request = redeem::request_withdraw(RequestWithdrawParams {
+/// // Submit withdrawal - burns tokens and increases pending_balance
+/// let updated_account = redeem::submit_withdraw(SubmitWithdrawParams {
 ///     ledger_host: ledger_host.clone(),
 ///     party: party_id.clone(),
 ///     access_token: access_token.clone(),
 ///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
 ///     chain: "canton-devnet".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
+///     withdraw_account_template_id: withdraw_account.template_id,
+///     withdraw_account_created_event_blob: withdraw_account.created_event_blob,
 ///     amount: "0.001".to_string(),
 ///     holding_contract_ids: holding_ids,
 /// }).await?;
+///
+/// println!("Pending balance: {}", updated_account.pending_balance);
+/// // Later, check for WithdrawRequests using list_withdraw_requests()
 /// ```
-pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawRequest, String> {
+pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAccount, String> {
     // Get token standard contracts from attestor
     let token_contracts: TokenStandardContracts =
         attestor::get_token_standard_contracts(&params.attestor_url, &params.chain).await?;
@@ -321,8 +337,15 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
     // Generate a random command ID
     let command_id = format!("cmd-{}", uuid::Uuid::new_v4());
 
-    // Build disclosed contracts - include all token standard contracts
+    // Build disclosed contracts - include withdraw account and all token standard contracts
     let mut disclosed_contracts = vec![
+        // Withdraw account being exercised
+        DisclosedContract {
+            contract_id: params.withdraw_account_contract_id.clone(),
+            created_event_blob: params.withdraw_account_created_event_blob.clone(),
+            template_id: params.withdraw_account_template_id.clone(),
+            synchronizer_id: String::new(),
+        },
         DisclosedContract {
             contract_id: token_contracts.burn_mint_factory.contract_id.clone(),
             created_event_blob: token_contracts.burn_mint_factory.created_event_blob.clone(),
@@ -453,9 +476,10 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
         .map_err(|e| format!("Failed to construct choice argument: {}", e))?;
 
     // Build the exercise command
+    // Use the actual template_id from the contract, not the #cbtc shorthand
     let exercise_command = submission::ExerciseCommand {
         exercise_command: submission::ExerciseCommandData {
-            template_id: WITHDRAW_ACCOUNT_TEMPLATE_ID.to_string(),
+            template_id: params.withdraw_account_template_id.clone(),
             contract_id: params.withdraw_account_contract_id.clone(),
             choice: WITHDRAW_CHOICE.to_string(),
             choice_argument: submission::ChoiceArgumentsVariations::Generic(choice_argument),
@@ -478,11 +502,12 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
     })
     .await?;
 
-    // Parse the response to extract the created WithdrawRequest
+    // Parse the response to extract the updated WithdrawAccount
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    // Extract the created WithdrawRequest from eventsById
+    // Extract the created WithdrawAccount from eventsById
+    // The Withdraw choice consumes the old account and creates a new one with updated pending_balance
     let events_by_id = response["transactionTree"]["eventsById"]
         .as_object()
         .ok_or("Failed to find eventsById in transaction")?;
@@ -492,10 +517,10 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
             let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
-            if template_id.ends_with(":CBTC.WithdrawRequest:CBTCWithdrawRequest") {
+            if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
                 // Parse the created event as a JsActiveContract
                 let created_event_value = &created_event["value"];
-                let active_contract = ledger::models::JsActiveContract {
+                let active_contract = JsActiveContract {
                     created_event: Box::new(ledger::models::CreatedEvent {
                         contract_id: created_event_value["contractId"]
                             .as_str()
@@ -512,22 +537,27 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
                     reassignment_counter: 0,
                     synchronizer_id: String::new(),
                 };
-                return WithdrawRequest::from_active_contract(&active_contract);
+                return WithdrawAccount::from_active_contract(&active_contract);
             }
         }
     }
 
-    Err("No WithdrawRequest was created in the transaction".to_string())
+    Err("No updated WithdrawAccount was found in the transaction".to_string())
 }
 
 /// List all withdraw requests for a party
 ///
-/// A withdraw request is created after CBTC is burned. Once the attestor network
-/// processes the request, BTC will be sent to the destination address and the
-/// withdraw request contract will be updated with the Bitcoin transaction ID.
+/// Withdraw requests are created by the attestor network (registrar) after a user
+/// submits a withdrawal via `submit_withdraw()`. The creation of WithdrawRequests
+/// is NOT atomic with the withdrawal submission - it happens later when the
+/// attestor processes the pending balance.
+///
+/// Each WithdrawRequest includes a `btc_tx_id` which is the Bitcoin transaction
+/// ID used to fulfill the withdrawal.
 ///
 /// # Example
 /// ```ignore
+/// // Periodically poll for withdraw requests
 /// let requests = redeem::list_withdraw_requests(ListWithdrawRequestsParams {
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
@@ -535,11 +565,12 @@ pub async fn request_withdraw(params: RequestWithdrawParams) -> Result<WithdrawR
 /// }).await?;
 ///
 /// for request in requests {
-///     if let Some(tx_id) = request.btc_tx_id {
-///         log::debug!("Withdrawal complete: {} BTC sent in tx {}", request.amount, tx_id);
-///     } else {
-///         log::debug!("Withdrawal pending: {} BTC to {}", request.amount, request.destination_btc_address);
-///     }
+///     log::debug!(
+///         "Withdrawal: {} BTC to {} (tx: {})",
+///         request.amount,
+///         request.destination_btc_address,
+///         request.btc_tx_id
+///     );
 /// }
 /// ```
 pub async fn list_withdraw_requests(

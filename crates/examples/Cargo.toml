@@ -57,6 +57,10 @@ path = "src/stream.rs"
 name = "cancel_offers"
 path = "src/cancel_offers.rs"
 
+[[bin]]
+name = "check_withdraw_requests"
+path = "src/check_withdraw_requests.rs"
+
 [dependencies]
 cbtc = { path = "../cbtc" }
 common = { path = "../common" }

@@ -29,6 +29,128 @@ pub struct ContractMessage {
     pub contract_entry: Option<ContractEntry>,
 }
 
+pub async fn get_with_callback<F, Fut>(params: Params, mut callback: F) -> Result<(), String>
+where
+    F: FnMut(String) -> Fut,
+    Fut: std::future::Future<Output = ()>,
+{
+    let ws_host = utils::http_to_ws(&params.ledger_host.clone());
+    let ws_url = format!(
+        "{}/v2/state/active-contracts",
+        ws_host.trim_end_matches('/')
+    );
+
+    // Parse URL to extract host
+    let parsed_url = url::Url::parse(&ws_url).map_err(|e| format!("Invalid URL: {e}"))?;
+    let host = parsed_url
+        .host_str()
+        .ok_or_else(|| "Could not extract host from URL".to_string())?;
+
+    let protocol_header = format!("jwt.token.{}, daml.ws.auth", params.access_token);
+    let request = Request::builder()
+        .uri(parsed_url.as_str())
+        .header("Sec-WebSocket-Protocol", protocol_header)
+        .header("Sec-WebSocket-Key", utils::random_16_byte_string())
+        .header("Sec-WebSocket-Version", "13")
+        .header("Connection", "Upgrade")
+        .header("Upgrade", "websocket")
+        .header("Host", host)
+        .body(())
+        .map_err(|e| format!("Failed to build request: {e}"))?;
+
+    let (ws_stream, _) = tokio_tungstenite::connect_async(request)
+        .await
+        .map_err(|e| format!("WebSocket connection error: {e}"))?;
+
+    let (mut write, mut read) = ws_stream.split();
+
+    // Setup request
+    let cumulative_vec: Vec<common::CumulativeFilter> = vec![common::CumulativeFilter {
+        identifier_filter: params.filter,
+    }];
+
+    let mut filters_by_party: HashMap<String, common::Filters> = HashMap::new();
+    filters_by_party.insert(
+        params.party.clone(),
+        common::Filters {
+            cumulative: Some(cumulative_vec),
+        },
+    );
+    let request = common::GetActiveContractsRequest {
+        filter: Some(common::TransactionFilter {
+            filters_by_party,
+            filters_for_any_party: None,
+        }),
+        verbose: false,
+        active_at_offset: params.ledger_end,
+    };
+    let event = serde_json::to_value(&request).map_err(|e| format!("Serialization error: {e}"))?;
+
+    let mut error: Option<String> = None;
+
+    // Send messages if needed
+    match write
+        .send(Message::Text(event.to_string()))
+        .await
+        .map_err(|e| format!("Error sending message: {e}"))
+    {
+        Ok(_) => {}
+        Err(e) => {
+            error = Some(e);
+        }
+    };
+
+    while let Some(message) = read.next().await {
+        match message {
+            Ok(Message::Text(text)) => {
+                if text.contains("A security-sensitive error has been received") {
+                    error = Some(format!(
+                        "Received security-sensitive error from server: {}",
+                        text
+                    ));
+                    break;
+                }
+                callback(text).await;
+            }
+            Ok(Message::Binary(_)) => {
+                log::info!("Received unhandled binary message.");
+            }
+            Ok(Message::Close(_)) => {
+                break;
+            }
+            Err(e) => {
+                error = Some(format!("WebSocket error: {e}"));
+                break;
+            }
+            msg => match msg {
+                Ok(other) => {
+                    log::info!("Received other type of message: {:?}", other);
+                }
+                Err(e) => {
+                    log::error!("Error receiving message: {}", e);
+                }
+            },
+        }
+    }
+
+    match write
+        .close()
+        .await
+        .map_err(|e| format!("Error closing connection: {e}"))
+    {
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Error closing websocket connection: {}", e);
+        }
+    };
+
+    if let Some(err) = error {
+        return Err(err);
+    }
+
+    Ok(())
+}
+
 pub async fn get(params: Params) -> Result<Vec<models::JsActiveContract>, String> {
     let ws_host = utils::http_to_ws(&params.ledger_host.clone());
     let ws_url = format!(
@@ -110,12 +232,12 @@ pub async fn get(params: Params) -> Result<Vec<models::JsActiveContract>, String
                 let d: ContractMessage = serde_json::from_str(&text)
                     .map_err(|e| format!("Error deserializing JSON: {e}"))?;
 
-                if let Some(ce) = &d.contract_entry {
-                    result.push(ce.js_active_contract.clone());
+                if let Some(ce) = d.contract_entry {
+                    result.push(ce.js_active_contract);
                 }
             }
             Ok(Message::Binary(_)) => {
-                log::info!("Received unhandled binary message.");
+                log::warn!("Received unhandled binary message.");
             }
             Ok(Message::Close(_)) => {
                 break;

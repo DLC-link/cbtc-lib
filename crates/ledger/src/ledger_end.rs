@@ -1,3 +1,4 @@
+use crate::client::Client;
 use canton_api_client::apis::default_api as canton_api;
 use serde::{Deserialize, Serialize};
 
@@ -11,9 +12,19 @@ pub struct Response {
     pub offset: i64,
 }
 
+pub async fn get_with_client(client: &Client) -> Result<Response, String> {
+    let ledger_end = canton_api::get_v2_state_ledger_end(&client.configuration)
+        .await
+        .map_err(|e| format!("Error getting ledger end: {}", e))?;
+
+    Ok(Response {
+        offset: ledger_end.offset,
+    })
+}
+
 /// Get the ledger end offset, this exists if we ever want to implement our own reqwest solution here
 pub async fn get(params: Params) -> Result<Response, String> {
-    let canton_client = crate::client::Client::new(params.access_token, params.ledger_host);
+    let canton_client = Client::new(params.access_token, params.ledger_host);
 
     let ledger_end = canton_api::get_v2_state_ledger_end(&canton_client.configuration)
         .await

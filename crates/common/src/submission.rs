@@ -32,10 +32,12 @@ pub enum Command {
     ExerciseCommand(ExerciseCommand),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Submission {
     #[serde(rename = "actAs")]
     pub act_as: Vec<String>,
+    #[serde(rename = "readAs", default, skip_serializing_if = "Option::is_none")]
+    pub read_as: Option<Vec<String>>,
     #[serde(rename = "commandId")]
     pub command_id: String,
     #[serde(rename = "disclosedContracts")]

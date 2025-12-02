@@ -110,6 +110,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
     // Submit the acceptance transaction
     let submission_request = common::submission::Submission {
         act_as: vec![params.receiver_party],
+        read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
         disclosed_contracts: accept_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(
@@ -292,6 +293,7 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
 
         let submission_request = common::submission::Submission {
             act_as: vec![params.receiver_party.clone()],
+            read_as: None,
             command_id: uuid::Uuid::new_v4().to_string(),
             disclosed_contracts: accept_context.disclosed_contracts.clone(),
             commands: batch_commands,

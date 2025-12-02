@@ -111,6 +111,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
     // Submit the withdrawal transaction
     let submission_request = common::submission::Submission {
         act_as: vec![params.sender_party],
+        read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
         disclosed_contracts: withdraw_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(
@@ -299,6 +300,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
 
         let submission_request = common::submission::Submission {
             act_as: vec![params.sender_party.clone()],
+            read_as: None,
             command_id: uuid::Uuid::new_v4().to_string(),
             disclosed_contracts: withdraw_context.disclosed_contracts.clone(),
             commands: batch_commands,

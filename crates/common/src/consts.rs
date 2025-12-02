@@ -19,6 +19,8 @@ pub const TEMPLATE_TRANSFER_FACTORY: &str = "#splice-api-token-transfer-instruct
 pub const TEMPLATE_TRANSFER_INSTRUCTION: &str = "#splice-api-token-transfer-instruction-v1:Splice.Api.Token.TransferInstructionV1:TransferInstruction";
 pub const TEMPLATE_TRANSFER_OFFER: &str =
     "#utility-registry-app-v0:Utility.Registry.App.V0.Model.Transfer:TransferOffer";
+pub const TEMPLATE_EXECUTED_TRANSFER: &str =
+    "#utility-registry-v0:Utility.Registry.V0.Holding.Transfer:ExecutedTransfer";
 
 pub const INTERFACE_HOLDING: &str =
     "#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding";

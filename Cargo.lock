@@ -471,7 +471,9 @@ dependencies = [
  "log",
  "mint_redeem",
  "serde",
+ "serde_json",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

@@ -69,6 +69,13 @@ pub struct RefreshParams {
 
 pub async fn client_credentials(params: ClientCredentialsParams) -> Result<Response, String> {
     let client = reqwest::Client::new();
+    client_credentials_with_client(params, &client).await
+}
+
+pub async fn client_credentials_with_client(
+    params: ClientCredentialsParams,
+    client: &reqwest::Client,
+) -> Result<Response, String> {
     let form = [
         ("grant_type", "client_credentials"),
         ("client_id", &*params.client_id),
@@ -101,6 +108,13 @@ pub async fn client_credentials(params: ClientCredentialsParams) -> Result<Respo
 
 pub async fn password(params: PasswordParams) -> Result<Response, String> {
     let client = reqwest::Client::new();
+    password_with_client(params, &client).await
+}
+
+pub async fn password_with_client(
+    params: PasswordParams,
+    client: &reqwest::Client,
+) -> Result<Response, String> {
     let form = [
         ("grant_type", "password"),
         ("client_id", &*params.client_id),

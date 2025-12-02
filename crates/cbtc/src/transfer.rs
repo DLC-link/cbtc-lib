@@ -225,6 +225,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
 
     let submission_request = common::submission::Submission {
         act_as: vec![params.transfer.sender],
+        read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
         disclosed_contracts: additional_information.choice_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(
@@ -459,6 +460,7 @@ pub async fn submit_sequential_chained(
 
         let submission_request = common::submission::Submission {
             act_as: vec![params.sender.clone()],
+            read_as: None,
             command_id: uuid::Uuid::new_v4().to_string(),
             disclosed_contracts: disclosed_contracts.clone(),
             commands: vec![common::submission::Command::ExerciseCommand(

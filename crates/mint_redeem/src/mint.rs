@@ -148,6 +148,7 @@ pub async fn create_deposit_account(
     // Build submission request
     let submission_request = submission::Submission {
         act_as: vec![params.party.clone()],
+        read_as: None,
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],

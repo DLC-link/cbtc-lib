@@ -236,6 +236,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
 
     let submission_request = common::submission::Submission {
         act_as: vec![transfer.sender],
+        read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
         disclosed_contracts: additional_information.choice_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(

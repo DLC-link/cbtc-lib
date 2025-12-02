@@ -1,8 +1,8 @@
-use crate::attestor;
-use crate::constants::{
+use crate::mint_redeem::attestor;
+use crate::mint_redeem::constants::{
     CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_RULES_TEMPLATE_ID, DEPOSIT_ACCOUNT_TEMPLATE_ID,
 };
-use crate::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus};
+use crate::mint_redeem::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus};
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;

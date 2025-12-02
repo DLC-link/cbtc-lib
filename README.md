@@ -202,7 +202,7 @@ CANTON_NETWORK=mainnet
 
 ## Quick Start with Examples
 
-For quick experimentation, this library includes ready-to-run example programs. See the [`crates/examples`](crates/examples/README.md) directory for:
+For quick experimentation, this library includes ready-to-run example programs. See the [`crates/examples`](examples/README.md) directory for:
 
 - `check_balance` - Check your CBTC balance and UTXO count
 - `send_cbtc` - Send tokens to another party
@@ -216,29 +216,29 @@ Run examples from the workspace root:
 cargo run -p examples --bin check_balance
 ```
 
-See the [examples README](crates/examples/README.md) for detailed instructions.
+See the [examples README](examples/README.md) for detailed instructions.
 
 ---
 
 ## Usage Examples
 
-This library provides several high-level operations for working with CBTC tokens. Below is a quick reference - for complete working examples, see the [`crates/examples`](crates/examples) directory.
+This library provides several high-level operations for working with CBTC tokens. Below is a quick reference - for complete working examples, see the [`crates/examples`](examples) directory.
 
 ### Core Operations
 
 | Operation                | Example File                                                             | Run Command                                        | Description                                      |
 | ------------------------ | ------------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------ |
-| **Mint CBTC**            | [`mint_cbtc_flow.rs`](crates/examples/src/mint_cbtc_flow.rs)             | `cargo run -p examples --bin mint_cbtc_flow`       | Set up deposit account for BTC deposits          |
-| **Redeem CBTC**          | [`redeem_cbtc_flow.rs`](crates/examples/src/redeem_cbtc_flow.rs)         | `cargo run -p examples --bin redeem_cbtc_flow`     | Burn CBTC and withdraw BTC                       |
-| **Check Balance**        | [`check_balance.rs`](crates/examples/src/check_balance.rs)               | `cargo run -p examples --bin check_balance`        | View your CBTC balance and UTXO count            |
-| **Send CBTC**            | [`send_cbtc.rs`](crates/examples/src/send_cbtc.rs)                       | `cargo run -p examples --bin send_cbtc`            | Transfer tokens to another party                 |
-| **Accept CBTC**          | [`accept_transfers.rs`](crates/examples/src/accept_transfers.rs)         | `cargo run -p examples --bin accept_transfers`     | Accept incoming transfers                        |
-| **List Incoming Offers** | [`list_incoming_offers.rs`](crates/examples/src/list_incoming_offers.rs) | `cargo run -p examples --bin list_incoming_offers` | List pending transfers where you're the receiver |
-| **List Outgoing Offers** | [`list_outgoing_offers.rs`](crates/examples/src/list_outgoing_offers.rs) | `cargo run -p examples --bin list_outgoing_offers` | List pending transfers where you're the sender   |
-| **Cancel Offers**        | [`cancel_offers.rs`](crates/examples/src/cancel_offers.rs)               | `cargo run -p examples --bin cancel_offers`        | Cancel all pending outgoing transfers            |
-| **Stream CBTC**          | [`stream.rs`](crates/examples/src/stream.rs)                             | `cargo run -p examples --bin stream_cbtc`          | Stream CBTC to a single receiver multiple times  |
-| **Batch Distribution**   | [`batch_distribute.rs`](crates/examples/src/batch_distribute.rs)         | `cargo run -p examples --bin batch_distribute`     | Distribute to multiple recipients from CSV       |
-| **Consolidate UTXOs**    | [`consolidate_utxos.rs`](crates/examples/src/consolidate_utxos.rs)       | `cargo run -p examples --bin consolidate_utxos`    | Merge multiple UTXOs into one                    |
+| **Mint CBTC**            | [`mint_cbtc_flow.rs`](examples/src/mint_cbtc_flow.rs)             | `cargo run -p examples --bin mint_cbtc_flow`       | Set up deposit account for BTC deposits          |
+| **Redeem CBTC**          | [`redeem_cbtc_flow.rs`](examples/src/redeem_cbtc_flow.rs)         | `cargo run -p examples --bin redeem_cbtc_flow`     | Burn CBTC and withdraw BTC                       |
+| **Check Balance**        | [`check_balance.rs`](examples/src/check_balance.rs)               | `cargo run -p examples --bin check_balance`        | View your CBTC balance and UTXO count            |
+| **Send CBTC**            | [`send_cbtc.rs`](examples/src/send_cbtc.rs)                       | `cargo run -p examples --bin send_cbtc`            | Transfer tokens to another party                 |
+| **Accept CBTC**          | [`accept_transfers.rs`](examples/src/accept_transfers.rs)         | `cargo run -p examples --bin accept_transfers`     | Accept incoming transfers                        |
+| **List Incoming Offers** | [`list_incoming_offers.rs`](examples/src/list_incoming_offers.rs) | `cargo run -p examples --bin list_incoming_offers` | List pending transfers where you're the receiver |
+| **List Outgoing Offers** | [`list_outgoing_offers.rs`](examples/src/list_outgoing_offers.rs) | `cargo run -p examples --bin list_outgoing_offers` | List pending transfers where you're the sender   |
+| **Cancel Offers**        | [`cancel_offers.rs`](examples/src/cancel_offers.rs)               | `cargo run -p examples --bin cancel_offers`        | Cancel all pending outgoing transfers            |
+| **Stream CBTC**          | [`stream.rs`](examples/src/stream.rs)                             | `cargo run -p examples --bin stream_cbtc`          | Stream CBTC to a single receiver multiple times  |
+| **Batch Distribution**   | [`batch_distribute.rs`](examples/src/batch_distribute.rs)         | `cargo run -p examples --bin batch_distribute`     | Distribute to multiple recipients from CSV       |
+| **Consolidate UTXOs**    | [`consolidate_utxos.rs`](examples/src/consolidate_utxos.rs)       | `cargo run -p examples --bin consolidate_utxos`    | Merge multiple UTXOs into one                    |
 
 ### Key Concepts
 
@@ -256,7 +256,7 @@ This library provides several high-level operations for working with CBTC tokens
 - **Minting**: Create deposit account → Get BTC address → Send BTC → Attestor network confirms (6+ blocks) → CBTC automatically minted
 - **Redeeming**: Burn CBTC → Create withdraw request → Attestor network sends BTC
 
-See the [examples README](crates/examples/README.md) for detailed usage instructions.
+See the [examples README](examples/README.md) for detailed usage instructions.
 
 ---
 
@@ -286,7 +286,7 @@ cargo run -p examples --bin mint_cbtc_flow
 cargo run -p examples --bin check_balance
 ```
 
-See [mint_cbtc_flow.rs](crates/examples/src/mint_cbtc_flow.rs) for complete code.
+See [mint_cbtc_flow.rs](examples/src/mint_cbtc_flow.rs) for complete code.
 
 **Note**: This library does NOT monitor Bitcoin transactions. The attestor network handles all monitoring and automatically mints CBTC after confirmation. You can periodically run `check_balance` to see when CBTC has been minted to your account.
 
@@ -309,7 +309,7 @@ cargo run -p examples --bin redeem_cbtc_flow
 cargo run -p examples --bin test_burn_cbtc
 ```
 
-See [redeem_cbtc_flow.rs](crates/examples/src/redeem_cbtc_flow.rs) for complete code.
+See [redeem_cbtc_flow.rs](examples/src/redeem_cbtc_flow.rs) for complete code.
 
 ### Required Configuration
 
@@ -332,7 +332,7 @@ Every CBTC holding is a UTXO (Unspent Transaction Output), similar to Bitcoin. E
 - **Node Efficiency**: Fewer UTXOs reduce database and memory usage
 - **Network Load**: Smaller transactions with fewer inputs
 
-**Best Practice**: Consolidate regularly, especially for high-volume operations. See [consolidate_utxos.rs](crates/examples/src/consolidate_utxos.rs) for example code.
+**Best Practice**: Consolidate regularly, especially for high-volume operations. See [consolidate_utxos.rs](examples/src/consolidate_utxos.rs) for example code.
 
 ---
 
@@ -357,7 +357,7 @@ cargo run -p examples --bin consolidate_utxos
 cargo run -p examples --bin batch_distribute
 ```
 
-See [batch_distribute.rs](crates/examples/src/batch_distribute.rs) and [batch_with_callback.rs](crates/examples/src/batch_with_callback.rs) for complete examples with callbacks and logging.
+See [batch_distribute.rs](examples/src/batch_distribute.rs) and [batch_with_callback.rs](examples/src/batch_with_callback.rs) for complete examples with callbacks and logging.
 
 ---
 
@@ -628,7 +628,7 @@ Found a bug or have a feature request?
 
 ### Getting Help
 
-- Review the [examples](crates/examples) directory for usage patterns
+- Review the [examples](examples) directory for usage patterns
 - Check the [Canton documentation](https://docs.digitalasset.com/canton) for protocol details
 - Open a discussion for questions about the library
 - Join the Canton community for broader ecosystem questions

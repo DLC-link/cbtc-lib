@@ -18,8 +18,8 @@
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
 /// 3. cargo run -p examples --bin redeem_cbtc_flow
 use keycloak::login::{PasswordParams, password, password_url};
-use mint_redeem::attestor;
-use mint_redeem::redeem::{
+use cbtc::mint_redeem::attestor;
+use cbtc::mint_redeem::redeem::{
     CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,
     SubmitWithdrawParams,
 };
@@ -56,7 +56,7 @@ async fn main() -> Result<(), String> {
 
     // Step 2: List existing withdraw accounts
     println!("Step 2: Listing existing withdraw accounts...");
-    let accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
+    let accounts = cbtc::mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         access_token: access_token.clone(),
@@ -76,7 +76,7 @@ async fn main() -> Result<(), String> {
 
     // Step 3: Check CBTC holdings
     println!("Step 3: Checking CBTC holdings...");
-    let holdings = mint_redeem::redeem::list_holdings(ListHoldingsParams {
+    let holdings = cbtc::mint_redeem::redeem::list_holdings(ListHoldingsParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         access_token: access_token.clone(),
@@ -135,7 +135,7 @@ async fn main() -> Result<(), String> {
         println!("  Destination BTC address: {}", destination_btc_address);
 
         let withdraw_account =
-            mint_redeem::redeem::create_withdraw_account(CreateWithdrawAccountParams {
+            cbtc::mint_redeem::redeem::create_withdraw_account(CreateWithdrawAccountParams {
                 ledger_host: ledger_host.clone(),
                 party: party_id.clone(),
                 user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
@@ -161,7 +161,7 @@ async fn main() -> Result<(), String> {
     let withdraw_account = if accounts.is_empty() {
         // Fetch the newly created account
         let updated_accounts =
-            mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
+            cbtc::mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
                 ledger_host: ledger_host.clone(),
                 party: party_id.clone(),
                 access_token: access_token.clone(),
@@ -212,7 +212,7 @@ async fn main() -> Result<(), String> {
         selected_total
     );
 
-    let updated_account = mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
+    let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),

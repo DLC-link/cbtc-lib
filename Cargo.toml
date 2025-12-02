@@ -2,12 +2,13 @@
 name = "cbtc"
 version = "0.1.0"
 edition = "2024"
+autoexamples = false
 
 [dependencies]
-ledger = { git = "ssh://git@github.com/DLC-link/bitsafe-lib-rs", branch = "main" }
-common = { git = "ssh://git@github.com/DLC-link/bitsafe-lib-rs", branch = "main" }
-registry = { git = "ssh://git@github.com/DLC-link/bitsafe-lib-rs", branch = "main" }
-keycloak = { git = "ssh://git@github.com/DLC-link/bitsafe-lib-rs", branch = "main" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-rs", branch = "main" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-rs", branch = "main" }
+registry = { git = "ssh://git@github.com/DLC-link/canton-rs", branch = "main" }
+common = { git = "ssh://git@github.com/DLC-link/canton-rs", branch = "main" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"
@@ -22,3 +23,68 @@ canton-api-client = "3.3.0-0.1.0"
 reqwest = { version = "0.12.24", features = ["json"] }
 
 [dev-dependencies]
+env_logger = "0.11"
+
+[[example]]
+name = "accept_transfers"
+path = "examples/accept_transfers.rs"
+
+[[example]]
+name = "batch_distribute"
+path = "examples/batch_distribute.rs"
+
+[[example]]
+name = "batch_with_callback"
+path = "examples/batch_with_callback.rs"
+
+[[example]]
+name = "check_balance"
+path = "examples/check_balance.rs"
+
+[[example]]
+name = "consolidate_utxos"
+path = "examples/consolidate_utxos.rs"
+
+[[example]]
+name = "mint_cbtc_flow"
+path = "examples/mint_cbtc_flow.rs"
+
+[[example]]
+name = "redeem_cbtc_flow"
+path = "examples/redeem_cbtc_flow.rs"
+
+[[example]]
+name = "send_cbtc"
+path = "examples/send_cbtc.rs"
+
+[[example]]
+name = "test_burn_cbtc"
+path = "examples/test_burn_cbtc.rs"
+
+[[example]]
+name = "list_incoming_offers"
+path = "examples/list_incoming_offers.rs"
+
+[[example]]
+name = "list_outgoing_offers"
+path = "examples/list_outgoing_offers.rs"
+
+[[example]]
+name = "stream_cbtc"
+path = "examples/stream.rs"
+
+[[example]]
+name = "cancel_offers"
+path = "examples/cancel_offers.rs"
+
+[[example]]
+name = "check_withdraw_requests"
+path = "examples/check_withdraw_requests.rs"
+
+[[example]]
+name = "list_contracts"
+path = "examples/list_contracts.rs"
+
+[[example]]
+name = "delete_executed_transfers"
+path = "examples/delete_executed_transfers.rs"

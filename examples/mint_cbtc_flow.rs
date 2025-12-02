@@ -14,8 +14,8 @@
 /// 1. Copy .env.example to .env and fill in your values
 /// 2. cargo run -p examples --bin mint_cbtc_flow
 use keycloak::login::{PasswordParams, password, password_url};
-use mint_redeem::attestor;
-use mint_redeem::mint::{
+use cbtc::mint_redeem::attestor;
+use cbtc::mint_redeem::mint::{
     CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,
     ListDepositAccountsParams,
 };
@@ -52,7 +52,7 @@ async fn main() -> Result<(), String> {
 
     // Step 2: List existing deposit accounts
     println!("Step 2: Listing existing deposit accounts...");
-    let accounts = mint_redeem::mint::list_deposit_accounts(ListDepositAccountsParams {
+    let accounts = cbtc::mint_redeem::mint::list_deposit_accounts(ListDepositAccountsParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         access_token: access_token.clone(),
@@ -82,7 +82,7 @@ async fn main() -> Result<(), String> {
 
     // Step 4: Create a new deposit account
     println!("Step 4: Creating a new deposit account...");
-    let deposit_account = mint_redeem::mint::create_deposit_account(CreateDepositAccountParams {
+    let deposit_account = cbtc::mint_redeem::mint::create_deposit_account(CreateDepositAccountParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
@@ -98,7 +98,7 @@ async fn main() -> Result<(), String> {
 
     // Step 5: Get the Bitcoin address for this account
     println!("Step 5: Getting Bitcoin address for the deposit account...");
-    let bitcoin_address = mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
+    let bitcoin_address = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
         attestor_url: attestor_url.clone(),
         account_contract_id: deposit_account.contract_id.clone(),
         chain: chain.clone(),
@@ -114,7 +114,7 @@ async fn main() -> Result<(), String> {
 
     // Step 6: Get full account status
     println!("Step 6: Getting full account status...");
-    let status = mint_redeem::mint::get_deposit_account_status(GetDepositAccountStatusParams {
+    let status = cbtc::mint_redeem::mint::get_deposit_account_status(GetDepositAccountStatusParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         access_token: access_token.clone(),

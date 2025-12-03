@@ -1,9 +1,9 @@
-use crate::attestor;
-use crate::constants::{
+use crate::mint_redeem::attestor;
+use crate::mint_redeem::constants::{
     CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_RULES_TEMPLATE_ID,
     WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
 };
-use crate::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
+use crate::mint_redeem::models::{Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest};
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;

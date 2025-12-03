@@ -7,21 +7,21 @@ This directory contains example programs demonstrating how to use the Canton CBT
 1. Copy `.env.example` to `.env` in the project root:
 
    ```bash
-   cp ../../.env.example ../../.env
+   cp .env.example .env
    ```
 
 2. Fill in your configuration values in `.env`
 
 ## Running Examples
 
-All examples should be run from the workspace root directory.
+All examples should be run from the project root directory using `cargo run --example <name>`.
 
 ### Check Balance
 
 Check your CBTC balance and UTXO count:
 
 ```bash
-cargo run -p examples --bin check_balance
+cargo run --example check_balance
 ```
 
 ### Send CBTC
@@ -32,7 +32,7 @@ Send CBTC to another party:
 # Set the amount and receiver in .env or environment
 export TRANSFER_AMOUNT=0.1
 export LIB_TEST_RECEIVER_PARTY_ID="receiver-party::1220..."
-cargo run -p examples --bin send_cbtc
+cargo run --example send_cbtc
 ```
 
 ### List Incoming Offers
@@ -40,7 +40,7 @@ cargo run -p examples --bin send_cbtc
 List all pending CBTC transfer offers where you are the receiver:
 
 ```bash
-cargo run -p examples --bin list_incoming_offers
+cargo run --example list_incoming_offers
 ```
 
 This example lists all pending transfers waiting for you to accept.
@@ -50,7 +50,7 @@ This example lists all pending transfers waiting for you to accept.
 List all pending CBTC transfer offers where you are the sender:
 
 ```bash
-cargo run -p examples --bin list_outgoing_offers
+cargo run --example list_outgoing_offers
 ```
 
 This example shows all transfers you've sent that haven't been accepted yet.
@@ -60,7 +60,7 @@ This example shows all transfers you've sent that haven't been accepted yet.
 Accept all pending CBTC transfers for your party:
 
 ```bash
-cargo run -p examples --bin accept_transfers
+cargo run --example accept_transfers
 ```
 
 This example automatically fetches all pending TransferInstruction contracts and accepts them in a loop. Useful for automated acceptance of incoming transfers.
@@ -70,7 +70,7 @@ This example automatically fetches all pending TransferInstruction contracts and
 Cancel all pending outgoing transfers that haven't been accepted:
 
 ```bash
-cargo run -p examples --bin cancel_offers
+cargo run --example cancel_offers
 ```
 
 This example withdraws all transfer offers you've sent that are still pending, returning the CBTC to your account.
@@ -84,7 +84,7 @@ Stream CBTC to a single receiver multiple times:
 export RECEIVER_PARTY="receiver-party::1220..."
 export TRANSFER_COUNT=10
 export TRANSFER_AMOUNT=0.001
-cargo run -p examples --bin stream_cbtc
+cargo run --example stream_cbtc
 ```
 
 This example sends multiple transfers to the same receiver, useful for streaming payments or testing repeated transfers.
@@ -96,7 +96,7 @@ Check and consolidate UTXOs if needed:
 ```bash
 # Optional: set custom threshold (default is 10)
 export CONSOLIDATION_THRESHOLD=8
-cargo run -p examples --bin consolidate_utxos
+cargo run --example consolidate_utxos
 ```
 
 ### Batch Distribute
@@ -110,11 +110,11 @@ Distribute CBTC to multiple recipients from a CSV file:
 # party2::1220...,3.5
 
 # Run the example
-cargo run -p examples --bin batch_distribute
+cargo run --example batch_distribute
 
 # Or specify a custom CSV path
 export RECIPIENTS_CSV=my_recipients.csv
-cargo run -p examples --bin batch_distribute
+cargo run --example batch_distribute
 ```
 
 See `recipients_example.csv` for the CSV format.
@@ -124,7 +124,7 @@ See `recipients_example.csv` for the CSV format.
 Distribute CBTC to multiple recipients with real-time result logging:
 
 ```bash
-cargo run -p examples --bin batch_with_callback
+cargo run --example batch_with_callback
 ```
 
 This example demonstrates the callback feature, which allows you to process transfer results as they complete. The callback writes one line per transfer to a timestamped log file.
@@ -302,7 +302,7 @@ let result = cbtc::distribute::submit(cbtc::distribute::Params {
 5. **The update_id field** contains the Canton ledger's unique update ID for successful transfers (used for tracking and idempotency)
 6. **The raw_response field** contains the full JSON response from the Canton ledger (for successful submissions)
 
-See `examples/batch_with_callback.rs` for a complete working example.
+See `batch_with_callback.rs` for a complete working example.
 
 ## Environment Variables
 

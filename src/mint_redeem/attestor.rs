@@ -1,4 +1,4 @@
-use crate::models::{AccountContractRuleSet, TokenStandardContracts};
+use crate::mint_redeem::models::{AccountContractRuleSet, TokenStandardContracts};
 use serde_json::json;
 
 /// Get the Bitcoin address for a deposit or withdraw account

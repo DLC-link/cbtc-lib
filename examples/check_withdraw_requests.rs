@@ -17,7 +17,7 @@
 /// 3. cargo run -p examples --bin check_withdraw_requests
 /// 4. Press Ctrl+C to stop
 use keycloak::login::{PasswordParams, password, password_url};
-use mint_redeem::redeem::{
+use cbtc::mint_redeem::redeem::{
     ListWithdrawAccountsParams, ListWithdrawRequestsParams,
 };
 use std::env;
@@ -62,7 +62,7 @@ async fn main() -> Result<(), String> {
         println!("─────────────────────────────────────────────────────");
 
         // Check withdraw accounts for pending balances
-        match mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
+        match cbtc::mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
             ledger_host: ledger_host.clone(),
             party: party_id.clone(),
             access_token: access_token.clone(),
@@ -92,7 +92,7 @@ async fn main() -> Result<(), String> {
         }
 
         // Check for withdraw requests
-        match mint_redeem::redeem::list_withdraw_requests(ListWithdrawRequestsParams {
+        match cbtc::mint_redeem::redeem::list_withdraw_requests(ListWithdrawRequestsParams {
             ledger_host: ledger_host.clone(),
             party: party_id.clone(),
             access_token: access_token.clone(),

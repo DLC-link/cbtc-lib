@@ -7,3 +7,4 @@ pub mod distribute;
 pub mod split;
 pub mod transfer;
 pub mod utils;
+pub mod mint_redeem;

@@ -24,7 +24,7 @@ pub struct MultiParams {
     pub decentralized_party_id: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Recipient {
     pub receiver: String,
     pub amount: String,

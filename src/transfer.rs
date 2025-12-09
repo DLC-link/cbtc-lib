@@ -271,6 +271,8 @@ pub async fn submit_sequential_chained(
     let additional_information = match params.registry_response {
         Some(registry_response) => registry_response,
         None => {
+            let execute_before_hours = 30*24; // 30 days
+
             // Create a template transfer to fetch registry context
             let template_transfer = common::transfer::Transfer {
                 sender: params.sender.clone(),
@@ -278,7 +280,7 @@ pub async fn submit_sequential_chained(
                 amount: params.recipients[0].amount.clone(),
                 instrument_id: params.instrument_id.clone(),
                 requested_at: chrono::Utc::now().to_rfc3339(),
-                execute_before: (chrono::Utc::now() + chrono::Duration::hours(168)).to_rfc3339(),
+                execute_before: (chrono::Utc::now() + chrono::Duration::hours(execute_before_hours)).to_rfc3339(),
                 input_holding_cids: Some(params.initial_holding_cids.clone()),
                 meta: Some(common::transfer::Meta {
                     values: Some({

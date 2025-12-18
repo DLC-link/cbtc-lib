@@ -1,3 +1,8 @@
+use cbtc::mint_redeem::attestor;
+use cbtc::mint_redeem::redeem::{
+    CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,
+    SubmitWithdrawParams,
+};
 /// CBTC Redeeming (Withdrawal) Flow Example
 ///
 /// This example demonstrates the complete flow of submitting a CBTC withdrawal:
@@ -18,11 +23,6 @@
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
 /// 3. cargo run -p examples --bin redeem_cbtc_flow
 use keycloak::login::{PasswordParams, password, password_url};
-use cbtc::mint_redeem::attestor;
-use cbtc::mint_redeem::redeem::{
-    CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,
-    SubmitWithdrawParams,
-};
 use std::env;
 
 #[tokio::main]
@@ -228,8 +228,14 @@ async fn main() -> Result<(), String> {
     .await?;
 
     println!("✓ Withdrawal submitted successfully!");
-    println!("  - Updated Account Contract ID: {}", updated_account.contract_id);
-    println!("  - Pending Balance: {} BTC", updated_account.pending_balance);
+    println!(
+        "  - Updated Account Contract ID: {}",
+        updated_account.contract_id
+    );
+    println!(
+        "  - Pending Balance: {} BTC",
+        updated_account.pending_balance
+    );
     println!(
         "  - Destination: {}",
         updated_account.destination_btc_address
@@ -243,7 +249,10 @@ async fn main() -> Result<(), String> {
         "  • Your withdraw account contract ID: {}",
         updated_account.contract_id
     );
-    println!("  • Pending balance: {} BTC", updated_account.pending_balance);
+    println!(
+        "  • Pending balance: {} BTC",
+        updated_account.pending_balance
+    );
     println!(
         "  • BTC will be sent to: {}",
         updated_account.destination_btc_address

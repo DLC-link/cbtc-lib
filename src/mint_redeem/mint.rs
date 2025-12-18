@@ -152,6 +152,7 @@ pub async fn create_deposit_account(
         command_id,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
+        transaction_format: None,
     };
 
     // Submit the transaction

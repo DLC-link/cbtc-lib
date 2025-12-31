@@ -101,7 +101,7 @@ async fn main() -> Result<(), String> {
     println!("Step 5: Getting Bitcoin address for the deposit account...");
     let bitcoin_address = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
         attestor_url: attestor_url.clone(),
-        account_contract_id: deposit_account.account_id().to_string(),
+        account_id: deposit_account.account_id().to_string(),
         chain: chain.clone(),
     })
     .await?;

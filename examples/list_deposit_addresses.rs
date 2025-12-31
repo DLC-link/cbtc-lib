@@ -80,7 +80,7 @@ async fn main() -> Result<(), String> {
         // Fetch the Bitcoin address using account_id() which handles the id/contract_id fallback
         match cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
             attestor_url: attestor_url.clone(),
-            account_contract_id: account.account_id().to_string(),
+            account_id: account.account_id().to_string(),
             chain: chain.clone(),
         })
         .await

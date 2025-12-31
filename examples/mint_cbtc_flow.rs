@@ -1,3 +1,8 @@
+use cbtc::mint_redeem::attestor;
+use cbtc::mint_redeem::mint::{
+    CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,
+    ListDepositAccountsParams,
+};
 /// CBTC Minting Flow Example
 ///
 /// This example demonstrates the complete flow of minting CBTC from BTC:
@@ -14,11 +19,6 @@
 /// 1. Copy .env.example to .env and fill in your values
 /// 2. cargo run -p examples --bin mint_cbtc_flow
 use keycloak::login::{PasswordParams, password, password_url};
-use cbtc::mint_redeem::attestor;
-use cbtc::mint_redeem::mint::{
-    CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,
-    ListDepositAccountsParams,
-};
 use std::env;
 
 #[tokio::main]
@@ -82,14 +82,15 @@ async fn main() -> Result<(), String> {
 
     // Step 4: Create a new deposit account
     println!("Step 4: Creating a new deposit account...");
-    let deposit_account = cbtc::mint_redeem::mint::create_deposit_account(CreateDepositAccountParams {
-        ledger_host: ledger_host.clone(),
-        party: party_id.clone(),
-        user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
-        access_token: access_token.clone(),
-        account_rules: account_rules.clone(),
-    })
-    .await?;
+    let deposit_account =
+        cbtc::mint_redeem::mint::create_deposit_account(CreateDepositAccountParams {
+            ledger_host: ledger_host.clone(),
+            party: party_id.clone(),
+            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            access_token: access_token.clone(),
+            account_rules: account_rules.clone(),
+        })
+        .await?;
 
     println!("✓ Deposit account created successfully!");
     println!("  - Contract ID: {}", deposit_account.contract_id);
@@ -100,7 +101,7 @@ async fn main() -> Result<(), String> {
     println!("Step 5: Getting Bitcoin address for the deposit account...");
     let bitcoin_address = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
         attestor_url: attestor_url.clone(),
-        account_contract_id: deposit_account.contract_id.clone(),
+        account_contract_id: deposit_account.account_id().to_string(),
         chain: chain.clone(),
     })
     .await?;
@@ -114,15 +115,16 @@ async fn main() -> Result<(), String> {
 
     // Step 6: Get full account status
     println!("Step 6: Getting full account status...");
-    let status = cbtc::mint_redeem::mint::get_deposit_account_status(GetDepositAccountStatusParams {
-        ledger_host: ledger_host.clone(),
-        party: party_id.clone(),
-        access_token: access_token.clone(),
-        attestor_url: attestor_url.clone(),
-        chain: chain.clone(),
-        account_contract_id: deposit_account.contract_id.clone(),
-    })
-    .await?;
+    let status =
+        cbtc::mint_redeem::mint::get_deposit_account_status(GetDepositAccountStatusParams {
+            ledger_host: ledger_host.clone(),
+            party: party_id.clone(),
+            access_token: access_token.clone(),
+            attestor_url: attestor_url.clone(),
+            chain: chain.clone(),
+            account_contract_id: deposit_account.contract_id.clone(),
+        })
+        .await?;
 
     println!("✓ Account status:");
     println!("  - Bitcoin Address: {}", status.bitcoin_address);

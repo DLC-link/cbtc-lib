@@ -262,13 +262,10 @@ pub async fn get_deposit_account_status(
             )
         })?;
 
-    // Get the Bitcoin address from attestor
-    let bitcoin_address = attestor::get_bitcoin_address(
-        &params.attestor_url,
-        &params.account_contract_id,
-        &params.chain,
-    )
-    .await?;
+    // Get the Bitcoin address from attestor using the account's ID
+    let bitcoin_address =
+        attestor::get_bitcoin_address(&params.attestor_url, account.account_id(), &params.chain)
+            .await?;
 
     Ok(DepositAccountStatus {
         contract_id: account.contract_id,

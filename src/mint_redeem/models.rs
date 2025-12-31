@@ -30,6 +30,10 @@ pub struct TokenStandardContracts {
 #[derive(Debug, Clone)]
 pub struct DepositAccount {
     pub contract_id: String,
+    /// The account UUID from the contract's createArgument `id` field.
+    /// This is the ID used by the attestor to look up the Bitcoin address.
+    /// May be None for older accounts - in that case, use `contract_id` instead.
+    pub id: Option<String>,
     pub owner: String,
     pub operator: String,
     pub registrar: String,
@@ -49,6 +53,13 @@ impl DepositAccount {
             .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
+
+        // The `id` field is used by the attestor to look up the Bitcoin address.
+        // May be null for older accounts.
+        let id = args
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
 
         let owner = args
             .get("owner")
@@ -76,11 +87,18 @@ impl DepositAccount {
 
         Ok(Self {
             contract_id,
+            id,
             owner,
             operator,
             registrar,
             last_processed_bitcoin_block,
         })
+    }
+
+    /// Get the account ID used for attestor lookups (Bitcoin address, etc.)
+    /// Uses the `id` field if present, otherwise falls back to `contract_id`.
+    pub fn account_id(&self) -> &str {
+        self.id.as_deref().unwrap_or(&self.contract_id)
     }
 }
 

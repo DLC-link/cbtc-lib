@@ -14,6 +14,8 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 - ✅ **Multi-Environment** - Support for devnet, testnet, and mainnet
 - ✅ **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
 
+> **Note for Mint & Redeem Operations**: Before using the mint/redeem functionality, please review the [CBTC Minting App Installation and User Guide](https://hub.bitsafe.finance/cbtc-minting-app-installation-and-user-guide) to install the required DAR files and configure permissions correctly on your Canton participant node.
+
 ---
 
 ## Table of Contents
@@ -22,16 +24,17 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 2. [Installation](#installation)
 3. [Configuration](#configuration)
 4. [Usage Examples](#usage-examples)
-   - [CBTC Mint & Redeem](#cbtc-mint--redeem)
-   - [Sending CBTC](#sending-cbtc)
-   - [Accepting CBTC](#accepting-cbtc)
-   - [Batch Distribution](#batch-distribution)
-   - [UTXO Management](#utxo-management)
-5. [High-Volume Operations](#high-volume-operations)
-6. [API Reference](#api-reference)
-7. [Direct Canton API Usage](#direct-canton-api-usage-reference)
-8. [Testing](#testing)
-9. [Contributing](#contributing)
+   - [Core Operations](#core-operations)
+   - [Key Concepts](#key-concepts)
+5. [CBTC Mint & Redeem](#cbtc-mint--redeem)
+   - [Minting CBTC (BTC → CBTC)](#minting-cbtc-btc--cbtc)
+   - [Redeeming CBTC (CBTC → BTC)](#redeeming-cbtc-cbtc--btc)
+   - [Understanding UTXO Management](#understanding-utxo-management)
+6. [High-Volume Operations](#high-volume-operations)
+7. [API Reference](#api-reference)
+8. [Direct Canton API Usage (Reference)](#direct-canton-api-usage-reference)
+9. [Testing](#testing)
+10. [Contributing](#contributing)
 
 ---
 
@@ -113,13 +116,13 @@ For advanced users who want direct control, see [Direct Canton API Usage](#direc
 
 ### Common Operations
 
-| Task              | Function                                     | Section                                   |
-| ----------------- | -------------------------------------------- | ----------------------------------------- |
-| Check balance     | `cbtc::active_contracts::get()`              | [UTXO Management](#utxo-management)       |
-| Send tokens       | `cbtc::transfer::submit()`                   | [Sending CBTC](#sending-cbtc)             |
-| Accept tokens     | `cbtc::accept::submit()`                     | [Accepting CBTC](#accepting-cbtc)         |
-| Batch send        | `cbtc::batch::submit_from_csv()`             | [Batch Distribution](#batch-distribution) |
-| Consolidate UTXOs | `cbtc::consolidate::check_and_consolidate()` | [UTXO Management](#utxo-management)       |
+| Task              | Function                                     | Section                                                 |
+| ----------------- | -------------------------------------------- | ------------------------------------------------------- |
+| Check balance     | `cbtc::active_contracts::get()`              | [Understanding UTXO Management](#understanding-utxo-management) |
+| Send tokens       | `cbtc::transfer::submit()`                   | [Core Operations](#core-operations)                     |
+| Accept tokens     | `cbtc::accept::submit()`                     | [Core Operations](#core-operations)                     |
+| Batch send        | `cbtc::batch::submit_from_csv()`             | [High-Volume Operations](#high-volume-operations)       |
+| Consolidate UTXOs | `cbtc::consolidate::check_and_consolidate()` | [Understanding UTXO Management](#understanding-utxo-management) |
 
 ---
 
@@ -261,6 +264,8 @@ See the [examples README](examples/README.md) for detailed usage instructions.
 ---
 
 ## CBTC Mint & Redeem
+
+> **Important**: Before using mint/redeem operations, please review the [CBTC Minting App Installation and User Guide](https://hub.bitsafe.finance/cbtc-minting-app-installation-and-user-guide). This guide covers the required DAR file installation and permission configuration needed on your Canton participant node for mint/redeem functionality to work properly.
 
 ### Overview
 

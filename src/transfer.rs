@@ -227,16 +227,11 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
         act_as: vec![params.transfer.sender],
         read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
-        submission_id: None,
-        workflow_id: None,
-        domain_id: None,
-        user_id: None,
-        deduplication_period: None,
         disclosed_contracts: additional_information.choice_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        transaction_format: None,
+        ..Default::default()
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -472,16 +467,11 @@ pub async fn submit_sequential_chained(
             act_as: vec![params.sender.clone()],
             read_as: None,
             command_id: uuid::Uuid::new_v4().to_string(),
-            submission_id: None,
-            workflow_id: None,
-            domain_id: None,
-            user_id: None,
-            deduplication_period: None,
             disclosed_contracts: disclosed_contracts.clone(),
             commands: vec![common::submission::Command::ExerciseCommand(
                 exercise_command,
             )],
-            transaction_format: None,
+            ..Default::default()
         };
 
         // Submit to ledger with fresh token

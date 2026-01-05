@@ -150,14 +150,9 @@ pub async fn create_deposit_account(
         act_as: vec![params.party.clone()],
         read_as: None,
         command_id,
-        submission_id: None,
-        workflow_id: None,
-        domain_id: None,
-        user_id: None,
-        deduplication_period: None,
         disclosed_contracts,
         commands: vec![submission::Command::ExerciseCommand(exercise_command)],
-        transaction_format: None,
+        ..Default::default()
     };
 
     // Submit the transaction

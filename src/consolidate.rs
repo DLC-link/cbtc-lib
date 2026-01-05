@@ -238,16 +238,11 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
         act_as: vec![transfer.sender],
         read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
-        submission_id: None,
-        workflow_id: None,
-        domain_id: None,
-        user_id: None,
-        deduplication_period: None,
         disclosed_contracts: additional_information.choice_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        transaction_format: None,
+        ..Default::default()
     };
 
     let response_raw = ledger::submit::wait_for_transaction_tree(ledger::submit::Params {

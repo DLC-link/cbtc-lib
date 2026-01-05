@@ -112,16 +112,11 @@ pub async fn submit(params: Params) -> Result<(), String> {
         act_as: vec![params.receiver_party],
         read_as: None,
         command_id: uuid::Uuid::new_v4().to_string(),
-        submission_id: None,
-        workflow_id: None,
-        domain_id: None,
-        user_id: None,
-        deduplication_period: None,
         disclosed_contracts: accept_context.disclosed_contracts,
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
-        transaction_format: None,
+        ..Default::default()
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -301,14 +296,9 @@ pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, Stri
             act_as: vec![params.receiver_party.clone()],
             read_as: None,
             command_id: uuid::Uuid::new_v4().to_string(),
-            submission_id: None,
-            workflow_id: None,
-            domain_id: None,
-            user_id: None,
-            deduplication_period: None,
             disclosed_contracts: accept_context.disclosed_contracts.clone(),
             commands: batch_commands,
-            transaction_format: None,
+            ..Default::default()
         };
 
         match ledger::submit::wait_for_transaction_tree(ledger::submit::Params {

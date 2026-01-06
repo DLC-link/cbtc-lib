@@ -117,6 +117,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
         commands: vec![common::submission::Command::ExerciseCommand(
             exercise_command,
         )],
+        ..Default::default()
     };
 
     ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
@@ -304,6 +305,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
             command_id: uuid::Uuid::new_v4().to_string(),
             disclosed_contracts: withdraw_context.disclosed_contracts.clone(),
             commands: batch_commands,
+            ..Default::default()
         };
 
         match ledger::submit::wait_for_transaction_tree(ledger::submit::Params {

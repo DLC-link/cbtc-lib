@@ -1,3 +1,4 @@
+use cbtc::mint_redeem;
 /// Test burning CBTC using an existing withdraw account
 ///
 /// This example demonstrates burning a small amount of CBTC using an existing
@@ -8,7 +9,6 @@
 use keycloak::login::{PasswordParams, password, password_url};
 use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, SubmitWithdrawParams};
 use std::env;
-use cbtc::mint_redeem;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -31,7 +31,7 @@ async fn main() -> Result<(), String> {
     let access_token = login_response.access_token.clone();
     let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
     let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
-    
+
     let accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
@@ -102,7 +102,10 @@ async fn main() -> Result<(), String> {
     })
     .await?;
 
-    println!("Burn successful! Pending balance: {} BTC", updated_account.pending_balance);
+    println!(
+        "Burn successful! Pending balance: {} BTC",
+        updated_account.pending_balance
+    );
 
     Ok(())
 }

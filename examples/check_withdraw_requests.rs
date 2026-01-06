@@ -1,3 +1,4 @@
+use cbtc::mint_redeem::redeem::{ListWithdrawAccountsParams, ListWithdrawRequestsParams};
 /// Check Withdraw Requests Example
 ///
 /// This example continuously polls for WithdrawRequests that have been created
@@ -17,9 +18,6 @@
 /// 3. cargo run -p examples --bin check_withdraw_requests
 /// 4. Press Ctrl+C to stop
 use keycloak::login::{PasswordParams, password, password_url};
-use cbtc::mint_redeem::redeem::{
-    ListWithdrawAccountsParams, ListWithdrawRequestsParams,
-};
 use std::env;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -79,9 +77,7 @@ async fn main() -> Result<(), String> {
                         let status = if pending > 0.0 { "PENDING" } else { "ready" };
                         println!(
                             "  [{:>7}] {} BTC -> {}",
-                            status,
-                            account.pending_balance,
-                            &account.destination_btc_address
+                            status, account.pending_balance, &account.destination_btc_address
                         );
                     }
                 }
@@ -107,9 +103,7 @@ async fn main() -> Result<(), String> {
                     for request in &requests {
                         println!(
                             "  {} BTC -> {} (tx: {})",
-                            request.amount,
-                            &request.destination_btc_address,
-                            &request.btc_tx_id
+                            request.amount, &request.destination_btc_address, &request.btc_tx_id
                         );
                     }
                 }

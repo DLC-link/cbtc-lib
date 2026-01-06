@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 autoexamples = false
 
+[lints.clippy]
+uninlined_format_args = "allow"
+
 [dependencies]
 ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.2.0" }
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.2.0" }
@@ -88,3 +91,7 @@ path = "examples/list_contracts.rs"
 [[example]]
 name = "delete_executed_transfers"
 path = "examples/delete_executed_transfers.rs"
+
+[[example]]
+name = "list_deposit_addresses"
+path = "examples/list_deposit_addresses.rs"

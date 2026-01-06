@@ -30,7 +30,7 @@ pub struct CreateDepositAccountParams {
 /// Parameters for getting a deposit account's Bitcoin address
 pub struct GetBitcoinAddressParams {
     pub attestor_url: String,
-    pub account_contract_id: String,
+    pub account_id: String,
     pub chain: String,
 }
 
@@ -211,19 +211,14 @@ pub async fn create_deposit_account(
 /// ```ignore
 /// let bitcoin_address = mint::get_bitcoin_address(GetBitcoinAddressParams {
 ///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
-///     account_contract_id: deposit_account.contract_id,
+///     account_id: deposit_account.contract_id,
 ///     chain: "canton-devnet".to_string(),
 /// }).await?;
 ///
 /// log::debug!("Send BTC to: {}", bitcoin_address);
 /// ```
 pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<String, String> {
-    attestor::get_bitcoin_address(
-        &params.attestor_url,
-        &params.account_contract_id,
-        &params.chain,
-    )
-    .await
+    attestor::get_bitcoin_address(&params.attestor_url, &params.account_id, &params.chain).await
 }
 
 /// Get the full status of a deposit account including its Bitcoin address
@@ -263,13 +258,10 @@ pub async fn get_deposit_account_status(
             )
         })?;
 
-    // Get the Bitcoin address from attestor
-    let bitcoin_address = attestor::get_bitcoin_address(
-        &params.attestor_url,
-        &params.account_contract_id,
-        &params.chain,
-    )
-    .await?;
+    // Get the Bitcoin address from attestor using the account's ID
+    let bitcoin_address =
+        attestor::get_bitcoin_address(&params.attestor_url, account.account_id(), &params.chain)
+            .await?;
 
     Ok(DepositAccountStatus {
         contract_id: account.contract_id,

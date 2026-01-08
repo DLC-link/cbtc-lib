@@ -1,6 +1,8 @@
 # CBTC DAR releases
 
-User facing DAR packages. These must be uploaded to your participant node where you intend to Mint/Burn CBTC.
+Note: these packages are only needed for CBTC minting / burning (redemption) and not for other CBTC transactions such as sending and receiving, or UTXO management. 
+
+User facing DAR packages. These must be uploaded to your participant node where you intend to Mint/Burn CBTC. 
 
 ## Upload scripts
 

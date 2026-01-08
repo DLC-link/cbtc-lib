@@ -14,7 +14,9 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 - ✅ **Multi-Environment** - Support for devnet, testnet, and mainnet
 - ✅ **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
 
-> **Note for Mint & Redeem Operations**: Before using the mint/redeem functionality, please review the [CBTC Minting App Installation and User Guide](https://hub.bitsafe.finance/cbtc-minting-app-installation-and-user-guide) to install the required DAR files and configure permissions correctly on your Canton participant node.
+> **Important Setup Requirements**:
+> - **For Send/Receive Operations**: The [Digital Asset Registry Utility](https://docs.digitalasset.com/utilities/mainnet/index.html) must be installed on your validator node
+> - **For Mint/Redeem Operations**: Review the [CBTC Minting App Installation and User Guide](https://hub.bitsafe.finance/cbtc-minting-app-installation-and-user-guide) to install the required DAR files and configure permissions correctly
 
 ---
 
@@ -47,9 +49,10 @@ This library provides a high-level Rust interface for interacting with CBTC (Can
 Before using this library, you need:
 
 1. **A Canton Participant Node** - Access to a Canton participant node (devnet, testnet, or mainnet)
-2. **Keycloak Credentials** - Authentication credentials for your participant node
-3. **A Party ID** - Your unique party identifier on the Canton network
-4. **CBTC Holdings** - Some CBTC tokens in your account (for sending/distributing)
+2. **DA Registry Utility** - For sending and receiving CBTC tokens, the [Digital Asset Registry Utility](https://docs.digitalasset.com/utilities/mainnet/index.html) must be installed on your validator node
+3. **Keycloak Credentials** - Authentication credentials for your participant node
+4. **A Party ID** - Your unique party identifier on the Canton network
+5. **CBTC Holdings** - Some CBTC tokens in your account (for sending/distributing)
 
 ### Three Ways to Use This Library
 

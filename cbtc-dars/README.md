@@ -1,8 +1,8 @@
 # CBTC DAR releases
 
-Note: these packages are only needed for CBTC minting / burning (redemption) and not for other CBTC transactions such as sending and receiving, or UTXO management. 
+User facing DAR packages. These must be uploaded to your participant node where you intend to Mint/Burn CBTC.
 
-User facing DAR packages. These must be uploaded to your participant node where you intend to Mint/Burn CBTC. 
+Note: these packages are only needed for CBTC minting / burning (redemption) and not for other CBTC transactions such as sending and receiving, or UTXO management.
 
 ## Upload scripts
 
@@ -43,6 +43,7 @@ For both methods you will need to have port-forwarding to your participant's adm
 ```
 
 The script will automatically:
+
 1. Upload all dependency DARs from `dars/dependencies/` (these are uploaded first since CBTC DARs depend on them)
 2. Upload all CBTC DARs from `dars/cbtc/`
 

@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use crate::active_contracts;
 use std::collections::HashMap;
 use std::future::Future;
@@ -75,7 +76,7 @@ pub struct TokenState {
     url: String,
     username: String,
     password: String,
-    expires_at: std::time::SystemTime,
+    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl TokenState {
@@ -102,17 +103,15 @@ impl TokenState {
 
             client_id,
             url,
-            expires_at: std::time::SystemTime::now()
-                .checked_sub(std::time::Duration::from_secs(
-                    (token.expires_in - 20) as u64,
-                ))
-                .unwrap_or(std::time::SystemTime::now()),
+            // Set expiry to 20 seconds before actual expiry
+            expires_at: chrono::Utc::now()
+                + chrono::Duration::seconds((token.expires_in - 20) as i64),
         })
     }
 
     /// Get a fresh token, refreshing if needed (within 1 minute of expiry)
     pub async fn get_fresh_token(&mut self) -> Result<String, String> {
-        let now = std::time::SystemTime::now();
+        let now = chrono::Utc::now();
         let needs_refresh = now >= self.expires_at;
 
         if needs_refresh {
@@ -146,8 +145,8 @@ impl TokenState {
             self.access_token = auth.access_token.clone();
             self.refresh_token = auth.refresh_token;
             // Set expiry to 1 minute before actual expiry
-            self.expires_at = std::time::SystemTime::now()
-                + std::time::Duration::from_secs(auth.expires_in as u64 - 60);
+            self.expires_at =
+                chrono::Utc::now() + chrono::Duration::seconds(auth.expires_in as i64 - 60);
         }
 
         Ok(self.access_token.clone())
@@ -155,6 +154,8 @@ impl TokenState {
 }
 
 pub async fn submit(mut params: Params) -> Result<(), String> {
+    // Auto-fetch holdings if not provided (native-only, requires WebSocket)
+    #[cfg(not(target_arch = "wasm32"))]
     if params.transfer.input_holding_cids.is_none() {
         let contracts = active_contracts::get(active_contracts::Params {
             ledger_host: params.ledger_host.clone(),
@@ -168,6 +169,12 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
             input_holding_cids.push(contract.created_event.contract_id);
         }
         params.transfer.input_holding_cids = Some(input_holding_cids);
+    }
+
+    // On WASM, input_holding_cids must be provided
+    #[cfg(target_arch = "wasm32")]
+    if params.transfer.input_holding_cids.is_none() {
+        return Err("input_holding_cids must be provided on WASM target".to_string());
     }
 
     if params.transfer.meta.is_none() {

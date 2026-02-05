@@ -126,7 +126,7 @@ pub async fn create_deposit_account(
     let disclosed_contracts = vec![DisclosedContract {
         contract_id: params.account_rules.da_rules.contract_id.clone(),
         created_event_blob: params.account_rules.da_rules.created_event_blob.clone(),
-        template_id: params.account_rules.da_rules.template_id.clone(),
+        template_id: Some(params.account_rules.da_rules.template_id.clone()),
         synchronizer_id: String::new(),
     }];
 

@@ -154,7 +154,7 @@ pub async fn create_withdraw_account(
     let disclosed_contracts = vec![DisclosedContract {
         contract_id: params.account_rules_contract_id.clone(),
         created_event_blob: params.account_rules_created_event_blob.clone(),
-        template_id: params.account_rules_template_id.clone(),
+        template_id: Some(params.account_rules_template_id.clone()),
         synchronizer_id: String::new(),
     }];
 
@@ -347,13 +347,13 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
         DisclosedContract {
             contract_id: params.withdraw_account_contract_id.clone(),
             created_event_blob: params.withdraw_account_created_event_blob.clone(),
-            template_id: params.withdraw_account_template_id.clone(),
+            template_id: Some(params.withdraw_account_template_id.clone()),
             synchronizer_id: String::new(),
         },
         DisclosedContract {
             contract_id: token_contracts.burn_mint_factory.contract_id.clone(),
             created_event_blob: token_contracts.burn_mint_factory.created_event_blob.clone(),
-            template_id: token_contracts.burn_mint_factory.template_id.clone(),
+            template_id: Some(token_contracts.burn_mint_factory.template_id.clone()),
             synchronizer_id: String::new(),
         },
         DisclosedContract {
@@ -362,7 +362,7 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
                 .instrument_configuration
                 .created_event_blob
                 .clone(),
-            template_id: token_contracts.instrument_configuration.template_id.clone(),
+            template_id: Some(token_contracts.instrument_configuration.template_id.clone()),
             synchronizer_id: String::new(),
         },
     ];
@@ -372,7 +372,7 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
         disclosed_contracts.push(DisclosedContract {
             contract_id: issuer_credential.contract_id.clone(),
             created_event_blob: issuer_credential.created_event_blob.clone(),
-            template_id: issuer_credential.template_id.clone(),
+            template_id: Some(issuer_credential.template_id.clone()),
             synchronizer_id: String::new(),
         });
     }
@@ -381,7 +381,7 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
         disclosed_contracts.push(DisclosedContract {
             contract_id: app_reward_config.contract_id.clone(),
             created_event_blob: app_reward_config.created_event_blob.clone(),
-            template_id: app_reward_config.template_id.clone(),
+            template_id: Some(app_reward_config.template_id.clone()),
             synchronizer_id: String::new(),
         });
     }
@@ -390,7 +390,7 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
         disclosed_contracts.push(DisclosedContract {
             contract_id: featured_app_right.contract_id.clone(),
             created_event_blob: featured_app_right.created_event_blob.clone(),
-            template_id: featured_app_right.template_id.clone(),
+            template_id: Some(featured_app_right.template_id.clone()),
             synchronizer_id: String::new(),
         });
     }

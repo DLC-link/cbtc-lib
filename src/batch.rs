@@ -8,7 +8,7 @@ struct CsvRecord {
 }
 
 pub struct Params {
-    pub csv_path: String,
+    pub csv_content: String,
     pub sender: String,
     pub instrument_id: common::transfer::InstrumentId,
     pub ledger_host: String,
@@ -34,10 +34,9 @@ pub struct Params {
 /// Each transfer uses the change from the previous transfer, eliminating the
 /// need for pre-splitting UTXOs.
 pub async fn submit_from_csv(params: Params) -> Result<(), String> {
-    // Read CSV file
-    log::debug!("Reading CSV from: {}", params.csv_path);
-    let mut reader = csv::Reader::from_path(&params.csv_path)
-        .map_err(|e| format!("Failed to read CSV file: {}", e))?;
+    // Parse CSV content
+    log::debug!("Parsing CSV content ({} bytes)", params.csv_content.len());
+    let mut reader = csv::Reader::from_reader(params.csv_content.as_bytes());
 
     let mut recipients = Vec::new();
     let mut total_amount = 0.0;
@@ -112,7 +111,7 @@ mod tests {
     use super::*;
     use keycloak::login::password_url;
     use std::env;
-    use std::io::Write;
+
 
     #[tokio::test]
     async fn test_batch_from_csv() {
@@ -121,7 +120,6 @@ mod tests {
         let receiver =
             env::var("LIB_TEST_RECEIVER_PARTY_ID").expect("LIB_TEST_RECEIVER_PARTY_ID must be set");
 
-        // Create a temporary CSV file
         let csv_content = format!(
             "receiver,amount\n\
             {receiver},0.0001\n\
@@ -130,14 +128,9 @@ mod tests {
             {receiver},0.001\n"
         );
 
-        let temp_path = "/tmp/test_batch_distribution.csv";
-        let mut file = std::fs::File::create(temp_path).expect("Failed to create temp CSV file");
-        file.write_all(csv_content.as_bytes())
-            .expect("Failed to write CSV content");
-
         // Run batch distribution (authentication handled internally)
         let batch_params = Params {
-            csv_path: temp_path.to_string(),
+            csv_content,
             sender: env::var("PARTY_ID").expect("PARTY_ID must be set"),
             instrument_id: common::transfer::InstrumentId {
                 admin: common::consts::DEVNET_DECENTRALIZED_PARTY_ID.to_string(),
@@ -161,8 +154,5 @@ mod tests {
         };
 
         submit_from_csv(batch_params).await.unwrap();
-
-        // Clean up
-        std::fs::remove_file(temp_path).ok();
     }
 }

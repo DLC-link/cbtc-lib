@@ -171,12 +171,6 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
         params.transfer.input_holding_cids = Some(input_holding_cids);
     }
 
-    // On WASM, input_holding_cids must be provided
-    #[cfg(target_arch = "wasm32")]
-    if params.transfer.input_holding_cids.is_none() {
-        return Err("input_holding_cids must be provided on WASM target".to_string());
-    }
-
     if params.transfer.meta.is_none() {
         let mut transfer_meta: HashMap<String, String> = HashMap::new();
         transfer_meta.insert(

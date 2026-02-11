@@ -26,6 +26,9 @@ async fn main() -> Result<(), String> {
         ));
     }
 
+    let csv_content = std::fs::read_to_string(&csv_path)
+        .map_err(|e| format!("Failed to read CSV file '{}': {}", csv_path, e))?;
+
     println!("📦 Batch Distribution");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("CSV File: {}", csv_path);
@@ -35,7 +38,7 @@ async fn main() -> Result<(), String> {
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
     let batch_params = cbtc::batch::Params {
-        csv_path: csv_path.clone(),
+        csv_content,
         sender: sender_party.clone(),
         instrument_id: common::transfer::InstrumentId {
             admin: decentralized_party.clone(),

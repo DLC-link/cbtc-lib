@@ -61,6 +61,42 @@ path = "src/cancel_offers.rs"
 name = "check_withdraw_requests"
 path = "src/check_withdraw_requests.rs"
 
+[[bin]]
+name = "accept_transfers_auth0"
+path = "src/accept_transfers_auth0.rs"
+
+[[bin]]
+name = "check_balance_auth0"
+path = "src/check_balance_auth0.rs"
+
+[[bin]]
+name = "check_withdraw_requests_auth0"
+path = "src/check_withdraw_requests_auth0.rs"
+
+[[bin]]
+name = "consolidate_utxos_auth0"
+path = "src/consolidate_utxos_auth0.rs"
+
+[[bin]]
+name = "list_deposit_addresses_auth0"
+path = "src/list_deposit_addresses_auth0.rs"
+
+[[bin]]
+name = "mint_cbtc_auth0"
+path = "src/mint_cbtc_auth0.rs"
+
+[[bin]]
+name = "redeem_cbtc_auth0"
+path = "src/redeem_cbtc_auth0.rs"
+
+[[bin]]
+name = "send_cbtc_auth0"
+path = "src/send_cbtc_auth0.rs"
+
+[[bin]]
+name = "stream_auth0"
+path = "src/stream_auth0.rs"
+
 [dependencies]
 cbtc = { path = "../cbtc" }
 common = { path = "../common" }

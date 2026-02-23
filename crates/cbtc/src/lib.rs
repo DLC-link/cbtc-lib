@@ -1,5 +1,6 @@
 pub mod accept;
 pub mod active_contracts;
+pub mod auth0;
 pub mod batch;
 pub mod cancel_offers;
 pub mod consolidate;

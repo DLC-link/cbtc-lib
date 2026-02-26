@@ -1,0 +1,85 @@
+# Canton CBTC Library Configuration
+# Copy this file to environments.toml and fill in your values.
+# Usage: nu env.nu <environment> <credential>
+
+# =============================================================================
+# Shared settings (included in every generated .env)
+# =============================================================================
+[shared]
+DESTINATION_BTC_ADDRESS = ""
+TRANSFER_AMOUNT = "0.1"
+RECIPIENTS_CSV = "recipients.csv"
+AMOUNT_PER_RECEIVER = "0.00001000"
+RUST_LOG = "trace,tungstenite=error,tokio_tungstenite=error,reqwest=error"
+
+# Contract deletion
+# CHOICE_CONTRACT_TEMPLATE_ID = ""
+# CHOICE_CONTRACT_ID = ""
+# MAX_CONTRACTS = "1000"
+
+# Testing
+# LIB_TEST_MERCHANT_PASSWORD = ""
+# LIB_TEST_TRANSFER_OFFER_CID = ""
+# LIB_TEST_LEDGER_END_CLIENT_SECRET = ""
+# LIB_TEST_AMULET_CLIENT_SECRET = ""
+# WALLET_API_HOST = ""
+
+# =============================================================================
+# Environments
+# =============================================================================
+
+[environments.devnet]
+LEDGER_HOST = "http://localhost:7575"
+ATTESTOR_URL = "https://devnet.dlc.link/attestor-2"
+CANTON_NETWORK = "canton-devnet"
+DECENTRALIZED_PARTY_ID = "cbtc-network::1220..."
+REGISTRY_URL = "https://api.utilities.digitalasset-dev.com"
+KEYCLOAK_HOST = "https://keycloak.dev.canton.ibtc.network"
+KEYCLOAK_REALM = "ibtc-catalyst-devnet"
+
+[environments.devnet.credentials.wallet-user]
+KEYCLOAK_CLIENT_ID = "your-client-id"
+KEYCLOAK_USERNAME = "your-username"
+KEYCLOAK_PASSWORD = "your-password"
+PARTY_ID = "your-party::1220..."
+
+# -----------------------------------------------------------------------------
+
+[environments.testnet]
+LEDGER_HOST = ""
+ATTESTOR_URL = "https://testnet.dlc.link/attestor-1"
+CANTON_NETWORK = "canton-testnet"
+DECENTRALIZED_PARTY_ID = "cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f"
+REGISTRY_URL = "https://api.utilities.digitalasset-staging.com"
+KEYCLOAK_HOST = ""
+KEYCLOAK_REALM = ""
+
+[environments.testnet.credentials.default]
+KEYCLOAK_CLIENT_ID = ""
+KEYCLOAK_USERNAME = ""
+KEYCLOAK_PASSWORD = ""
+PARTY_ID = ""
+
+# -----------------------------------------------------------------------------
+
+[environments.mainnet]
+LEDGER_HOST = "https://participant.mainnet.example.com"
+ATTESTOR_URL = "https://mainnet.dlc.link/attestor-1"
+CANTON_NETWORK = "canton-mainnet"
+DECENTRALIZED_PARTY_ID = "cbtc-network::1220..."
+REGISTRY_URL = "https://api.utilities.digitalasset.com"
+KEYCLOAK_HOST = "https://keycloak.mainnet.example.com"
+KEYCLOAK_REALM = "your-mainnet-realm"
+
+# Client credentials example
+[environments.mainnet.credentials.service-account]
+KEYCLOAK_CLIENT_ID = "your-service-client-id"
+KEYCLOAK_CLIENT_SECRET = "your-client-secret"
+PARTY_ID = "your-party::1220..."
+
+# Password grant example
+[environments.mainnet.credentials.user-account]
+KEYCLOAK_CLIENT_ID = "your-wallet-client-id"
+KEYCLOAK_USERNAME = "your-username"
+KEYCLOAK_PASSWORD = "your-password"
+PARTY_ID = "your-party::1220..."

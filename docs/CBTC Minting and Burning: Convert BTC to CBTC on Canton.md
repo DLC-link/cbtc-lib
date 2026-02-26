@@ -63,12 +63,21 @@ A Deposit Account is required before you can generate deposit addresses.
 **Using cbtc-lib (Rust):**
 
 ```rust
-use cbtc_lib::deposit::create_deposit_account;
+use cbtc::mint_redeem::{mint, attestor};
 
-let deposit_account = create_deposit_account(
-    &ledger_client,
-    &party_id,
+// First get account rules from the attestor
+let account_rules = attestor::get_account_contract_rules(
+    &attestor_url,
+    &canton_network,
 ).await?;
+
+let deposit_account = mint::create_deposit_account(mint::CreateDepositAccountParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    user_name: username.clone(),
+    access_token: access_token.clone(),
+    account_rules,
+}).await?;
 
 println!("Deposit Account ID: {}", deposit_account.contract_id);
 ```
@@ -99,14 +108,13 @@ Each deposit address is unique to your account and is a standard **Taproot (P2TR
 **Using cbtc-lib (Rust):**
 
 ```rust
-use cbtc_lib::deposit::request_deposit_address;
+let btc_address = mint::get_bitcoin_address(mint::GetBitcoinAddressParams {
+    attestor_url: attestor_url.clone(),
+    account_id: deposit_account.contract_id.clone(),
+    chain: canton_network.clone(),
+}).await?;
 
-let address = request_deposit_address(
-    &ledger_client,
-    &deposit_account_id,
-).await?;
-
-println!("Send BTC to: {}", address.btc_address);
+println!("Send BTC to: {}", btc_address);
 ```
 
 <aside>
@@ -129,17 +137,17 @@ You can poll for deposit status:
 **Using cbtc-lib (Rust):**
 
 ```rust
-use cbtc_lib::deposit::get_pending_deposits;
+let status = mint::get_deposit_account_status(mint::GetDepositAccountStatusParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    access_token: access_token.clone(),
+    attestor_url: attestor_url.clone(),
+    chain: canton_network.clone(),
+    account_contract_id: deposit_account.contract_id.clone(),
+}).await?;
 
-let deposits = get_pending_deposits(
-    &ledger_client,
-    &party_id,
-).await?;
-
-for deposit in deposits {
-    println!("Status: {} | Confirmations: {}/6", 
-        deposit.status, deposit.confirmations);
-}
+println!("Bitcoin address: {} | Last processed block: {}",
+    status.bitcoin_address, status.last_processed_bitcoin_block);
 ```
 
 #### Step 6: Attestor Verification
@@ -159,10 +167,15 @@ Your CBTC is minted and available in your Canton party. Check your balance:
 **Using cbtc-lib (Rust):**
 
 ```rust
-use cbtc_lib::balance::get_cbtc_balance;
+use cbtc::active_contracts;
 
-let balance = get_cbtc_balance(&ledger_client, &party_id).await?;
-println!("CBTC Balance: {}", balance);
+let holdings = active_contracts::get(active_contracts::Params {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    access_token: access_token.clone(),
+}).await?;
+
+println!("CBTC holdings: {} contract(s)", holdings.len());
 ```
 
 ---
@@ -194,16 +207,36 @@ Specify the amount of CBTC to burn and the Bitcoin address to receive your BTC.
 **Using cbtc-lib (Rust):**
 
 ```rust
-use cbtc_lib::withdraw::initiate_withdrawal;
+use cbtc::mint_redeem::redeem;
 
-let withdrawal = initiate_withdrawal(
-    &ledger_client,
-    &party_id,
-    amount_satoshis,
-    &btc_destination_address,
-).await?;
+// 1. Create a withdraw account with your BTC destination address
+let withdraw_account = redeem::create_withdraw_account(redeem::CreateWithdrawAccountParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    user_name: username.clone(),
+    access_token: access_token.clone(),
+    account_rules_contract_id: rules.wa_rules.contract_id.clone(),
+    account_rules_template_id: rules.wa_rules.template_id.clone(),
+    account_rules_created_event_blob: rules.wa_rules.created_event_blob.clone(),
+    destination_btc_address: btc_destination_address.clone(),
+}).await?;
 
-println!("Withdrawal ID: {}", withdrawal.request_id);
+// 2. Submit the withdrawal (burns CBTC, attestors process BTC payout)
+let updated_account = redeem::submit_withdraw(redeem::SubmitWithdrawParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    user_name: username.clone(),
+    access_token: access_token.clone(),
+    attestor_url: attestor_url.clone(),
+    chain: canton_network.clone(),
+    withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+    withdraw_account_template_id: withdraw_account.template_id.clone(),
+    withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
+    amount: "0.001".to_string(),
+    holding_contract_ids: holding_ids,
+}).await?;
+
+println!("Pending balance: {}", updated_account.pending_balance);
 ```
 
 #### Step 2: Attestor Verification and Signing
@@ -276,11 +309,21 @@ If some Attestors approve but the threshold is not reached (e.g., too many Attes
 The cbtc-lib Rust library provides functions for managing UTXOs:
 
 ```rust
-use cbtc_lib::utxo::consolidate_utxos;
+use cbtc::consolidate;
 
-// Consolidate UTXOs when count exceeds threshold
-let result = consolidate_utxos(&ledger_client, &party_id).await?;
-println!("Consolidated {} UTXOs", result.consolidated_count);
+// Check UTXO count and consolidate if threshold exceeded
+let result = consolidate::check_and_consolidate(consolidate::CheckConsolidateParams {
+    party: party_id.clone(),
+    threshold: 10, // Canton's soft limit
+    ledger_host: ledger_host.clone(),
+    access_token: access_token.clone(),
+    registry_url: registry_url.clone(),
+    decentralized_party_id: decentralized_party_id.clone(),
+}).await?;
+
+if result.consolidated {
+    println!("Consolidated {} UTXOs into {}", result.utxos_before, result.utxos_after);
+}
 ```
 
 **Best practices:**

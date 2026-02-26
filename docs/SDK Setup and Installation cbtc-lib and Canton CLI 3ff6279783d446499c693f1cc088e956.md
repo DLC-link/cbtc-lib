@@ -40,7 +40,7 @@ This page is your single reference for installing and configuring everything you
 | **Rust toolchain** | Latest stable. Install via [rustup.rs](http://rustup.rs) |
 | **Canton participant node** | Running and connected to devnet, testnet, or mainnet. See [Canton documentation](https://docs.digitalasset.com/canton) |
 | **DA Registry Utility** | Installed and configured. See [Digital Asset Utilities docs](https://docs.digitalasset.com/utilities/mainnet/index.html) |
-| **Keycloak credentials** | Username, password, client ID, and client secret for your environment |
+| **Keycloak credentials** | Host, realm, client ID, username, and password for your environment |
 | **Party ID** | Your Canton Party ID, obtained during onboarding |
 
 ---
@@ -50,22 +50,23 @@ This page is your single reference for installing and configuring everything you
 `cbtc-lib` is BitSafe's primary SDK for CBTC operations: minting, burning, transferring, UTXO management, and balance queries. It wraps the Canton Ledger API with type-safe Rust functions.
 
 - **Repository:** [github.com/DLC-link/cbtc-lib](http://github.com/DLC-link/cbtc-lib)
-- **Current version:** v0.0.1
+- **Current version:** v0.3.0
+- **Crate name:** `cbtc`
 - **Licence:** *Check repository*
 
 ### Add to your project
 
-Add `cbtc-lib` to your `Cargo.toml`:
+Add `cbtc` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc-lib = { git = "https://github.com/DLC-link/cbtc-lib.git", tag = "v0.0.1" }
+cbtc = { git = "https://github.com/DLC-link/cbtc-lib.git", tag = "v0.3.0" }
 ```
 
 <aside>
 📌
 
-**Pin your version.** Always reference a specific tag (e.g. `v0.0.1`) rather than `main`. The library is under active development and `main` may contain breaking changes between releases.
+**Pin your version.** Always reference a specific tag (e.g. `v0.3.0`) rather than `main`. The library is under active development and `main` may contain breaking changes between releases.
 
 </aside>
 
@@ -73,14 +74,16 @@ cbtc-lib = { git = "https://github.com/DLC-link/cbtc-lib.git", tag = "v0.0.1" }
 
 | Module | Purpose |
 | --- | --- |
-| `mint_redeem::mint` | Create deposit accounts, get deposit addresses, trigger minting |
-| `mint_redeem::redeem` | Burn CBTC and withdraw to a BTC address |
-| `cbtc::transfer` | Create and accept two-phase CBTC transfers |
+| `cbtc::mint_redeem::mint` | Create deposit accounts, get Bitcoin deposit addresses |
+| `cbtc::mint_redeem::redeem` | Create withdraw accounts, burn CBTC and withdraw to BTC |
+| `cbtc::transfer` | Send CBTC to another party (creates transfer offer) |
+| `cbtc::accept` | Accept incoming CBTC transfer offers |
 | `cbtc::active_contracts` | Query current CBTC holdings for a party |
 | `cbtc::consolidate` | Merge multiple UTXO holdings into fewer contracts |
 | `cbtc::split` | Split a single holding into multiple UTXOs |
-| `cbtc::batch` | Batch operations for sending to multiple recipients |
+| `cbtc::batch` | Batch operations for sending CBTC from a CSV file |
 | `cbtc::distribute` | Distribute CBTC across multiple parties |
+| `cbtc::cancel_offers` | Cancel pending outgoing transfer offers |
 
 ---
 
@@ -92,23 +95,41 @@ cbtc-lib = { git = "https://github.com/DLC-link/cbtc-lib.git", tag = "v0.0.1" }
 
 ### Add to your project
 
+`canton-lib` is a workspace with multiple crates. Add the ones you need:
+
 ```toml
 [dependencies]
-canton-lib = { git = "https://github.com/DLC-link/canton-lib.git", tag = "v0.0.1" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.0" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.0" }
+registry = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.0" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.0" }
 ```
 
-The `keycloak` module in `canton-lib` provides the authentication helper used across all CBTC operations:
+The `keycloak` crate provides authentication helpers. For password-grant authentication:
 
 ```rust
-use keycloak::login;
+use keycloak::login::{password, password_url, PasswordParams};
 
-let token = login(
-    &keycloak_url,
-    &client_id,
-    &client_secret,
-    &username,
-    &password,
-).await?;
+let auth = password(PasswordParams {
+    client_id: "your-client-id".to_string(),
+    username: "your-username".to_string(),
+    password: "your-password".to_string(),
+    url: password_url("https://your-keycloak-host", "your-realm"),
+}).await?;
+
+let access_token = auth.access_token;
+```
+
+For service-to-service (client credentials) authentication:
+
+```rust
+use keycloak::login::{client_credentials, client_credentials_url, ClientCredentialsParams};
+
+let auth = client_credentials(ClientCredentialsParams {
+    url: client_credentials_url("https://your-keycloak-host", "your-realm"),
+    client_id: "your-client-id".to_string(),
+    client_secret: "your-client-secret".to_string(),
+}).await?;
 ```
 
 ---
@@ -137,27 +158,29 @@ Set these variables before running any CBTC commands or code. Values differ per 
 | Variable | Devnet | Testnet | Mainnet |
 | --- | --- | --- | --- |
 | `REGISTRY_URL` | [`https://api.utilities.digitalasset-dev.com`](https://api.utilities.digitalasset-dev.com) | [`https://api.utilities.digitalasset-staging.com`](https://api.utilities.digitalasset-staging.com) | [`https://api.utilities.digitalasset.com`](https://api.utilities.digitalasset.com) |
-| `ATTESTOR_URL` | [`https://attestor.bitsafe.dev`](https://attestor.bitsafe.dev) | [`https://attestor.bitsafe.testnet`](https://attestor.bitsafe.testnet) | [`https://attestor.bitsafe.com`](https://attestor.bitsafe.com) |
+| `ATTESTOR_URL` | [`https://devnet.dlc.link/attestor-1`](https://devnet.dlc.link/attestor-1) | [`https://testnet.dlc.link/attestor-1`](https://testnet.dlc.link/attestor-1) | [`https://mainnet.dlc.link/attestor-1`](https://mainnet.dlc.link/attestor-1) |
 | `DECENTRALIZED_PARTY_ID` | *Provided during onboarding* | *Provided during onboarding* | *Provided during onboarding* |
 
 ### Example .env file
 
 ```bash
 # Environment (choose one: devnet, testnet, mainnet)
+ENVIRONMENT=testnet
 REGISTRY_URL="https://api.utilities.digitalasset-staging.com"
-ATTESTOR_URL="https://attestor.bitsafe.testnet"
-DECENTRALIZED_PARTY_ID="your-party-id-here"
+ATTESTOR_URL="https://testnet.dlc.link/attestor-1"
+CANTON_NETWORK="canton-testnet"
+DECENTRALIZED_PARTY_ID="cbtc-network::1220..."
 
 # Authentication (Keycloak)
-KEYCLOAK_URL="your-keycloak-url"
+KEYCLOAK_HOST="https://your-keycloak-host"
+KEYCLOAK_REALM="your-realm"
 KEYCLOAK_CLIENT_ID="your-client-id"
-KEYCLOAK_CLIENT_SECRET="your-client-secret"
 KEYCLOAK_USERNAME="your-username"
 KEYCLOAK_PASSWORD="your-password"
 
 # Canton participant
-LEDGER_HOST="your-ledger-host"
-LEDGER_PORT="your-ledger-port"
+LEDGER_HOST="https://your-ledger-host"
+PARTY_ID="your-party::1220..."
 ```
 
 ---
@@ -174,7 +197,7 @@ In December 2025, `cbtc-lib` underwent a major restructure led by Ferenc. If you
 
 ### How to migrate
 
-1. Update your `Cargo.toml` to pin to `v0.0.1` (the first post-restructure tag)
+1. Update your `Cargo.toml` to pin to the latest tag (currently `v0.3.0`)
 2. Update all `use` statements to match the new module paths (see the module table above)
 3. Review the [cleanup PR](https://github.com/DLC-link/cbtc-lib/pull/11) for a full diff of changes
 
@@ -192,30 +215,34 @@ In December 2025, `cbtc-lib` underwent a major restructure led by Ferenc. If you
 Run this minimal check to confirm everything is wired up:
 
 ```rust
-use keycloak::login;
+use keycloak::login::{password, password_url, PasswordParams};
 use cbtc::active_contracts;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Authenticate
-    let token = login(
-        &std::env::var("KEYCLOAK_URL")?,
-        &std::env::var("KEYCLOAK_CLIENT_ID")?,
-        &std::env::var("KEYCLOAK_CLIENT_SECRET")?,
-        &std::env::var("KEYCLOAK_USERNAME")?,
-        &std::env::var("KEYCLOAK_PASSWORD")?,
-    ).await?;
+    dotenvy::dotenv().ok();
 
-    println!("✅ Authenticated successfully");
+    // 1. Authenticate
+    let auth = password(PasswordParams {
+        client_id: std::env::var("KEYCLOAK_CLIENT_ID")?,
+        username: std::env::var("KEYCLOAK_USERNAME")?,
+        password: std::env::var("KEYCLOAK_PASSWORD")?,
+        url: password_url(
+            &std::env::var("KEYCLOAK_HOST")?,
+            &std::env::var("KEYCLOAK_REALM")?,
+        ),
+    }).await.map_err(|e| format!("Auth failed: {}", e))?;
+
+    println!("Authenticated successfully");
 
     // 2. Query holdings (should return empty if no CBTC yet)
-    let holdings = active_contracts::get_active_contracts(
-        &ledger_client,
-        &std::env::var("PARTY_ID")?,
-        &token,
-    ).await?;
+    let holdings = active_contracts::get(active_contracts::Params {
+        ledger_host: std::env::var("LEDGER_HOST")?,
+        party: std::env::var("PARTY_ID")?,
+        access_token: auth.access_token,
+    }).await.map_err(|e| format!("Query failed: {}", e))?;
 
-    println!("✅ Connected to Canton. Current CBTC holdings: {}", holdings.len());
+    println!("Connected to Canton. Current CBTC holdings: {}", holdings.len());
     Ok(())
 }
 ```

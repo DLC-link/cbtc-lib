@@ -207,10 +207,10 @@ curl -X POST "https://<your-auth0-domain>/oauth/token" \
 
 **The `audience` parameter is required for Auth0.** This is the key difference from Keycloak. Without it, Auth0 will return an opaque token that the Canton participant will reject. Set `audience` to your participant's Ledger API base URL.
 
-**If using cbtc-lib / canton-lib:** The Rust libraries' `keycloak::login` function does not pass an `audience` parameter. To use Auth0, you'll need to either:
+**If using cbtc-lib / canton-lib:** The Rust libraries' `keycloak::login::password` and `keycloak::login::client_credentials` functions do not pass an `audience` parameter. To use Auth0, you'll need to either:
 
-1. Make the token request directly via HTTP (as shown above) instead of using the library helper
-2. patch the login function to include the `audience` field, which is a small change
+1. Make the token request directly via HTTP (as shown above) instead of using the library helpers
+2. Patch the login functions to include the `audience` field, which is a small change
 
 A library-level fix may be shipped in a future release of `canton-lib`.
 

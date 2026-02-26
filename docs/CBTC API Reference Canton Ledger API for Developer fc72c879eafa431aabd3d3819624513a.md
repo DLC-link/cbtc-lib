@@ -92,11 +92,9 @@ All CBTC operations use these Daml contract templates. You reference them by the
 
 | Template | Purpose | Key Choices |
 | --- | --- | --- |
-| `CBTC.Issuance:DepositAccount` | Represents a deposit account for minting | `RequestDepositAddress` |
-| `CBTC.Issuance:DepositAddress` | A generated Bitcoin deposit address | (read-only, auto-created) |
-| `CBTC.Issuance:PendingDeposit` | Tracks a deposit awaiting confirmations | (read-only, auto-managed) |
-| `CBTC.Issuance:WithdrawRequest` | A request to burn CBTC and receive BTC | `InitiateWithdrawal` |
-| `CBTC.Token:CBTC` | The CBTC token contract itself | `Transfer`, `Split`, `Merge` |
+| `CBTC.DepositAccount:CBTCDepositAccount` | Represents a deposit account for minting | `CreateDepositAccount` (on rules contract) |
+| `CBTC.WithdrawAccount:CBTCWithdrawAccount` | A withdraw account for burning CBTC | `Withdraw`, `CreateWithdrawAccount` (on rules contract) |
+| Token Holding (CIP-56) | The CBTC token holding contract | `TransferFactory_Transfer`, `TransferInstruction_Accept` |
 
 <aside>
 💡
@@ -268,16 +266,10 @@ There are no BitSafe-imposed rate limits on the Canton Ledger API. However:
 For most integrations, we recommend using **cbtc-lib** (Rust) rather than raw API calls:
 
 - **Repository:** [github.com/DLC-link/cbtc-lib](http://github.com/DLC-link/cbtc-lib)
-- **Current version:** v0.0.1 (tagged after Dec 2025 restructure by Ferenc)
-- **Lower-level library:** [github.com/DLC-link/canton-lib](http://github.com/DLC-link/canton-lib)
+- **Current version:** v0.3.0
+- **Crate name:** `cbtc` (add via `cbtc = { git = "https://github.com/DLC-link/cbtc-lib.git", tag = "v0.3.0" }`)
+- **Lower-level library:** [github.com/DLC-link/canton-lib](http://github.com/DLC-link/canton-lib) (v0.3.0)
 - **Code examples:** [github.com/DLC-link/cbtc-lib/tree/main/examples](http://github.com/DLC-link/cbtc-lib/tree/main/examples)
-
-<aside>
-💡
-
-**Note:** cbtc-lib recently underwent a major restructure (December 2025). If you were using an earlier version, you will need to update your imports. See the [cleanup PR](https://github.com/DLC-link/cbtc-lib/pull/11) for migration details.
-
-</aside>
 
 ---
 

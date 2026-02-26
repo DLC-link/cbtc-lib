@@ -30,7 +30,7 @@ Before you begin minting wrapped Bitcoin on Canton, make sure you have the follo
 | --- | --- |
 | **Canton participant node** | A running Canton participant node connected to the network. See [Canton documentation](https://docs.digitalasset.com/canton) for setup. |
 | **DA Registry Utility** | Installed and configured. See [Digital Asset Utilities docs](https://docs.digitalasset.com/utilities/mainnet/index.html). |
-| **Keycloak credentials** | A valid Keycloak username, password, client ID, and client secret for your environment. |
+| **Keycloak credentials** | A valid Keycloak host, realm, client ID, username, and password for your environment. |
 | **Party ID** | Your Canton Party ID, obtained during onboarding. |
 | **Rust toolchain** | If using cbtc-lib (Rust). Install via [rustup.rs](http://rustup.rs). |
 | **BTC to deposit** | Real BTC (mainnet) or testnet BTC (testnet). There is no faucet for CBTC. You mint CBTC by depositing BTC through the same flow on both networks. |
@@ -57,22 +57,23 @@ CBTC is available on three environments. **Start with testnet** for experimentat
 | Variable | Devnet | Testnet | Mainnet |
 | --- | --- | --- | --- |
 | `REGISTRY_URL` | [`https://api.utilities.digitalasset-dev.com`](https://api.utilities.digitalasset-dev.com) | [`https://api.utilities.digitalasset-staging.com`](https://api.utilities.digitalasset-staging.com) | [`https://api.utilities.digitalasset.com`](https://api.utilities.digitalasset.com) |
-| `ATTESTOR_URL` | [`https://attestor.bitsafe.dev`](https://attestor.bitsafe.dev) | [`https://attestor.bitsafe.testnet`](https://attestor.bitsafe.testnet) | [`https://attestor.bitsafe.com`](https://attestor.bitsafe.com) |
+| `ATTESTOR_URL` | [`https://devnet.dlc.link/attestor-1`](https://devnet.dlc.link/attestor-1) | [`https://testnet.dlc.link/attestor-1`](https://testnet.dlc.link/attestor-1) | [`https://mainnet.dlc.link/attestor-1`](https://mainnet.dlc.link/attestor-1) |
 | `DECENTRALIZED_PARTY_ID` | *Environment-specific. Provided during onboarding.* | *Environment-specific. Provided during onboarding.* | *Environment-specific. Provided during onboarding.* |
 
 Set these as environment variables before running any commands:
 
 ```bash
 export REGISTRY_URL="https://api.utilities.digitalasset-staging.com"
-export ATTESTOR_URL="https://attestor.bitsafe.testnet"
+export ATTESTOR_URL="https://testnet.dlc.link/attestor-1"
+export CANTON_NETWORK="canton-testnet"
 export DECENTRALIZED_PARTY_ID="your-party-id-here"
-export KEYCLOAK_URL="your-keycloak-url"
+export KEYCLOAK_HOST="https://your-keycloak-host"
+export KEYCLOAK_REALM="your-realm"
 export KEYCLOAK_CLIENT_ID="your-client-id"
-export KEYCLOAK_CLIENT_SECRET="your-client-secret"
 export KEYCLOAK_USERNAME="your-username"
 export KEYCLOAK_PASSWORD="your-password"
-export LEDGER_HOST="your-ledger-host"
-export LEDGER_PORT="your-ledger-port"
+export LEDGER_HOST="https://your-ledger-host"
+export PARTY_ID="your-party-id"
 ```
 
 ---
@@ -84,25 +85,25 @@ All CBTC operations require a valid Keycloak access token. The `canton-lib` crat
 ### Using cbtc-lib (Rust)
 
 ```rust
-use keycloak::login;
+use keycloak::login::{password, password_url, PasswordParams};
 
-let token = login(
-    &keycloak_url,
-    &client_id,
-    &client_secret,
-    &username,
-    &password,
-).await?;
+let auth = password(PasswordParams {
+    client_id: keycloak_client_id.clone(),
+    username: keycloak_username.clone(),
+    password: keycloak_password.clone(),
+    url: password_url(&keycloak_host, &keycloak_realm),
+}).await?;
+
+let access_token = auth.access_token;
 ```
 
 ### Using the Canton API directly
 
 ```bash
-curl -X POST "${KEYCLOAK_URL}/realms/canton/protocol/openid-connect/token" \
+curl -X POST "${KEYCLOAK_HOST}/auth/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "client_id=${KEYCLOAK_CLIENT_ID}" \
-  -d "client_secret=${KEYCLOAK_CLIENT_SECRET}" \
   -d "username=${KEYCLOAK_USERNAME}" \
   -d "password=${KEYCLOAK_PASSWORD}"
 ```
@@ -118,13 +119,22 @@ A deposit account maps your Canton Party ID to a unique Bitcoin deposit address.
 ### Using cbtc-lib
 
 ```rust
-use mint_redeem::mint;
+use cbtc::mint_redeem::{mint, attestor};
 
-let deposit_account = mint::create_deposit_account(
-    &ledger_client,
-    &party_id,
-    &token,
+// First get account rules from the attestor
+let account_rules = attestor::get_account_contract_rules(
+    &attestor_url,
+    &canton_network,
 ).await?;
+
+// Create the deposit account
+let deposit_account = mint::create_deposit_account(mint::CreateDepositAccountParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    user_name: keycloak_username.clone(),
+    access_token: access_token.clone(),
+    account_rules,
+}).await?;
 ```
 
 ### Using the Canton API directly
@@ -132,7 +142,7 @@ let deposit_account = mint::create_deposit_account(
 Submit a `CreateDepositAccount` command to the Canton Ledger API v2 endpoint:
 
 ```bash
-curl -X POST "https://${LEDGER_HOST}:${LEDGER_PORT}/v2/commands/submit" \
+curl -X POST "${LEDGER_HOST}/v2/commands/submit" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -154,11 +164,11 @@ Once the deposit account is created, retrieve the Bitcoin address associated wit
 ### Using cbtc-lib
 
 ```rust
-let btc_address = mint::get_deposit_address(
-    &ledger_client,
-    &party_id,
-    &token,
-).await?;
+let btc_address = mint::get_bitcoin_address(mint::GetBitcoinAddressParams {
+    attestor_url: attestor_url.clone(),
+    account_id: deposit_account.contract_id.clone(),
+    chain: canton_network.clone(),
+}).await?;
 
 println!("Send BTC to: {}", btc_address);
 ```
@@ -199,15 +209,13 @@ This process typically takes 60 to 90 minutes, depending on Bitcoin block times.
 ```rust
 use cbtc::active_contracts;
 
-let holdings = active_contracts::get_active_contracts(
-    &ledger_client,
-    &party_id,
-    &token,
-).await?;
+let holdings = active_contracts::get(active_contracts::Params {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    access_token: access_token.clone(),
+}).await?;
 
-for holding in holdings {
-    println!("Amount: {}", holding.amount);
-}
+println!("CBTC holdings: {} contract(s)", holdings.len());
 ```
 
 ### Using the Canton API directly
@@ -215,7 +223,7 @@ for holding in holdings {
 Query active contracts filtered by the CBTC token holding interface:
 
 ```bash
-curl -X POST "https://${LEDGER_HOST}:${LEDGER_PORT}/v2/state/active-contracts" \
+curl -X POST "${LEDGER_HOST}/v2/state/active-contracts" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -246,13 +254,25 @@ CBTC transfers use a **two-phase model**: the sender creates an offer, and the r
 ```rust
 use cbtc::transfer;
 
-let transfer_offer = transfer::send(
-    &ledger_client,
-    &sender_party_id,
-    &receiver_party_id,
-    amount,
-    &token,
-).await?;
+transfer::submit(transfer::Params {
+    transfer: common::transfer::Transfer {
+        sender: sender_party_id.clone(),
+        receiver: receiver_party_id.clone(),
+        amount: "0.01".to_string(),
+        instrument_id: common::transfer::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
+        requested_at: chrono::Utc::now().to_rfc3339(),
+        execute_before: (chrono::Utc::now() + chrono::Duration::hours(168)).to_rfc3339(),
+        input_holding_cids: None, // Auto-fetched
+        meta: None,
+    },
+    ledger_host: ledger_host.clone(),
+    access_token: access_token.clone(),
+    registry_url: registry_url.clone(),
+    decentralized_party_id: decentralized_party_id.clone(),
+}).await?;
 ```
 
 ### Phase 2: Accept the transfer (receiver)
@@ -260,12 +280,14 @@ let transfer_offer = transfer::send(
 ```rust
 use cbtc::accept;
 
-let accepted = accept::accept_transfer(
-    &ledger_client,
-    &receiver_party_id,
-    &transfer_contract_id,
-    &token,
-).await?;
+accept::submit(accept::Params {
+    transfer_offer_contract_id: transfer_contract_id.clone(),
+    receiver_party: receiver_party_id.clone(),
+    ledger_host: ledger_host.clone(),
+    access_token: receiver_access_token.clone(),
+    registry_url: registry_url.clone(),
+    decentralized_party_id: decentralized_party_id.clone(),
+}).await?;
 ```
 
 ### Using the Canton API directly
@@ -273,7 +295,7 @@ let accepted = accept::accept_transfer(
 **Submit a transfer:**
 
 ```bash
-curl -X POST "https://${LEDGER_HOST}:${LEDGER_PORT}/v2/commands/submit" \
+curl -X POST "${LEDGER_HOST}/v2/commands/submit" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -291,7 +313,7 @@ curl -X POST "https://${LEDGER_HOST}:${LEDGER_PORT}/v2/commands/submit" \
 **Accept a transfer:**
 
 ```bash
-curl -X POST "https://${LEDGER_HOST}:${LEDGER_PORT}/v2/commands/submit" \
+curl -X POST "${LEDGER_HOST}/v2/commands/submit" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -318,15 +340,34 @@ To convert CBTC back to BTC:
 5. The BTC transaction is broadcast to the Bitcoin network
 
 ```rust
-use mint_redeem::redeem;
+use cbtc::mint_redeem::redeem;
 
-let withdraw = redeem::burn_and_withdraw(
-    &ledger_client,
-    &party_id,
-    &btc_destination_address,
-    amount,
-    &token,
-).await?;
+// 1. Create a withdraw account with your BTC destination address
+let withdraw_account = redeem::create_withdraw_account(redeem::CreateWithdrawAccountParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    user_name: keycloak_username.clone(),
+    access_token: access_token.clone(),
+    account_rules_contract_id: rules.wa_rules.contract_id.clone(),
+    account_rules_template_id: rules.wa_rules.template_id.clone(),
+    account_rules_created_event_blob: rules.wa_rules.created_event_blob.clone(),
+    destination_btc_address: btc_destination_address.clone(),
+}).await?;
+
+// 2. Submit the withdrawal (burns CBTC, attestors process BTC payout)
+let updated_account = redeem::submit_withdraw(redeem::SubmitWithdrawParams {
+    ledger_host: ledger_host.clone(),
+    party: party_id.clone(),
+    user_name: keycloak_username.clone(),
+    access_token: access_token.clone(),
+    attestor_url: attestor_url.clone(),
+    chain: canton_network.clone(),
+    withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+    withdraw_account_template_id: withdraw_account.template_id.clone(),
+    withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
+    amount: "0.001".to_string(),
+    holding_contract_ids: holding_ids,
+}).await?;
 ```
 
 ---
@@ -337,11 +378,12 @@ The `cbtc-lib` library provides several utility modules for managing your CBTC h
 
 | Module | Purpose |
 | --- | --- |
-| `cbtc::batch` | Batch operations for sending CBTC to multiple recipients |
+| `cbtc::batch` | Batch operations for sending CBTC from a CSV file |
 | `cbtc::distribute` | Distribute CBTC across multiple parties |
 | `cbtc::consolidate` | Merge multiple UTXO holdings into fewer contracts |
 | `cbtc::split` | Split a single holding into multiple UTXOs |
 | `cbtc::active_contracts` | Query your current CBTC holdings |
+| `cbtc::cancel_offers` | Cancel pending outgoing transfer offers |
 
 ---
 

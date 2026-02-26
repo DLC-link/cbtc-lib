@@ -27,3 +27,6 @@ target
 .env.testnet
 
 .claude
+
+# macOS
+.DS_Store

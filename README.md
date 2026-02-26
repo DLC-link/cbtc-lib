@@ -16,7 +16,7 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 
 > **Important Setup Requirements**:
 > - **For Send/Receive Operations**: The [Digital Asset Registry Utility](https://docs.digitalasset.com/utilities/mainnet/index.html) must be installed on your validator node
-> - **For Mint/Redeem Operations**: Review the [CBTC Minting App Installation and User Guide](https://hub.bitsafe.finance/cbtc-minting-app-installation-and-user-guide) to install the required DAR files and configure permissions correctly
+> - **For Mint/Redeem Operations**: Review the [CBTC Minting App Installation and User Guide](https://hub.bitsafe.finance/cbtc-minting-app-installation-and-user-guide) to install the required DAR files and configure permissions correctly. The DAR packages are bundled in the [`cbtc-dars/`](cbtc-dars/) directory for convenience — see its [README](cbtc-dars/README.md) for upload instructions.
 
 ---
 

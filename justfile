@@ -12,6 +12,10 @@ env target credential:
 envs:
     nu env.nu
 
+# Restore .env from .env.robert
+restore:
+    cp .env.robert .env
+
 # --- Build & test ---
 
 # Build the library

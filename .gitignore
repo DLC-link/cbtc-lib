@@ -22,9 +22,7 @@ target
 
 # Environment variables with secrets
 .env
-.env.mainnet
-.env.devnet
-.env.testnet
+.env.robert
 environments.toml
 
 .claude

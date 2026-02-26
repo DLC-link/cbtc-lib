@@ -83,7 +83,7 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", branch = "main" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", branch = "main" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.0" }
 ```
 
 Or for local development:
@@ -164,6 +164,13 @@ cp .env.example .env
 Edit `.env` with your Canton participant node details:
 
 ```bash
+# Keycloak / OIDC Authentication
+KEYCLOAK_HOST=https://keycloak.your-host.com
+KEYCLOAK_REALM=your-realm
+KEYCLOAK_CLIENT_ID=your-client-id
+KEYCLOAK_USERNAME=your-username
+KEYCLOAK_PASSWORD=your-password
+
 # Canton Network
 LEDGER_HOST=https://participant.example.com
 PARTY_ID=your-party::1220...
@@ -171,8 +178,8 @@ DECENTRALIZED_PARTY_ID=cbtc-network::1220...  # See environment-specific values 
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com  # See environment-specific values below
 
 # CBTC Mint/Redeem (optional - only needed for BTC bridging)
-ATTESTOR_URL=https://attestor.bitsafe.dev  # See environment-specific values below
-CANTON_NETWORK=devnet  # or testnet/mainnet
+ATTESTOR_URL=https://devnet.dlc.link/attestor-1  # See environment-specific values below
+CANTON_NETWORK=canton-devnet  # or canton-testnet/canton-mainnet
 ```
 
 ### Environment-Specific Values
@@ -182,8 +189,8 @@ CANTON_NETWORK=devnet  # or testnet/mainnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com
-ATTESTOR_URL=https://attestor.bitsafe.dev
-CANTON_NETWORK=devnet
+ATTESTOR_URL=https://devnet.dlc.link/attestor-1
+CANTON_NETWORK=canton-devnet
 ```
 
 #### Testnet
@@ -191,8 +198,8 @@ CANTON_NETWORK=devnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f
 REGISTRY_URL=https://api.utilities.digitalasset-staging.com
-ATTESTOR_URL=https://attestor.bitsafe.testnet
-CANTON_NETWORK=testnet
+ATTESTOR_URL=https://testnet.dlc.link/attestor-1
+CANTON_NETWORK=canton-testnet
 ```
 
 #### Mainnet
@@ -200,8 +207,8 @@ CANTON_NETWORK=testnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262
 REGISTRY_URL=https://api.utilities.digitalasset.com
-ATTESTOR_URL=https://attestor.bitsafe.com
-CANTON_NETWORK=mainnet
+ATTESTOR_URL=https://mainnet.dlc.link/attestor-1
+CANTON_NETWORK=canton-mainnet
 ```
 
 ---
@@ -245,6 +252,10 @@ This library provides several high-level operations for working with CBTC tokens
 | **Stream CBTC**          | [`stream.rs`](examples/stream.rs)                                  | `cargo run --example stream_cbtc`            | Stream CBTC to a single receiver multiple times  |
 | **Batch Distribution**   | [`batch_distribute.rs`](examples/batch_distribute.rs)              | `cargo run --example batch_distribute`       | Distribute to multiple recipients from CSV       |
 | **Consolidate UTXOs**    | [`consolidate_utxos.rs`](examples/consolidate_utxos.rs)            | `cargo run --example consolidate_utxos`      | Merge multiple UTXOs into one                    |
+| **Check Withdrawals**    | [`check_withdraw_requests.rs`](examples/check_withdraw_requests.rs)| `cargo run --example check_withdraw_requests`| Monitor pending BTC withdrawal requests          |
+| **List Deposit Addrs**   | [`list_deposit_addresses.rs`](examples/list_deposit_addresses.rs)  | `cargo run --example list_deposit_addresses` | List Bitcoin deposit addresses for your accounts |
+| **List Contracts**       | [`list_contracts.rs`](examples/list_contracts.rs)                  | `cargo run --example list_contracts`         | List all active CBTC contracts                   |
+| **Delete Transfers**     | [`delete_executed_transfers.rs`](examples/delete_executed_transfers.rs) | `cargo run --example delete_executed_transfers` | Delete old executed transfer contracts      |
 
 ### Key Concepts
 
@@ -324,8 +335,8 @@ See [redeem_cbtc_flow.rs](examples/redeem_cbtc_flow.rs) for complete code.
 To use mint/redeem functionality, add these environment variables:
 
 ```bash
-ATTESTOR_URL=https://attestor.bitsafe.dev  # Bitsafe Attestor API
-CANTON_NETWORK=devnet  # or testnet/mainnet
+ATTESTOR_URL=https://devnet.dlc.link/attestor-1  # Bitsafe Attestor API
+CANTON_NETWORK=canton-devnet  # or canton-testnet/canton-mainnet
 ```
 
 ### Understanding UTXO Management
@@ -376,13 +387,13 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 #### `cbtc::transfer`
 
 - `submit(Params)` - Send CBTC to a single recipient
-- `submit_multi(MultiParams)` - Send CBTC to multiple recipients in one transaction
+- `submit_sequential_chained(SequentialChainedParams)` - Send CBTC to multiple recipients sequentially, chaining change outputs
 
 #### `cbtc::accept`
 
 - `submit(Params)` - Accept an incoming CBTC transfer
 
-#### `cbtc::withdraw`
+#### `cbtc::cancel_offers`
 
 - `withdraw_all(WithdrawAllParams)` - Withdraw all pending outgoing transfers
 - `submit(Params)` - Withdraw a specific transfer offer
@@ -421,7 +432,7 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 - `list_withdraw_accounts(Params)` - Get all withdraw accounts
 - `create_withdraw_account(Params)` - Create withdraw account with BTC destination
 - `list_holdings(Params)` - Get CBTC holdings for burning
-- `request_withdraw(Params)` - Burn CBTC and request BTC withdrawal
+- `submit_withdraw(SubmitWithdrawParams)` - Burn CBTC and request BTC withdrawal
 - `list_withdraw_requests(Params)` - Monitor withdrawal status
 
 ### Helper Modules
@@ -429,7 +440,8 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 #### `keycloak::login`
 
 - `password(PasswordParams)` - Authenticate with username/password
-- `client_credentials(ClientCredentialsParams)` - Service account authentication
+
+> **Note**: This library uses username/password authentication. The underlying [canton-lib](https://github.com/DLC-link/canton-lib) also provides `client_credentials(ClientCredentialsParams)` for service account authentication if needed.
 
 #### `ledger`
 
@@ -513,10 +525,6 @@ curl -X POST $REGISTRY_URL/api/token-standard/v0/registrars/$DECENTRALIZED_PARTY
     "excludeDebugFields": true
   }' | jq
 ```
-
-### Submit Transfer
-
-See [example_transfer.sh](example_transfer.sh) for a complete example.
 
 ### Accept Transfer
 
@@ -695,7 +703,5 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Resources
 
-- [Canton Token Standard (CIP-0056)](context/cip-0056.md)
-- [Canton Coin Fee Removal (CIP-0078)](context/cip-0078-canton-coin-fee-removal.md)
 - [Canton Documentation](https://docs.digitalasset.com/canton)
 - [Canton Network](https://www.canton.network/)

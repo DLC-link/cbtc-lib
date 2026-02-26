@@ -1,0 +1,3 @@
+[submodule "canton-lib"]
+	path = canton-lib
+	url = https://github.com/DLC-link/canton-lib.git

@@ -29,19 +29,36 @@ async fn main() -> Result<(), String> {
 
     // Authenticate
     println!("Authenticating...");
-    let login_params = PasswordParams {
-        client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
-        username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
-        password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: password_url(
-            &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
-            &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
-        ),
-    };
+    let auth = if let Ok(password) = env::var("KEYCLOAK_PASSWORD") {
+        let login_params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password,
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
 
-    let auth = keycloak::login::password(login_params)
-        .await
-        .map_err(|e| format!("Authentication failed: {}", e))?;
+        keycloak::login::password(login_params)
+            .await
+            .map_err(|e| format!("Password authentication failed: {}", e))?
+    } else {
+        let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
+            .expect("KEYCLOAK_CLIENT_SECRET must be set when KEYCLOAK_PASSWORD is not set");
+        let login_params = keycloak::login::ClientCredentialsParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            client_secret,
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+
+        keycloak::login::client_credentials(login_params)
+            .await
+            .map_err(|e| format!("Client secret authentication failed: {}", e))?
+    };
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");

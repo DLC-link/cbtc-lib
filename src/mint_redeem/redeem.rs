@@ -368,21 +368,6 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
             template_id: Some(token_contracts.issuer_credential.template_id.clone()),
             synchronizer_id: String::new(),
         },
-        DisclosedContract {
-            contract_id: token_contracts.app_reward_configuration.contract_id.clone(),
-            created_event_blob: token_contracts
-                .app_reward_configuration
-                .created_event_blob
-                .clone(),
-            template_id: Some(token_contracts.app_reward_configuration.template_id.clone()),
-            synchronizer_id: String::new(),
-        },
-        DisclosedContract {
-            contract_id: token_contracts.featured_app_right.contract_id.clone(),
-            created_event_blob: token_contracts.featured_app_right.created_event_blob.clone(),
-            template_id: Some(token_contracts.featured_app_right.template_id.clone()),
-            synchronizer_id: String::new(),
-        },
     ];
 
     // Build extraArgs for burn operation with proper token standard context structure
@@ -406,24 +391,6 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
                 "tag": "AV_ContractId",
                 "value": token_contracts.issuer_credential.contract_id
             }]
-        }),
-    );
-
-    // Add app reward configuration
-    context_values.insert(
-        "utility.digitalasset.com/app-reward-configuration".to_string(),
-        json!({
-            "tag": "AV_ContractId",
-            "value": token_contracts.app_reward_configuration.contract_id
-        }),
-    );
-
-    // Add featured app right
-    context_values.insert(
-        "utility.digitalasset.com/featured-app-right".to_string(),
-        json!({
-            "tag": "AV_ContractId",
-            "value": token_contracts.featured_app_right.contract_id
         }),
     );
 

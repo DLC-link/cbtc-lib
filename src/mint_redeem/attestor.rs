@@ -61,9 +61,7 @@ pub async fn get_bitcoin_address(
 ///     "https://api.bitsafe.finance"
 /// ).await?;
 /// ```
-pub async fn get_account_contract_rules(
-    api_url: &str,
-) -> Result<AccountContractRuleSet, String> {
+pub async fn get_account_contract_rules(api_url: &str) -> Result<AccountContractRuleSet, String> {
     let url = format!("{}/cbtc/v1/account-contract-rules", api_url);
 
     let client = reqwest::Client::new();
@@ -102,9 +100,7 @@ pub async fn get_account_contract_rules(
 ///     "https://api.bitsafe.finance"
 /// ).await?;
 /// ```
-pub async fn get_token_standard_contracts(
-    api_url: &str,
-) -> Result<TokenStandardContracts, String> {
+pub async fn get_token_standard_contracts(api_url: &str) -> Result<TokenStandardContracts, String> {
     let url = format!("{}/cbtc/v1/token-standard-contracts", api_url);
 
     let client = reqwest::Client::new();
@@ -161,7 +157,5 @@ mod tests {
         assert!(!contracts.burn_mint_factory.contract_id.is_empty());
         assert!(!contracts.instrument_configuration.contract_id.is_empty());
         assert!(!contracts.issuer_credential.contract_id.is_empty());
-        assert!(!contracts.app_reward_configuration.contract_id.is_empty());
-        assert!(!contracts.featured_app_right.contract_id.is_empty());
     }
 }

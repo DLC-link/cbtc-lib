@@ -22,8 +22,6 @@ pub struct TokenStandardContracts {
     pub burn_mint_factory: ContractInfo,
     pub instrument_configuration: ContractInfo,
     pub issuer_credential: ContractInfo,
-    pub app_reward_configuration: ContractInfo,
-    pub featured_app_right: ContractInfo,
 }
 
 /// Response from the Bitsafe API bitcoin-address endpoint

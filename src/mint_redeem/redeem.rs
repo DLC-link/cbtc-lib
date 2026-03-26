@@ -51,8 +51,7 @@ pub struct SubmitWithdrawParams {
     pub party: String,
     pub user_name: String,
     pub access_token: String,
-    pub attestor_url: String,
-    pub chain: String,
+    pub api_url: String,
     pub withdraw_account_contract_id: String,
     pub withdraw_account_template_id: String,
     pub withdraw_account_created_event_blob: String,
@@ -126,10 +125,9 @@ pub async fn list_withdraw_accounts(
 /// ```ignore
 /// use mint_redeem::attestor;
 ///
-/// // First get the account rules from the attestor
+/// // First get the account rules from the Bitsafe API
 /// let rules = attestor::get_account_contract_rules(
-///     "https://devnet.dlc.link/attestor-1",
-///     "canton-devnet"
+///     "https://api.bitsafe.finance"
 /// ).await?;
 ///
 /// // Create the withdraw account with a BTC address
@@ -321,8 +319,7 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     ledger_host: ledger_host.clone(),
 ///     party: party_id.clone(),
 ///     access_token: access_token.clone(),
-///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
-///     chain: "canton-devnet".to_string(),
+///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
 ///     withdraw_account_template_id: withdraw_account.template_id,
 ///     withdraw_account_created_event_blob: withdraw_account.created_event_blob,
@@ -334,15 +331,15 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 /// // Later, check for WithdrawRequests using list_withdraw_requests()
 /// ```
 pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAccount, String> {
-    // Get token standard contracts from attestor
+    // Get token standard contracts from Bitsafe API
     let token_contracts: TokenStandardContracts =
-        attestor::get_token_standard_contracts(&params.attestor_url, &params.chain).await?;
+        attestor::get_token_standard_contracts(&params.api_url).await?;
 
     // Generate a random command ID
     let command_id = format!("cmd-{}", uuid::Uuid::new_v4());
 
     // Build disclosed contracts - include withdraw account and all token standard contracts
-    let mut disclosed_contracts = vec![
+    let disclosed_contracts = vec![
         // Withdraw account being exercised
         DisclosedContract {
             contract_id: params.withdraw_account_contract_id.clone(),
@@ -365,35 +362,28 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
             template_id: Some(token_contracts.instrument_configuration.template_id.clone()),
             synchronizer_id: String::new(),
         },
+        DisclosedContract {
+            contract_id: token_contracts.issuer_credential.contract_id.clone(),
+            created_event_blob: token_contracts.issuer_credential.created_event_blob.clone(),
+            template_id: Some(token_contracts.issuer_credential.template_id.clone()),
+            synchronizer_id: String::new(),
+        },
+        DisclosedContract {
+            contract_id: token_contracts.app_reward_configuration.contract_id.clone(),
+            created_event_blob: token_contracts
+                .app_reward_configuration
+                .created_event_blob
+                .clone(),
+            template_id: Some(token_contracts.app_reward_configuration.template_id.clone()),
+            synchronizer_id: String::new(),
+        },
+        DisclosedContract {
+            contract_id: token_contracts.featured_app_right.contract_id.clone(),
+            created_event_blob: token_contracts.featured_app_right.created_event_blob.clone(),
+            template_id: Some(token_contracts.featured_app_right.template_id.clone()),
+            synchronizer_id: String::new(),
+        },
     ];
-
-    // Add optional contracts if present
-    if let Some(issuer_credential) = &token_contracts.issuer_credential {
-        disclosed_contracts.push(DisclosedContract {
-            contract_id: issuer_credential.contract_id.clone(),
-            created_event_blob: issuer_credential.created_event_blob.clone(),
-            template_id: Some(issuer_credential.template_id.clone()),
-            synchronizer_id: String::new(),
-        });
-    }
-
-    if let Some(app_reward_config) = &token_contracts.app_reward_configuration {
-        disclosed_contracts.push(DisclosedContract {
-            contract_id: app_reward_config.contract_id.clone(),
-            created_event_blob: app_reward_config.created_event_blob.clone(),
-            template_id: Some(app_reward_config.template_id.clone()),
-            synchronizer_id: String::new(),
-        });
-    }
-
-    if let Some(featured_app_right) = &token_contracts.featured_app_right {
-        disclosed_contracts.push(DisclosedContract {
-            contract_id: featured_app_right.contract_id.clone(),
-            created_event_blob: featured_app_right.created_event_blob.clone(),
-            template_id: Some(featured_app_right.template_id.clone()),
-            synchronizer_id: String::new(),
-        });
-    }
 
     // Build extraArgs for burn operation with proper token standard context structure
     let mut context_values = serde_json::Map::new();
@@ -407,41 +397,35 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
         }),
     );
 
-    // Add issuer credentials as a list if present
-    if let Some(issuer_cred) = &token_contracts.issuer_credential {
-        context_values.insert(
-            "utility.digitalasset.com/issuer-credentials".to_string(),
-            json!({
-                "tag": "AV_List",
-                "value": [{
-                    "tag": "AV_ContractId",
-                    "value": issuer_cred.contract_id
-                }]
-            }),
-        );
-    }
-
-    // Add app reward configuration if present
-    if let Some(app_reward) = &token_contracts.app_reward_configuration {
-        context_values.insert(
-            "utility.digitalasset.com/app-reward-configuration".to_string(),
-            json!({
+    // Add issuer credentials as a list
+    context_values.insert(
+        "utility.digitalasset.com/issuer-credentials".to_string(),
+        json!({
+            "tag": "AV_List",
+            "value": [{
                 "tag": "AV_ContractId",
-                "value": app_reward.contract_id
-            }),
-        );
-    }
+                "value": token_contracts.issuer_credential.contract_id
+            }]
+        }),
+    );
 
-    // Add featured app right if present
-    if let Some(featured_app) = &token_contracts.featured_app_right {
-        context_values.insert(
-            "utility.digitalasset.com/featured-app-right".to_string(),
-            json!({
-                "tag": "AV_ContractId",
-                "value": featured_app.contract_id
-            }),
-        );
-    }
+    // Add app reward configuration
+    context_values.insert(
+        "utility.digitalasset.com/app-reward-configuration".to_string(),
+        json!({
+            "tag": "AV_ContractId",
+            "value": token_contracts.app_reward_configuration.contract_id
+        }),
+    );
+
+    // Add featured app right
+    context_values.insert(
+        "utility.digitalasset.com/featured-app-right".to_string(),
+        json!({
+            "tag": "AV_ContractId",
+            "value": token_contracts.featured_app_right.contract_id
+        }),
+    );
 
     let extra_args = json!({
         "context": {

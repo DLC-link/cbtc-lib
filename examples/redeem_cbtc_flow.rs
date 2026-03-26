@@ -51,8 +51,7 @@ async fn main() -> Result<(), String> {
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
-    let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-    let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
     // Step 2: List existing withdraw accounts
     println!("Step 2: Listing existing withdraw accounts...");
@@ -109,9 +108,9 @@ async fn main() -> Result<(), String> {
         return Ok(());
     }
 
-    // Step 4: Get account rules from attestor
-    println!("Step 4: Getting account contract rules from attestor...");
-    let account_rules = attestor::get_account_contract_rules(&attestor_url, &chain).await?;
+    // Step 4: Get account rules from Bitsafe API
+    println!("Step 4: Getting account contract rules from Bitsafe API...");
+    let account_rules = attestor::get_account_contract_rules(&api_url).await?;
     println!("✓ Retrieved account rules:");
     println!(
         "  - WithdrawAccountRules CID: {}",
@@ -217,8 +216,7 @@ async fn main() -> Result<(), String> {
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         access_token: access_token.clone(),
-        attestor_url: attestor_url.clone(),
-        chain: chain.clone(),
+        api_url: api_url.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
         withdraw_account_template_id: withdraw_account.template_id.clone(),
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),

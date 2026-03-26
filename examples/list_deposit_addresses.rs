@@ -11,10 +11,10 @@
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 /// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
 /// - LEDGER_HOST, PARTY_ID
-/// - ATTESTOR_URL, CANTON_NETWORK
+/// - BITSAFE_API_URL
 ///
 /// Note on account IDs:
-/// The attestor uses the account's `id` field (a UUID in the createArgument) to
+/// The Bitsafe API uses the account's `id` field (a UUID in the createArgument) to
 /// look up Bitcoin addresses. For older accounts where this field is null, the
 /// `contract_id` is used instead. The `account_id()` method handles this automatically.
 use cbtc::mint_redeem::mint::{GetBitcoinAddressParams, ListDepositAccountsParams};
@@ -45,8 +45,7 @@ async fn main() -> Result<(), String> {
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-    let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-    let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
     println!("\nListing deposit accounts for party: {}", party);
     println!("{}\n", "=".repeat(60));
@@ -79,14 +78,13 @@ async fn main() -> Result<(), String> {
 
         // Fetch the Bitcoin address using account_id() which handles the id/contract_id fallback
         match cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
-            attestor_url: attestor_url.clone(),
+            api_url: api_url.clone(),
             account_id: account.account_id().to_string(),
-            chain: chain.clone(),
         })
         .await
         {
-            Ok(bitcoin_address) => {
-                println!("  BTC Address: {}", bitcoin_address);
+            Ok(response) => {
+                println!("  BTC Address: {}", response.bitcoin_address);
             }
             Err(e) => {
                 println!("  BTC Address: (error: {})", e);

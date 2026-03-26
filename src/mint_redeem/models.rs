@@ -9,21 +9,29 @@ pub struct ContractInfo {
     pub created_event_blob: String,
 }
 
-/// Account contract rules returned from attestor
+/// Account contract rules returned from the Bitsafe API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountContractRuleSet {
     pub da_rules: ContractInfo, // DepositAccountRules
     pub wa_rules: ContractInfo, // WithdrawAccountRules
 }
 
-/// Token standard contracts returned from attestor
+/// Token standard contracts returned from the Bitsafe API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenStandardContracts {
     pub burn_mint_factory: ContractInfo,
     pub instrument_configuration: ContractInfo,
-    pub issuer_credential: Option<ContractInfo>,
-    pub app_reward_configuration: Option<ContractInfo>,
-    pub featured_app_right: Option<ContractInfo>,
+    pub issuer_credential: ContractInfo,
+    pub app_reward_configuration: ContractInfo,
+    pub featured_app_right: ContractInfo,
+}
+
+/// Response from the Bitsafe API bitcoin-address endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BitcoinAddressResponse {
+    pub bitcoin_address: String,
+    pub attestors_requested: u32,
+    pub attestors_responded: u32,
 }
 
 /// A deposit account contract with its details

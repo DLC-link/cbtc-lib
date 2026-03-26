@@ -2,7 +2,9 @@ use crate::mint_redeem::attestor;
 use crate::mint_redeem::constants::{
     CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_RULES_TEMPLATE_ID, DEPOSIT_ACCOUNT_TEMPLATE_ID,
 };
-use crate::mint_redeem::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus};
+use crate::mint_redeem::models::{
+    AccountContractRuleSet, BitcoinAddressResponse, DepositAccount, DepositAccountStatus,
+};
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -29,9 +31,8 @@ pub struct CreateDepositAccountParams {
 
 /// Parameters for getting a deposit account's Bitcoin address
 pub struct GetBitcoinAddressParams {
-    pub attestor_url: String,
+    pub api_url: String,
     pub account_id: String,
-    pub chain: String,
 }
 
 /// Parameters for getting deposit account status
@@ -39,8 +40,7 @@ pub struct GetDepositAccountStatusParams {
     pub ledger_host: String,
     pub party: String,
     pub access_token: String,
-    pub attestor_url: String,
-    pub chain: String,
+    pub api_url: String,
     pub account_contract_id: String,
 }
 
@@ -102,10 +102,9 @@ pub async fn list_deposit_accounts(
 /// ```ignore
 /// use mint_redeem::attestor;
 ///
-/// // First get the account rules from the attestor
+/// // First get the account rules from the Bitsafe API
 /// let rules = attestor::get_account_contract_rules(
-///     "https://devnet.dlc.link/attestor-1",
-///     "canton-devnet"
+///     "https://api.bitsafe.finance"
 /// ).await?;
 ///
 /// // Create the deposit account
@@ -209,16 +208,17 @@ pub async fn create_deposit_account(
 ///
 /// # Example
 /// ```ignore
-/// let bitcoin_address = mint::get_bitcoin_address(GetBitcoinAddressParams {
-///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
+/// let response = mint::get_bitcoin_address(GetBitcoinAddressParams {
+///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     account_id: deposit_account.contract_id,
-///     chain: "canton-devnet".to_string(),
 /// }).await?;
 ///
-/// log::debug!("Send BTC to: {}", bitcoin_address);
+/// log::debug!("Send BTC to: {}", response.bitcoin_address);
 /// ```
-pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<String, String> {
-    attestor::get_bitcoin_address(&params.attestor_url, &params.account_id, &params.chain).await
+pub async fn get_bitcoin_address(
+    params: GetBitcoinAddressParams,
+) -> Result<BitcoinAddressResponse, String> {
+    attestor::get_bitcoin_address(&params.api_url, &params.account_id).await
 }
 
 /// Get the full status of a deposit account including its Bitcoin address
@@ -229,8 +229,7 @@ pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<Stri
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
 ///     access_token: "your-token".to_string(),
-///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
-///     chain: "canton-devnet".to_string(),
+///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     account_contract_id: deposit_account.contract_id,
 /// }).await?;
 ///
@@ -258,17 +257,16 @@ pub async fn get_deposit_account_status(
             )
         })?;
 
-    // Get the Bitcoin address from attestor using the account's ID
-    let bitcoin_address =
-        attestor::get_bitcoin_address(&params.attestor_url, account.account_id(), &params.chain)
-            .await?;
+    // Get the Bitcoin address from Bitsafe API using the account's ID
+    let response =
+        attestor::get_bitcoin_address(&params.api_url, account.account_id()).await?;
 
     Ok(DepositAccountStatus {
         contract_id: account.contract_id,
         owner: account.owner,
         operator: account.operator,
         registrar: account.registrar,
-        bitcoin_address,
+        bitcoin_address: response.bitcoin_address,
         last_processed_bitcoin_block: account.last_processed_bitcoin_block,
     })
 }

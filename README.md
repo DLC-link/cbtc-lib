@@ -6,7 +6,7 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 
 - ✅ **Send CBTC** - Transfer tokens to other parties
 - ✅ **Accept CBTC** - Accept incoming transfers as a receiver
-- ✅ **Mint CBTC** - Deposit BTC and mint CBTC tokens via Bitsafe Attestor network
+- ✅ **Mint CBTC** - Deposit BTC and mint CBTC tokens via the Bitsafe API
 - ✅ **Redeem CBTC** - Burn CBTC tokens and withdraw BTC
 - ✅ **Batch Distribution** - Efficiently distribute tokens to multiple recipients
 - ✅ **UTXO Management** - Consolidate and split holdings
@@ -171,8 +171,7 @@ DECENTRALIZED_PARTY_ID=cbtc-network::1220...  # See environment-specific values 
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com  # See environment-specific values below
 
 # CBTC Mint/Redeem (optional - only needed for BTC bridging)
-ATTESTOR_URL=https://attestor.bitsafe.dev  # See environment-specific values below
-CANTON_NETWORK=devnet  # or testnet/mainnet
+BITSAFE_API_URL=https://api.devnet.bitsafe.finance  # See environment-specific values below
 ```
 
 ### Environment-Specific Values
@@ -182,8 +181,7 @@ CANTON_NETWORK=devnet  # or testnet/mainnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff
 REGISTRY_URL=https://api.utilities.digitalasset-dev.com
-ATTESTOR_URL=https://attestor.bitsafe.dev
-CANTON_NETWORK=devnet
+BITSAFE_API_URL=https://api.devnet.bitsafe.finance
 ```
 
 #### Testnet
@@ -191,8 +189,7 @@ CANTON_NETWORK=devnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f
 REGISTRY_URL=https://api.utilities.digitalasset-staging.com
-ATTESTOR_URL=https://attestor.bitsafe.testnet
-CANTON_NETWORK=testnet
+BITSAFE_API_URL=https://api.testnet.bitsafe.finance
 ```
 
 #### Mainnet
@@ -200,8 +197,7 @@ CANTON_NETWORK=testnet
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262
 REGISTRY_URL=https://api.utilities.digitalasset.com
-ATTESTOR_URL=https://attestor.bitsafe.com
-CANTON_NETWORK=mainnet
+BITSAFE_API_URL=https://api.bitsafe.finance
 ```
 
 ---
@@ -324,8 +320,7 @@ See [redeem_cbtc_flow.rs](examples/redeem_cbtc_flow.rs) for complete code.
 To use mint/redeem functionality, add these environment variables:
 
 ```bash
-ATTESTOR_URL=https://attestor.bitsafe.dev  # Bitsafe Attestor API
-CANTON_NETWORK=devnet  # or testnet/mainnet
+BITSAFE_API_URL=https://api.devnet.bitsafe.finance  # or api.testnet.bitsafe.finance / api.bitsafe.finance
 ```
 
 ### Understanding UTXO Management

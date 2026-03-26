@@ -47,8 +47,7 @@ async fn main() -> Result<(), String> {
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
-    let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-    let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
     // Step 2: List existing deposit accounts
     println!("Step 2: Listing existing deposit accounts...");
@@ -66,9 +65,9 @@ async fn main() -> Result<(), String> {
     }
     println!();
 
-    // Step 3: Get account rules from attestor
-    println!("Step 3: Getting account contract rules from attestor...");
-    let account_rules = attestor::get_account_contract_rules(&attestor_url, &chain).await?;
+    // Step 3: Get account rules from Bitsafe API
+    println!("Step 3: Getting account contract rules from Bitsafe API...");
+    let account_rules = attestor::get_account_contract_rules(&api_url).await?;
     println!("✓ Retrieved account rules:");
     println!(
         "  - DepositAccountRules CID: {}",
@@ -99,15 +98,14 @@ async fn main() -> Result<(), String> {
 
     // Step 5: Get the Bitcoin address for this account
     println!("Step 5: Getting Bitcoin address for the deposit account...");
-    let bitcoin_address = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
-        attestor_url: attestor_url.clone(),
+    let btc_response = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
+        api_url: api_url.clone(),
         account_id: deposit_account.account_id().to_string(),
-        chain: chain.clone(),
     })
     .await?;
 
     println!("✓ Bitcoin address retrieved:");
-    println!("  {}", bitcoin_address);
+    println!("  {}", btc_response.bitcoin_address);
     println!();
     println!("📝 To mint CBTC, send BTC to this address.");
     println!("   Once confirmed, CBTC will be automatically minted to your Canton party.");
@@ -120,8 +118,7 @@ async fn main() -> Result<(), String> {
             ledger_host: ledger_host.clone(),
             party: party_id.clone(),
             access_token: access_token.clone(),
-            attestor_url: attestor_url.clone(),
-            chain: chain.clone(),
+            api_url: api_url.clone(),
             account_contract_id: deposit_account.contract_id.clone(),
         })
         .await?;
@@ -142,7 +139,7 @@ async fn main() -> Result<(), String> {
         "  • Your deposit account contract ID: {}",
         deposit_account.contract_id
     );
-    println!("  • Send BTC to: {}", bitcoin_address);
+    println!("  • Send BTC to: {}", btc_response.bitcoin_address);
     println!("  • The attestor network will monitor this address");
     println!("  • Once BTC is confirmed, CBTC will be minted to your party");
     println!();

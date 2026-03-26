@@ -1,65 +1,56 @@
-use crate::mint_redeem::models::{AccountContractRuleSet, TokenStandardContracts};
-use serde_json::json;
+use crate::mint_redeem::models::{
+    AccountContractRuleSet, BitcoinAddressResponse, TokenStandardContracts,
+};
 
 /// Get the Bitcoin address for a deposit or withdraw account
 ///
 /// # Arguments
-/// * `attestor_url` - Base URL of the attestor (e.g., "https://devnet.dlc.link/attestor-1")
-/// * `account_id` - The UUID from the deposit/withdraw account contract's `id` field
-/// * `chain` - The chain identifier (e.g., "canton-devnet", "canton-testnet")
+/// * `api_url` - Base URL of the Bitsafe API (e.g., "https://api.bitsafe.finance")
+/// * `contract_id` - The contract ID of the deposit/withdraw account
 ///
 /// # Returns
-/// The Bitcoin address associated with this account
+/// A `BitcoinAddressResponse` containing the Bitcoin address and attestor info
 ///
 /// # Example
 /// ```ignore
-/// let bitcoin_address = get_bitcoin_address(
-///     "https://devnet.dlc.link/attestor-1",
-///     "550e8400-e29b-41d4-a716-446655440000",
-///     "canton-devnet"
+/// let response = get_bitcoin_address(
+///     "https://api.bitsafe.finance",
+///     "00febb6b97f5d214bb..."
 /// ).await?;
+/// println!("BTC address: {}", response.bitcoin_address);
 /// ```
 pub async fn get_bitcoin_address(
-    attestor_url: &str,
-    account_id: &str,
-    chain: &str,
-) -> Result<String, String> {
-    let url = format!("{}/app/get-bitcoin-address", attestor_url);
-
-    let body = json!({
-        "id": account_id,
-        "chain": chain,
-    });
+    api_url: &str,
+    contract_id: &str,
+) -> Result<BitcoinAddressResponse, String> {
+    let url = format!("{}/cbtc/v1/bitcoin-address/{}", api_url, contract_id);
 
     let client = reqwest::Client::new();
     let response = client
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .json(&body)
+        .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Failed to send request to attestor: {}", e))?;
+        .map_err(|e| format!("Failed to send request to Bitsafe API: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!(
-            "Attestor returned error status: {}",
+            "Bitsafe API returned error status: {}",
             response.status()
         ));
     }
 
-    let bitcoin_address = response
-        .text()
+    let bitcoin_address_response: BitcoinAddressResponse = response
+        .json()
         .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    Ok(bitcoin_address)
+    Ok(bitcoin_address_response)
 }
 
-/// Get the account contract rules from the attestor
+/// Get the account contract rules from the Bitsafe API
 ///
 /// # Arguments
-/// * `attestor_url` - Base URL of the attestor
-/// * `chain` - The chain identifier
+/// * `api_url` - Base URL of the Bitsafe API
 ///
 /// # Returns
 /// Account contract rule set containing DepositAccountRules and WithdrawAccountRules
@@ -67,32 +58,24 @@ pub async fn get_bitcoin_address(
 /// # Example
 /// ```ignore
 /// let rules = get_account_contract_rules(
-///     "https://devnet.dlc.link/attestor-1",
-///     "canton-devnet"
+///     "https://api.bitsafe.finance"
 /// ).await?;
 /// ```
 pub async fn get_account_contract_rules(
-    attestor_url: &str,
-    chain: &str,
+    api_url: &str,
 ) -> Result<AccountContractRuleSet, String> {
-    let url = format!("{}/app/get-account-contract-rules", attestor_url);
-
-    let body = json!({
-        "chain": chain,
-    });
+    let url = format!("{}/cbtc/v1/account-contract-rules", api_url);
 
     let client = reqwest::Client::new();
     let response = client
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .json(&body)
+        .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Failed to send request to attestor: {}", e))?;
+        .map_err(|e| format!("Failed to send request to Bitsafe API: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!(
-            "Attestor returned error status: {}",
+            "Bitsafe API returned error status: {}",
             response.status()
         ));
     }
@@ -105,11 +88,10 @@ pub async fn get_account_contract_rules(
     Ok(rules)
 }
 
-/// Get the token standard contracts from the attestor
+/// Get the token standard contracts from the Bitsafe API
 ///
 /// # Arguments
-/// * `attestor_url` - Base URL of the attestor
-/// * `chain` - The chain identifier
+/// * `api_url` - Base URL of the Bitsafe API
 ///
 /// # Returns
 /// Token standard contracts including burn_mint_factory, instrument_configuration, etc.
@@ -117,32 +99,24 @@ pub async fn get_account_contract_rules(
 /// # Example
 /// ```ignore
 /// let contracts = get_token_standard_contracts(
-///     "https://devnet.dlc.link/attestor-1",
-///     "canton-devnet"
+///     "https://api.bitsafe.finance"
 /// ).await?;
 /// ```
 pub async fn get_token_standard_contracts(
-    attestor_url: &str,
-    chain: &str,
+    api_url: &str,
 ) -> Result<TokenStandardContracts, String> {
-    let url = format!("{}/app/get-token-standard-contracts", attestor_url);
-
-    let body = json!({
-        "chain": chain,
-    });
+    let url = format!("{}/cbtc/v1/token-standard-contracts", api_url);
 
     let client = reqwest::Client::new();
     let response = client
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .json(&body)
+        .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Failed to send request to attestor: {}", e))?;
+        .map_err(|e| format!("Failed to send request to Bitsafe API: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!(
-            "Attestor returned error status: {}",
+            "Bitsafe API returned error status: {}",
             response.status()
         ));
     }
@@ -164,10 +138,9 @@ mod tests {
     async fn test_get_account_contract_rules() {
         dotenvy::dotenv().ok();
 
-        let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-        let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
-        let rules = get_account_contract_rules(&attestor_url, &chain)
+        let rules = get_account_contract_rules(&api_url)
             .await
             .expect("Failed to get account contract rules");
 
@@ -179,14 +152,16 @@ mod tests {
     async fn test_get_token_standard_contracts() {
         dotenvy::dotenv().ok();
 
-        let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-        let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
-        let contracts = get_token_standard_contracts(&attestor_url, &chain)
+        let contracts = get_token_standard_contracts(&api_url)
             .await
             .expect("Failed to get token standard contracts");
 
         assert!(!contracts.burn_mint_factory.contract_id.is_empty());
         assert!(!contracts.instrument_configuration.contract_id.is_empty());
+        assert!(!contracts.issuer_credential.contract_id.is_empty());
+        assert!(!contracts.app_reward_configuration.contract_id.is_empty());
+        assert!(!contracts.featured_app_right.contract_id.is_empty());
     }
 }

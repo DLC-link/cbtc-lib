@@ -32,6 +32,7 @@ pub struct CreateWithdrawAccountParams {
     pub account_rules_template_id: String,
     pub account_rules_created_event_blob: String,
     pub destination_btc_address: String,
+    pub credential_cids: Vec<String>,
 }
 
 /// Parameters for listing CBTC holdings
@@ -57,6 +58,7 @@ pub struct SubmitWithdrawParams {
     pub withdraw_account_created_event_blob: String,
     pub amount: String,
     pub holding_contract_ids: Vec<String>,
+    pub credential_cids: Option<Vec<String>>,
 }
 
 /// Parameters for listing withdraw requests
@@ -159,7 +161,8 @@ pub async fn create_withdraw_account(
     // Build the choice argument
     let choice_argument = json!({
         "owner": params.party,
-        "destinationBtcAddress": params.destination_btc_address
+        "destinationBtcAddress": params.destination_btc_address,
+        "credentialCids": params.credential_cids
     });
 
     // Build the exercise command
@@ -414,17 +417,24 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     // Build choice argument JSON manually to preserve decimal format
     // serde_json can use scientific notation for small numbers, which Canton rejects
     // Keep amount as a JSON string (quoted) to ensure Canton receives it in decimal format
+    let credential_cids_json = match &params.credential_cids {
+        Some(cids) => serde_json::to_string(cids).unwrap(),
+        None => "null".to_string(),
+    };
+
     let choice_argument_str = format!(
         r#"{{
             "tokens": {},
             "amount": "{}",
             "burnMintFactoryCid": "{}",
-            "extraArgs": {}
+            "extraArgs": {},
+            "credentialCids": {}
         }}"#,
         serde_json::to_string(&params.holding_contract_ids).unwrap(),
         params.amount, // Keep as quoted string
         token_contracts.burn_mint_factory.contract_id,
-        serde_json::to_string(&extra_args).unwrap()
+        serde_json::to_string(&extra_args).unwrap(),
+        credential_cids_json
     );
 
     let choice_argument: serde_json::Value = serde_json::from_str(&choice_argument_str)

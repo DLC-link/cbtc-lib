@@ -264,6 +264,7 @@ pub async fn get_deposit_account_status(
         registrar: account.registrar,
         bitcoin_address,
         last_processed_bitcoin_block: account.last_processed_bitcoin_block,
+        limits: account.limits,
     })
 }
 

@@ -1,6 +1,47 @@
 use canton_api_client::models::JsActiveContract;
 use serde::{Deserialize, Serialize};
 
+/// Transaction limits for deposit/withdraw operations.
+/// Amounts are stored as strings to preserve decimal precision (Canton uses Numeric 10).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Limits {
+    #[serde(rename = "minAmount")]
+    pub min_amount: Option<String>,
+    #[serde(rename = "maxAmount")]
+    pub max_amount: Option<String>,
+}
+
+/// Check if an amount is within the account's limits.
+/// Returns Ok(()) if within limits or no limits set,
+/// Err with a descriptive message otherwise.
+pub fn check_limits(operation: &str, amount: f64, limits: &Option<Limits>) -> Result<(), String> {
+    if let Some(lim) = limits {
+        if let Some(min) = &lim.min_amount {
+            let min_val: f64 = min
+                .parse()
+                .map_err(|e| format!("Invalid min_amount: {}", e))?;
+            if amount < min_val {
+                return Err(format!(
+                    "{} amount {} is below minimum {}",
+                    operation, amount, min
+                ));
+            }
+        }
+        if let Some(max) = &lim.max_amount {
+            let max_val: f64 = max
+                .parse()
+                .map_err(|e| format!("Invalid max_amount: {}", e))?;
+            if amount > max_val {
+                return Err(format!(
+                    "{} amount {} exceeds maximum {}",
+                    operation, amount, max
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Information about a contract (template ID, contract ID, and created event blob)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractInfo {
@@ -44,6 +85,7 @@ pub struct DepositAccount {
     pub operator: String,
     pub registrar: String,
     pub last_processed_bitcoin_block: i64,
+    pub limits: Option<Limits>,
 }
 
 impl DepositAccount {
@@ -91,6 +133,16 @@ impl DepositAccount {
             .and_then(|s| s.parse::<i64>().ok())
             .ok_or("Missing or invalid 'lastProcessedBitcoinBlock' field")?;
 
+        let limits = args
+            .get("limits")
+            .and_then(|v| {
+                if v.is_null() {
+                    None
+                } else {
+                    serde_json::from_value::<Limits>(v.clone()).ok()
+                }
+            });
+
         Ok(Self {
             contract_id,
             id,
@@ -98,6 +150,7 @@ impl DepositAccount {
             operator,
             registrar,
             last_processed_bitcoin_block,
+            limits,
         })
     }
 
@@ -117,6 +170,7 @@ pub struct DepositAccountStatus {
     pub registrar: String,
     pub bitcoin_address: String,
     pub last_processed_bitcoin_block: i64,
+    pub limits: Option<Limits>,
 }
 
 /// A withdraw account contract with its details
@@ -130,6 +184,7 @@ pub struct WithdrawAccount {
     pub destination_btc_address: String,
     pub pending_balance: String,
     pub created_event_blob: String,
+    pub limits: Option<Limits>,
 }
 
 impl WithdrawAccount {
@@ -177,6 +232,16 @@ impl WithdrawAccount {
             .unwrap_or("0.0")
             .to_string();
 
+        let limits = args
+            .get("limits")
+            .and_then(|v| {
+                if v.is_null() {
+                    None
+                } else {
+                    serde_json::from_value::<Limits>(v.clone()).ok()
+                }
+            });
+
         Ok(Self {
             contract_id,
             template_id,
@@ -186,6 +251,7 @@ impl WithdrawAccount {
             destination_btc_address,
             pending_balance,
             created_event_blob,
+            limits,
         })
     }
 }

@@ -44,13 +44,7 @@ async fn main() -> Result<(), String> {
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
         registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
         decentralized_party_id: decentralized_party,
-        keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
-        keycloak_username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
-        keycloak_password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        keycloak_url: keycloak::login::password_url(
-            &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
-            &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
-        ),
+        auth: cbtc::auth::AuthConfig::from_env()?,
         reference_base: None,
     };
 

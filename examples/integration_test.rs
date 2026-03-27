@@ -148,10 +148,12 @@ async fn cleanup_sender_offers(sender: &PartyConfig, decentralized_party_id: &st
         ledger_host: sender.ledger_host.clone(),
         registry_url: registry_url.to_string(),
         decentralized_party_id: decentralized_party_id.to_string(),
-        keycloak_client_id: sender.keycloak_client_id.clone(),
-        keycloak_username: sender.keycloak_username.clone(),
-        keycloak_password: sender.keycloak_password.clone(),
-        keycloak_url: sender.keycloak_url.clone(),
+        auth: cbtc::auth::AuthConfig::Keycloak {
+            client_id: sender.keycloak_client_id.clone(),
+            username: sender.keycloak_username.clone(),
+            password: sender.keycloak_password.clone(),
+            url: sender.keycloak_url.clone(),
+        },
     })
     .await;
     match result {
@@ -296,10 +298,12 @@ async fn main() -> Result<(), String> {
             ledger_host: receiver.ledger_host.clone(),
             registry_url: registry_url.clone(),
             decentralized_party_id: decentralized_party_id.clone(),
-            keycloak_client_id: receiver.keycloak_client_id.clone(),
-            keycloak_username: receiver.keycloak_username.clone(),
-            keycloak_password: receiver.keycloak_password.clone(),
-            keycloak_url: receiver.keycloak_url.clone(),
+            auth: cbtc::auth::AuthConfig::Keycloak {
+                client_id: receiver.keycloak_client_id.clone(),
+                username: receiver.keycloak_username.clone(),
+                password: receiver.keycloak_password.clone(),
+                url: receiver.keycloak_url.clone(),
+            },
         })
         .await?;
         sender_has_pending_offer = false;
@@ -352,10 +356,12 @@ async fn main() -> Result<(), String> {
             ledger_host: sender.ledger_host.clone(),
             registry_url: registry_url.clone(),
             decentralized_party_id: decentralized_party_id.clone(),
-            keycloak_client_id: sender.keycloak_client_id.clone(),
-            keycloak_username: sender.keycloak_username.clone(),
-            keycloak_password: sender.keycloak_password.clone(),
-            keycloak_url: sender.keycloak_url.clone(),
+            auth: cbtc::auth::AuthConfig::Keycloak {
+                client_id: sender.keycloak_client_id.clone(),
+                username: sender.keycloak_username.clone(),
+                password: sender.keycloak_password.clone(),
+                url: sender.keycloak_url.clone(),
+            },
         })
         .await?;
         receiver_has_pending_offer = false;

@@ -21,17 +21,6 @@ async fn main() -> Result<(), String> {
     let decentralized_party_id =
         std::env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
-    let keycloak_client_id =
-        std::env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
-    let keycloak_username =
-        std::env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set");
-    let keycloak_password =
-        std::env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set");
-    let keycloak_url = keycloak::login::password_url(
-        &std::env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
-        &std::env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
-    );
-
     // Read CSV file
     println!("Reading CSV from: {}", csv_path);
     let mut reader =
@@ -105,10 +94,7 @@ async fn main() -> Result<(), String> {
         ledger_host,
         registry_url,
         decentralized_party_id,
-        keycloak_client_id,
-        keycloak_username,
-        keycloak_password,
-        keycloak_url,
+        auth: cbtc::auth::AuthConfig::from_env()?,
         reference_base: Some(format!("batch-{}", chrono::Utc::now().timestamp())),
         on_transfer_complete: Some(callback),
     })

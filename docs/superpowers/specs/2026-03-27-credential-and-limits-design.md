@@ -91,6 +91,8 @@ Template ID constants are defined within this module (not in `mint_redeem/consta
 
 #### Models
 
+All models derive `Debug, Clone, Serialize, Deserialize` to match existing cbtc-lib conventions.
+
 ```rust
 /// A credential offer pending acceptance by the holder
 pub struct CredentialOffer {
@@ -140,6 +142,8 @@ Both functions:
 4. Parse `createArgument` to extract fields
 5. Filter: for offers, where `holder == party`; for credentials, where `holder == party`
 
+**Note:** These return ALL credentials/offers visible to the party, not just CBTC-related ones. The user may hold credentials from other utilities. Examples should demonstrate filtering for CBTC Minter credentials (e.g., by checking `claims` contains `property: "hasCBTCRole", value: "Minter"`).
+
 #### Accept function
 
 ```rust
@@ -158,7 +162,7 @@ Parameters:
 Steps:
 1. Build an `ExerciseCommand` on the `UserService` contract with choice `UserService_AcceptFreeCredentialOffer` and argument `{ credentialOfferCid }`
 2. Submit via `submit::wait_for_transaction_tree`
-3. Parse the response to extract the created `Credential` contract from `eventsById`
+3. Parse the response to extract the created `Credential` contract from `eventsById` — match by template ID suffix `:Utility.Credential.V0.Credential:Credential`
 4. Return `UserCredential`
 
 #### Finding the UserService contract
@@ -171,6 +175,8 @@ pub async fn find_user_service(params: FindUserServiceParams) -> Result<UserServ
 ```
 
 Returns `UserServiceInfo { contract_id, template_id, operator, user, dso }`.
+
+The function queries `UserService` contracts by the party and filters where `user == party` (not `operator == party`), since the party may have visibility on other `UserService` contracts (e.g., the registrar's).
 
 ### Modified operations
 
@@ -272,6 +278,13 @@ Add to `WithdrawAccount`:
 pub limits: Option<Limits>,
 ```
 
+Add to `DepositAccountStatus`:
+```rust
+pub limits: Option<Limits>,
+```
+
+This ensures users who call `get_deposit_account_status` can see limits without a separate query.
+
 #### Parsing from `createArgument`
 
 The Daml field is `limits: Optional Limits`. In the JSON `createArgument`:
@@ -368,7 +381,11 @@ path = "examples/credentials.rs"
 | `src/mint_redeem/models.rs` | Add `Limits` (with serde rename), `limits` field to `DepositAccount` and `WithdrawAccount`, add `check_limits` |
 | `src/mint_redeem/mint.rs` | Add `credential_cids` to `CreateDepositAccountParams`, include in choice argument |
 | `src/mint_redeem/redeem.rs` | Add `credential_cids` to `CreateWithdrawAccountParams` and `SubmitWithdrawParams`, include in choice arguments |
-| `examples/credentials.rs` | **New** — credential lifecycle example |
+| `examples/credentials.rs` | **New** — credential lifecycle example (with CBTC Minter claim filtering) |
 | `examples/mint_cbtc_flow.rs` | Fetch + pass credentials |
 | `examples/redeem_cbtc_flow.rs` | Fetch + pass credentials, add limit pre-check |
 | `Cargo.toml` | Add `credentials` example entry |
+
+## Test impact
+
+Existing integration tests in `mint.rs` and `redeem.rs` will fail to compile after adding `credential_cids` to the Params structs. These tests must be updated to pass credential CIDs. Since the tests require live Canton credentials and a running network, they will also need a valid Minter credential on the test account. The test updates are mechanical (add the field) but the test environment must have credentials issued to the test party.

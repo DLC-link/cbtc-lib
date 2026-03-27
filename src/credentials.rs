@@ -454,3 +454,99 @@ pub async fn accept_credential_offer(
 
     Err("No Credential contract was created in the transaction".to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keycloak::login::{PasswordParams, password, password_url};
+    use std::env;
+
+    #[tokio::test]
+    async fn test_list_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+
+        let credentials = list_credentials(ListCredentialsParams {
+            ledger_host,
+            party: party_id,
+            access_token: login_response.access_token,
+        })
+        .await
+        .expect("Failed to list credentials");
+
+        log::debug!("Found {} credentials", credentials.len());
+    }
+
+    #[tokio::test]
+    async fn test_list_credential_offers() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+
+        let offers = list_credential_offers(ListCredentialOffersParams {
+            ledger_host,
+            party: party_id,
+            access_token: login_response.access_token,
+        })
+        .await
+        .expect("Failed to list credential offers");
+
+        log::debug!("Found {} credential offers", offers.len());
+    }
+
+    #[tokio::test]
+    async fn test_find_user_service() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+
+        let user_service = find_user_service(FindUserServiceParams {
+            ledger_host,
+            party: party_id.clone(),
+            access_token: login_response.access_token,
+        })
+        .await
+        .expect("Failed to find UserService");
+
+        assert_eq!(user_service.user, party_id);
+        assert!(!user_service.contract_id.is_empty());
+        assert!(!user_service.operator.is_empty());
+    }
+}

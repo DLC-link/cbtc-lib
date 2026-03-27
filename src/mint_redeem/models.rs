@@ -398,3 +398,83 @@ impl Holding {
             .is_some_and(|lock| !lock.is_null())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_check_limits_none() {
+        assert!(check_limits("Withdraw", 1.0, &None).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_within_bounds() {
+        let limits = Some(Limits {
+            min_amount: Some("0.001".to_string()),
+            max_amount: Some("10.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_below_min() {
+        let limits = Some(Limits {
+            min_amount: Some("0.01".to_string()),
+            max_amount: None,
+        });
+        let result = check_limits("Withdraw", 0.001, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("below minimum"));
+    }
+
+    #[test]
+    fn test_check_limits_above_max() {
+        let limits = Some(Limits {
+            min_amount: None,
+            max_amount: Some("5.0".to_string()),
+        });
+        let result = check_limits("Deposit", 10.0, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("exceeds maximum"));
+    }
+
+    #[test]
+    fn test_check_limits_at_boundary() {
+        let limits = Some(Limits {
+            min_amount: Some("1.0".to_string()),
+            max_amount: Some("10.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+        assert!(check_limits("Withdraw", 10.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_only_min() {
+        let limits = Some(Limits {
+            min_amount: Some("0.5".to_string()),
+            max_amount: None,
+        });
+        assert!(check_limits("Withdraw", 100.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_only_max() {
+        let limits = Some(Limits {
+            min_amount: None,
+            max_amount: Some("5.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 0.0001, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_invalid_string() {
+        let limits = Some(Limits {
+            min_amount: Some("not_a_number".to_string()),
+            max_amount: None,
+        });
+        let result = check_limits("Withdraw", 1.0, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid min_amount"));
+    }
+}

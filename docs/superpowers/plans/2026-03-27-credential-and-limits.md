@@ -232,7 +232,7 @@ to:
 
 Run: `cargo build --lib 2>&1 | head -20`
 
-Expected: May warn about unused fields. Tests in `mint.rs` will fail to compile (missing `credential_cids` field) — that's expected and will be fixed in Task 7.
+Expected: Success (may have warnings). Existing tests in `mint.rs` only call `list_deposit_accounts` (not `create_deposit_account`), so they won't break.
 
 - [ ] **Step 4: Commit**
 
@@ -350,7 +350,7 @@ to:
 
 Run: `cargo build --lib 2>&1 | head -20`
 
-Expected: May have compile errors in tests (missing `credential_cids` field) — fixed in Task 7.
+Expected: Success (may have warnings). Existing tests only call `list_withdraw_accounts` (not `create_withdraw_account` or `submit_withdraw`), so they won't break.
 
 - [ ] **Step 6: Commit**
 
@@ -378,6 +378,7 @@ pub mod credentials;
 - [ ] **Step 2: Create `src/credentials.rs` with constants, models, and param structs**
 
 ```rust
+use common::submission;
 use ledger::active_contracts;
 use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilter};
 use ledger::ledger_end;
@@ -887,40 +888,7 @@ git commit -m "feat: implement credential query, accept, and find_user_service f
 
 ---
 
-### Task 7: Fix existing tests to compile with new params
-
-**Files:**
-- Modify: `src/mint_redeem/mint.rs` (test section)
-- Modify: `src/mint_redeem/redeem.rs` (test section)
-
-- [ ] **Step 1: Update `mint.rs` test — no credential_cids needed for `list_deposit_accounts` test**
-
-Check the test in `mint.rs`. The existing test calls `list_deposit_accounts`, which doesn't take `credential_cids`. No changes needed in `mint.rs` tests since the test doesn't call `create_deposit_account`.
-
-- [ ] **Step 2: Update `redeem.rs` test — no credential_cids needed for `list_withdraw_accounts` test**
-
-Check the test in `redeem.rs`. The existing test calls `list_withdraw_accounts`, which doesn't take `credential_cids`. No changes needed in `redeem.rs` tests since the test doesn't call `create_withdraw_account` or `submit_withdraw`.
-
-- [ ] **Step 3: Verify full build including examples**
-
-Run: `cargo build --lib 2>&1 | head -20`
-
-Expected: lib builds successfully.
-
-Run: `cargo build --examples 2>&1 | head -40`
-
-Expected: Examples will fail because `mint_cbtc_flow.rs` and `redeem_cbtc_flow.rs` use `CreateDepositAccountParams`/`CreateWithdrawAccountParams` without the new `credential_cids` field. This is fixed in Tasks 9 and 10.
-
-- [ ] **Step 4: Commit (if any changes were needed)**
-
-```bash
-git add src/mint_redeem/mint.rs src/mint_redeem/redeem.rs
-git commit -m "fix: update tests for new credential_cids params"
-```
-
----
-
-### Task 8: Add credentials example
+### Task 7: Add credentials example
 
 **Files:**
 - Create: `examples/credentials.rs`
@@ -1096,7 +1064,7 @@ git commit -m "feat: add credentials example showing lifecycle (list, accept, us
 
 ---
 
-### Task 9: Update `mint_cbtc_flow.rs` example with credentials
+### Task 8: Update `mint_cbtc_flow.rs` example with credentials
 
 **Files:**
 - Modify: `examples/mint_cbtc_flow.rs`
@@ -1171,7 +1139,7 @@ git commit -m "feat: update mint_cbtc_flow example to fetch and pass credentials
 
 ---
 
-### Task 10: Update `redeem_cbtc_flow.rs` example with credentials and limits
+### Task 9: Update `redeem_cbtc_flow.rs` example with credentials and limits
 
 **Files:**
 - Modify: `examples/redeem_cbtc_flow.rs`
@@ -1194,7 +1162,7 @@ use cbtc::mint_redeem::models::check_limits;
 
 - [ ] **Step 3: Add credential fetching before account creation**
 
-Before `create_withdraw_account` is called, add credential fetching (same pattern as Task 9):
+Before `create_withdraw_account` is called (before the `if !accounts.is_empty()` block around line 125), add credential fetching (same pattern as Task 8):
 
 ```rust
     // Fetch Minter credentials
@@ -1224,22 +1192,56 @@ Before `create_withdraw_account` is called, add credential fetching (same patter
 
 - [ ] **Step 4: Add `credential_cids` to `CreateWithdrawAccountParams`**
 
-Add `credential_cids: credential_cids.clone()` to the `CreateWithdrawAccountParams` struct construction.
+In the `create_withdraw_account` call (around line 137), add `credential_cids: credential_cids.clone(),` to the struct. The full updated call:
+
+```rust
+        let withdraw_account =
+            cbtc::mint_redeem::redeem::create_withdraw_account(CreateWithdrawAccountParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+                access_token: access_token.clone(),
+                account_rules_contract_id: account_rules.wa_rules.contract_id.clone(),
+                account_rules_template_id: account_rules.wa_rules.template_id.clone(),
+                account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
+                destination_btc_address: destination_btc_address.clone(),
+                credential_cids: credential_cids.clone(),
+            })
+            .await?;
+```
 
 - [ ] **Step 5: Add limit check before `submit_withdraw`**
 
-Before the `submit_withdraw` call, add:
+Before the `submit_withdraw` call (around line 214), after the existing balance check and holding selection, add:
 
 ```rust
     // Pre-check limits before submitting
-    let withdraw_amount: f64 = params.amount.parse().map_err(|e| format!("Invalid amount: {}", e))?;
-    check_limits("Withdraw", withdraw_amount, &withdraw_account.limits)?;
-    println!("  Limit check passed\n");
+    check_limits("Withdraw", withdraw_amount_f64, &withdraw_account.limits)?;
+    println!("  Limit check passed");
 ```
+
+Note: `withdraw_amount_f64` is already defined earlier in the file (line 180).
 
 - [ ] **Step 6: Add `credential_cids` to `SubmitWithdrawParams`**
 
-Add `credential_cids: Some(credential_cids)` to the `SubmitWithdrawParams` struct construction.
+In the `submit_withdraw` call (around line 214), add `credential_cids: Some(credential_cids),` to the struct. The full updated call:
+
+```rust
+    let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+        access_token: access_token.clone(),
+        api_url: api_url.clone(),
+        withdraw_account_contract_id: withdraw_account.contract_id.clone(),
+        withdraw_account_template_id: withdraw_account.template_id.clone(),
+        withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
+        amount: withdraw_amount.to_string(),
+        holding_contract_ids: selected_holdings,
+        credential_cids: Some(credential_cids),
+    })
+    .await?;
+```
 
 - [ ] **Step 7: Verify all examples compile**
 
@@ -1256,7 +1258,7 @@ git commit -m "feat: update redeem_cbtc_flow example with credentials and limit 
 
 ---
 
-### Task 11: Final verification and cleanup
+### Task 10: Final verification and cleanup
 
 **Files:**
 - All modified files

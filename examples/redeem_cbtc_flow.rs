@@ -1,4 +1,6 @@
+use cbtc::credentials::ListCredentialsParams;
 use cbtc::mint_redeem::attestor;
+use cbtc::mint_redeem::models::check_limits;
 use cbtc::mint_redeem::redeem::{
     CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,
     SubmitWithdrawParams,
@@ -122,6 +124,30 @@ async fn main() -> Result<(), String> {
     // For production, you should provide a real Bitcoin address via DESTINATION_BTC_ADDRESS env var
     // For testing/devnet, we use a test address
 
+    // Step 4b: Fetch Minter credentials
+    println!("Step 4b: Fetching Minter credentials...");
+    let credentials = cbtc::credentials::list_credentials(ListCredentialsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
+
+    let credential_cids: Vec<String> = credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect();
+
+    if credential_cids.is_empty() {
+        return Err("No Minter credentials found. Run the credentials example first.".to_string());
+    }
+    println!("  Found {} Minter credential(s)\n", credential_cids.len());
+
     if !accounts.is_empty() {
         println!("Step 5: Withdraw account already exists, skipping creation...");
         println!("  Using existing account: {}", accounts[0].contract_id);
@@ -143,6 +169,7 @@ async fn main() -> Result<(), String> {
                 account_rules_template_id: account_rules.wa_rules.template_id.clone(),
                 account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
                 destination_btc_address: destination_btc_address.clone(),
+                credential_cids: credential_cids.clone(),
             })
             .await?;
 
@@ -211,6 +238,10 @@ async fn main() -> Result<(), String> {
         selected_total
     );
 
+    // Pre-check limits before submitting
+    check_limits("Withdraw", withdraw_amount_f64, &withdraw_account.limits)?;
+    println!("  Limit check passed");
+
     let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
@@ -222,6 +253,7 @@ async fn main() -> Result<(), String> {
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: withdraw_amount.to_string(),
         holding_contract_ids: selected_holdings,
+        credential_cids: Some(credential_cids),
     })
     .await?;
 

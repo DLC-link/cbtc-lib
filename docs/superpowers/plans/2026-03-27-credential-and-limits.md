@@ -1455,7 +1455,34 @@ git commit -m "feat: update redeem_cbtc_flow example with credentials and limit 
 
 ---
 
-### Task 10: Final verification and cleanup
+### Task 10: Add E2E integration tests for credential-based account creation
+
+**Files:**
+- Modify: `src/mint_redeem/mint.rs`
+- Modify: `src/mint_redeem/redeem.rs`
+
+These tests prove the full flow: authenticate → fetch Minter credentials → fetch account rules from Bitsafe API → create deposit/withdraw account with credential CIDs.
+
+**Note:** Requires v1.2.0 Daml model deployed to the Canton participant AND `BITSAFE_API_URL` set in `.env`.
+
+- [x] **Step 1: Add `test_create_deposit_account_with_credentials` to `src/mint_redeem/mint.rs`**
+
+Test: authenticate, fetch credentials, filter for Minter claims, fetch account rules from Bitsafe API, call `create_deposit_account` with `credential_cids`, assert account created with correct owner.
+
+- [x] **Step 2: Add `test_create_withdraw_account_with_credentials` to `src/mint_redeem/redeem.rs`**
+
+Test: same auth + credential flow, call `create_withdraw_account` with `credential_cids` and a regtest BTC address, assert account created with correct owner.
+
+- [x] **Step 3: Commit**
+
+```bash
+git add src/mint_redeem/mint.rs src/mint_redeem/redeem.rs
+git commit -m "test: add integration tests for credential-based account creation"
+```
+
+---
+
+### Task 11: Final verification and cleanup
 
 **Files:**
 - All modified files

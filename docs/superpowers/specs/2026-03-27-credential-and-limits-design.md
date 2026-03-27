@@ -74,7 +74,20 @@ Credential:      #utility-credential-v0:Utility.Credential.V0.Credential:Credent
 UserService:     #utility-credential-app-v0:Utility.Credential.App.V0.Service.User:UserService
 ```
 
+### Prerequisites
+
+- The user must have a `UserService` contract (created during Canton Network utility onboarding). Without this, credential acceptance will fail. The `find_user_service` helper returns a clear error if no `UserService` is found.
+- The attestor network must have offered a credential to the user via governance before the user can accept it.
+
+### Visibility notes
+
+- `CredentialOffer` has `signatory operator, issuer` and `observer holder`. Fetching by the holder's party works because the holder is an observer.
+- `Credential` has `signatory issuer, holder`. Fetching by the holder's party works because the holder is a signatory.
+- No disclosed contracts are needed for `UserService_AcceptFreeCredentialOffer` — the participant has visibility on the `CredentialOffer` because the holder is an observer.
+
 ### New module: `src/credentials.rs`
+
+Template ID constants are defined within this module (not in `mint_redeem/constants.rs`) since they are only used here.
 
 #### Models
 
@@ -210,16 +223,12 @@ Choice argument JSON (added to existing):
 }
 ```
 
-### New constants in `src/mint_redeem/constants.rs`
+### Breaking changes
 
-```rust
-pub const CREDENTIAL_OFFER_TEMPLATE_ID: &str =
-    "#utility-credential-app-v0:Utility.Credential.App.V0.Model.Offer:CredentialOffer";
-pub const CREDENTIAL_TEMPLATE_ID: &str =
-    "#utility-credential-v0:Utility.Credential.V0.Credential:Credential";
-pub const USER_SERVICE_TEMPLATE_ID: &str =
-    "#utility-credential-app-v0:Utility.Credential.App.V0.Service.User:UserService";
-```
+Adding `credential_cids: Vec<String>` as a required field to `CreateDepositAccountParams` and `CreateWithdrawAccountParams` is a breaking change for existing callers. This is acceptable because:
+- This is a v1.2.0 feature branch, not a patch on an existing release
+- The Daml model requires credentials — callers must update to work with v1.2.0 contracts
+- Without credentials, account creation will fail on-ledger
 
 ## Feature 2: Min/Max Transaction Limits
 
@@ -246,7 +255,9 @@ Limits {
 /// Transaction limits for deposit/withdraw operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Limits {
+    #[serde(rename = "minAmount")]
     pub min_amount: Option<String>,  // Decimal as string to preserve precision
+    #[serde(rename = "maxAmount")]
     pub max_amount: Option<String>,
 }
 ```
@@ -261,7 +272,18 @@ Add to `WithdrawAccount`:
 pub limits: Option<Limits>,
 ```
 
-Both parsed from `createArgument.limits` — when `null` or absent, maps to `None`.
+#### Parsing from `createArgument`
+
+The Daml field is `limits: Optional Limits`. In the JSON `createArgument`:
+- Key absent or `"limits": null` → `None` (no limits enforced)
+- `"limits": { "minAmount": "0.001", "maxAmount": null }` → `Some(Limits { min_amount: Some("0.001"), max_amount: None })`
+- `"limits": { "minAmount": null, "maxAmount": "10.0" }` → `Some(Limits { min_amount: None, max_amount: Some("10.0") })`
+
+Parse in `from_active_contract` using:
+```rust
+let limits = args.get("limits")
+    .and_then(|v| if v.is_null() { None } else { serde_json::from_value::<Limits>(v.clone()).ok() });
+```
 
 ### Client-side pre-check
 
@@ -342,9 +364,8 @@ path = "examples/credentials.rs"
 | File | Change |
 |------|--------|
 | `src/lib.rs` | Add `pub mod credentials;` |
-| `src/credentials.rs` | **New** — credential query + accept module |
-| `src/mint_redeem/models.rs` | Add `Limits`, `limits` field to `DepositAccount` and `WithdrawAccount`, add `check_limits` |
-| `src/mint_redeem/constants.rs` | Add credential template IDs |
+| `src/credentials.rs` | **New** — credential query + accept module (includes template ID constants) |
+| `src/mint_redeem/models.rs` | Add `Limits` (with serde rename), `limits` field to `DepositAccount` and `WithdrawAccount`, add `check_limits` |
 | `src/mint_redeem/mint.rs` | Add `credential_cids` to `CreateDepositAccountParams`, include in choice argument |
 | `src/mint_redeem/redeem.rs` | Add `credential_cids` to `CreateWithdrawAccountParams` and `SubmitWithdrawParams`, include in choice arguments |
 | `examples/credentials.rs` | **New** — credential lifecycle example |

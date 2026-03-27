@@ -140,29 +140,9 @@ In `WithdrawAccount::from_active_contract`, after the `pending_balance` parsing,
 
 And include `limits` in the `Ok(Self { ... })` return.
 
-- [ ] **Step 7: Verify it compiles**
+- [ ] **Step 7: Propagate `limits` to `DepositAccountStatus` in `mint.rs`**
 
-Run: `cargo build --lib 2>&1 | head -20`
-
-Expected: Compilation may fail in `mint.rs` (`get_deposit_account_status`) because `DepositAccountStatus` now needs `limits`. That will be fixed in Task 3.
-
-- [ ] **Step 8: Commit**
-
-```bash
-git add src/mint_redeem/models.rs
-git commit -m "feat: add Limits struct, check_limits helper, and limits field to account models"
-```
-
----
-
-### Task 2: Propagate `limits` through `mint.rs`
-
-**Files:**
-- Modify: `src/mint_redeem/mint.rs`
-
-- [ ] **Step 1: Add `limits` to `DepositAccountStatus` construction in `get_deposit_account_status`**
-
-In `get_deposit_account_status`, update the `Ok(DepositAccountStatus { ... })` block to include:
+In `src/mint_redeem/mint.rs`, in `get_deposit_account_status`, update the `Ok(DepositAccountStatus { ... })` block to include `limits`:
 
 ```rust
     Ok(DepositAccountStatus {
@@ -176,22 +156,22 @@ In `get_deposit_account_status`, update the `Ok(DepositAccountStatus { ... })` b
     })
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [ ] **Step 8: Verify it compiles**
 
 Run: `cargo build --lib 2>&1 | head -20`
 
-Expected: Success (or warnings only). The `limits` field is now propagated everywhere.
+Expected: Success (or warnings only).
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/mint_redeem/mint.rs
-git commit -m "feat: propagate limits field to DepositAccountStatus"
+git add src/mint_redeem/models.rs src/mint_redeem/mint.rs
+git commit -m "feat: add Limits struct, check_limits helper, and limits field to account models"
 ```
 
 ---
 
-### Task 3: Add `credential_cids` to `CreateDepositAccountParams` and choice argument
+### Task 2: Add `credential_cids` to `CreateDepositAccountParams` and choice argument
 
 **Files:**
 - Modify: `src/mint_redeem/mint.rs`
@@ -243,7 +223,7 @@ git commit -m "feat: add credential_cids to CreateDepositAccountParams"
 
 ---
 
-### Task 4: Add `credential_cids` to `CreateWithdrawAccountParams` and `SubmitWithdrawParams`
+### Task 3: Add `credential_cids` to `CreateWithdrawAccountParams` and `SubmitWithdrawParams`
 
 **Files:**
 - Modify: `src/mint_redeem/redeem.rs`
@@ -361,7 +341,7 @@ git commit -m "feat: add credential_cids to CreateWithdrawAccountParams and Subm
 
 ---
 
-### Task 5: Create `src/credentials.rs` module
+### Task 4: Create `src/credentials.rs` module
 
 **Files:**
 - Create: `src/credentials.rs`
@@ -485,7 +465,7 @@ git commit -m "feat: scaffold credentials module with models and param structs"
 
 ---
 
-### Task 6: Implement credential query and accept functions
+### Task 5: Implement credential query and accept functions
 
 **Files:**
 - Modify: `src/credentials.rs`
@@ -888,7 +868,7 @@ git commit -m "feat: implement credential query, accept, and find_user_service f
 
 ---
 
-### Task 7: Add credentials example
+### Task 6: Add credentials example
 
 **Files:**
 - Create: `examples/credentials.rs`
@@ -1064,7 +1044,7 @@ git commit -m "feat: add credentials example showing lifecycle (list, accept, us
 
 ---
 
-### Task 8: Update `mint_cbtc_flow.rs` example with credentials
+### Task 7: Update `mint_cbtc_flow.rs` example with credentials
 
 **Files:**
 - Modify: `examples/mint_cbtc_flow.rs`
@@ -1139,7 +1119,7 @@ git commit -m "feat: update mint_cbtc_flow example to fetch and pass credentials
 
 ---
 
-### Task 9: Update `redeem_cbtc_flow.rs` example with credentials and limits
+### Task 8: Update `redeem_cbtc_flow.rs` example with credentials and limits
 
 **Files:**
 - Modify: `examples/redeem_cbtc_flow.rs`
@@ -1162,7 +1142,7 @@ use cbtc::mint_redeem::models::check_limits;
 
 - [ ] **Step 3: Add credential fetching before account creation**
 
-Before `create_withdraw_account` is called (before the `if !accounts.is_empty()` block around line 125), add credential fetching (same pattern as Task 8):
+Before `create_withdraw_account` is called (before the `if !accounts.is_empty()` block around line 125), add credential fetching (same pattern as Task 7):
 
 ```rust
     // Fetch Minter credentials
@@ -1258,7 +1238,7 @@ git commit -m "feat: update redeem_cbtc_flow example with credentials and limit 
 
 ---
 
-### Task 10: Final verification and cleanup
+### Task 9: Final verification and cleanup
 
 **Files:**
 - All modified files

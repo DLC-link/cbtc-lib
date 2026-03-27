@@ -1,3 +1,4 @@
+use cbtc::credentials::ListCredentialsParams;
 use cbtc::mint_redeem;
 /// Test burning CBTC using an existing withdraw account
 ///
@@ -30,6 +31,28 @@ async fn main() -> Result<(), String> {
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
     let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+    // Fetch Minter credentials
+    let credentials = cbtc::credentials::list_credentials(ListCredentialsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
+
+    let credential_cids: Vec<String> = credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect();
+
+    if credential_cids.is_empty() {
+        return Err("No Minter credentials found. Run the credentials example first.".to_string());
+    }
 
     let accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: ledger_host.clone(),
@@ -97,7 +120,7 @@ async fn main() -> Result<(), String> {
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: burn_amount.to_string(),
         holding_contract_ids: selected_holdings,
-        credential_cids: None,
+        credential_cids: Some(credential_cids),
     })
     .await?;
 

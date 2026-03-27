@@ -25,6 +25,7 @@ pub struct CreateDepositAccountParams {
     pub user_name: String,
     pub access_token: String,
     pub account_rules: AccountContractRuleSet,
+    pub credential_cids: Vec<String>,
 }
 
 /// Parameters for getting a deposit account's Bitcoin address
@@ -129,7 +130,8 @@ pub async fn create_deposit_account(
 
     // Build the choice argument
     let choice_argument = json!({
-        "owner": params.party
+        "owner": params.party,
+        "credentialCids": params.credential_cids
     });
 
     // Build the exercise command

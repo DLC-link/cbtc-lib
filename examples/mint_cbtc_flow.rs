@@ -98,14 +98,14 @@ async fn main() -> Result<(), String> {
 
     // Step 5: Get the Bitcoin address for this account
     println!("Step 5: Getting Bitcoin address for the deposit account...");
-    let btc_response = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
+    let bitcoin_address = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
         api_url: api_url.clone(),
         account_id: deposit_account.account_id().to_string(),
     })
     .await?;
 
     println!("✓ Bitcoin address retrieved:");
-    println!("  {}", btc_response.bitcoin_address);
+    println!("  {}", bitcoin_address);
     println!();
     println!("📝 To mint CBTC, send BTC to this address.");
     println!("   Once confirmed, CBTC will be automatically minted to your Canton party.");
@@ -139,7 +139,7 @@ async fn main() -> Result<(), String> {
         "  • Your deposit account contract ID: {}",
         deposit_account.contract_id
     );
-    println!("  • Send BTC to: {}", btc_response.bitcoin_address);
+    println!("  • Send BTC to: {}", bitcoin_address);
     println!("  • The attestor network will monitor this address");
     println!("  • Once BTC is confirmed, CBTC will be minted to your party");
     println!();

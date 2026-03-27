@@ -9,20 +9,20 @@ use crate::mint_redeem::models::{
 /// * `contract_id` - The contract ID of the deposit/withdraw account
 ///
 /// # Returns
-/// A `BitcoinAddressResponse` containing the Bitcoin address and attestor info
+/// The Bitcoin address associated with this account
 ///
 /// # Example
 /// ```ignore
-/// let response = get_bitcoin_address(
+/// let bitcoin_address = get_bitcoin_address(
 ///     "https://api.bitsafe.finance",
 ///     "00febb6b97f5d214bb..."
 /// ).await?;
-/// println!("BTC address: {}", response.bitcoin_address);
+/// println!("BTC address: {}", bitcoin_address);
 /// ```
 pub async fn get_bitcoin_address(
     api_url: &str,
     contract_id: &str,
-) -> Result<BitcoinAddressResponse, String> {
+) -> Result<String, String> {
     let url = format!("{}/cbtc/v1/bitcoin-address/{}", api_url, contract_id);
 
     let client = reqwest::Client::new();
@@ -44,7 +44,7 @@ pub async fn get_bitcoin_address(
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    Ok(bitcoin_address_response)
+    Ok(bitcoin_address_response.bitcoin_address)
 }
 
 /// Get the account contract rules from the Bitsafe API

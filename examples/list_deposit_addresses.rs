@@ -83,8 +83,8 @@ async fn main() -> Result<(), String> {
         })
         .await
         {
-            Ok(response) => {
-                println!("  BTC Address: {}", response.bitcoin_address);
+            Ok(bitcoin_address) => {
+                println!("  BTC Address: {}", bitcoin_address);
             }
             Err(e) => {
                 println!("  BTC Address: (error: {})", e);

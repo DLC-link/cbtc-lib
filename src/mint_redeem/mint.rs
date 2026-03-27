@@ -2,9 +2,7 @@ use crate::mint_redeem::attestor;
 use crate::mint_redeem::constants::{
     CREATE_DEPOSIT_ACCOUNT_CHOICE, DEPOSIT_ACCOUNT_RULES_TEMPLATE_ID, DEPOSIT_ACCOUNT_TEMPLATE_ID,
 };
-use crate::mint_redeem::models::{
-    AccountContractRuleSet, BitcoinAddressResponse, DepositAccount, DepositAccountStatus,
-};
+use crate::mint_redeem::models::{AccountContractRuleSet, DepositAccount, DepositAccountStatus};
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -208,16 +206,14 @@ pub async fn create_deposit_account(
 ///
 /// # Example
 /// ```ignore
-/// let response = mint::get_bitcoin_address(GetBitcoinAddressParams {
+/// let bitcoin_address = mint::get_bitcoin_address(GetBitcoinAddressParams {
 ///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     account_id: deposit_account.contract_id,
 /// }).await?;
 ///
-/// log::debug!("Send BTC to: {}", response.bitcoin_address);
+/// log::debug!("Send BTC to: {}", bitcoin_address);
 /// ```
-pub async fn get_bitcoin_address(
-    params: GetBitcoinAddressParams,
-) -> Result<BitcoinAddressResponse, String> {
+pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<String, String> {
     attestor::get_bitcoin_address(&params.api_url, &params.account_id).await
 }
 
@@ -258,7 +254,7 @@ pub async fn get_deposit_account_status(
         })?;
 
     // Get the Bitcoin address from Bitsafe API using the account's ID
-    let response =
+    let bitcoin_address =
         attestor::get_bitcoin_address(&params.api_url, account.account_id()).await?;
 
     Ok(DepositAccountStatus {
@@ -266,7 +262,7 @@ pub async fn get_deposit_account_status(
         owner: account.owner,
         operator: account.operator,
         registrar: account.registrar,
-        bitcoin_address: response.bitcoin_address,
+        bitcoin_address,
         last_processed_bitcoin_block: account.last_processed_bitcoin_block,
     })
 }

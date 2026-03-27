@@ -133,15 +133,13 @@ impl DepositAccount {
             .and_then(|s| s.parse::<i64>().ok())
             .ok_or("Missing or invalid 'lastProcessedBitcoinBlock' field")?;
 
-        let limits = args
-            .get("limits")
-            .and_then(|v| {
-                if v.is_null() {
-                    None
-                } else {
-                    serde_json::from_value::<Limits>(v.clone()).ok()
-                }
-            });
+        let limits = args.get("limits").and_then(|v| {
+            if v.is_null() {
+                None
+            } else {
+                serde_json::from_value::<Limits>(v.clone()).ok()
+            }
+        });
 
         Ok(Self {
             contract_id,
@@ -232,15 +230,13 @@ impl WithdrawAccount {
             .unwrap_or("0.0")
             .to_string();
 
-        let limits = args
-            .get("limits")
-            .and_then(|v| {
-                if v.is_null() {
-                    None
-                } else {
-                    serde_json::from_value::<Limits>(v.clone()).ok()
-                }
-            });
+        let limits = args.get("limits").and_then(|v| {
+            if v.is_null() {
+                None
+            } else {
+                serde_json::from_value::<Limits>(v.clone()).ok()
+            }
+        });
 
         Ok(Self {
             contract_id,

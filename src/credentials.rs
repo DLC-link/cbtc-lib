@@ -302,9 +302,7 @@ pub async fn list_credentials(
 }
 
 /// Find the UserService contract for a party
-pub async fn find_user_service(
-    params: FindUserServiceParams,
-) -> Result<UserServiceInfo, String> {
+pub async fn find_user_service(params: FindUserServiceParams) -> Result<UserServiceInfo, String> {
     let ledger_end_response = ledger_end::get(ledger_end::Params {
         access_token: params.access_token.clone(),
         ledger_host: params.ledger_host.clone(),
@@ -435,9 +433,7 @@ pub async fn accept_credential_offer(
                             .unwrap_or("")
                             .to_string(),
                         template_id: template_id.to_string(),
-                        create_argument: Some(Some(
-                            created_event_value["createArgument"].clone(),
-                        )),
+                        create_argument: Some(Some(created_event_value["createArgument"].clone())),
                         created_event_blob: created_event_value["createdEventBlob"]
                             .as_str()
                             .unwrap_or("")

@@ -63,7 +63,10 @@ async fn main() -> Result<(), String> {
         }
         println!();
         println!("=== Example Complete ===");
-        println!("  Use credential CID {} in CBTC operations.", minter_credentials[0].contract_id);
+        println!(
+            "  Use credential CID {} in CBTC operations.",
+            minter_credentials[0].contract_id
+        );
         return Ok(());
     }
 
@@ -105,10 +108,7 @@ async fn main() -> Result<(), String> {
 
     // Step 5: Accept the first offer
     let offer = &offers[0];
-    println!(
-        "Step 5: Accepting credential offer '{}'...",
-        offer.id
-    );
+    println!("Step 5: Accepting credential offer '{}'...", offer.id);
     let credential = cbtc::credentials::accept_credential_offer(AcceptCredentialOfferParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),

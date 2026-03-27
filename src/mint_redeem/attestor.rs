@@ -19,10 +19,7 @@ use crate::mint_redeem::models::{
 /// ).await?;
 /// println!("BTC address: {}", bitcoin_address);
 /// ```
-pub async fn get_bitcoin_address(
-    api_url: &str,
-    contract_id: &str,
-) -> Result<String, String> {
+pub async fn get_bitcoin_address(api_url: &str, contract_id: &str) -> Result<String, String> {
     let url = format!("{}/cbtc/v1/bitcoin-address/{}", api_url, contract_id);
 
     let client = reqwest::Client::new();

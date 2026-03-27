@@ -97,6 +97,7 @@ async fn main() -> Result<(), String> {
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: burn_amount.to_string(),
         holding_contract_ids: selected_holdings,
+        credential_cids: None,
     })
     .await?;
 

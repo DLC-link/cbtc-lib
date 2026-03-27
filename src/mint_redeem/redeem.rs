@@ -587,6 +587,75 @@ mod tests {
     use std::env;
 
     #[tokio::test]
+    async fn test_create_withdraw_account_with_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+        let access_token = login_response.access_token;
+
+        // Fetch credentials
+        let credentials =
+            crate::credentials::list_credentials(crate::credentials::ListCredentialsParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                access_token: access_token.clone(),
+            })
+            .await
+            .expect("Failed to list credentials");
+
+        let credential_cids: Vec<String> = credentials
+            .iter()
+            .filter(|c| {
+                c.claims
+                    .iter()
+                    .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+            })
+            .map(|c| c.contract_id.clone())
+            .collect();
+
+        assert!(
+            !credential_cids.is_empty(),
+            "No Minter credentials found for party"
+        );
+
+        // Fetch account rules
+        let account_rules = crate::mint_redeem::attestor::get_account_contract_rules(&api_url)
+            .await
+            .expect("Failed to get account rules");
+
+        // Create withdraw account with credentials
+        let account = create_withdraw_account(CreateWithdrawAccountParams {
+            ledger_host,
+            party: party_id.clone(),
+            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            access_token,
+            account_rules_contract_id: account_rules.wa_rules.contract_id,
+            account_rules_template_id: account_rules.wa_rules.template_id,
+            account_rules_created_event_blob: account_rules.wa_rules.created_event_blob,
+            destination_btc_address: "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080".to_string(),
+            credential_cids,
+        })
+        .await
+        .expect("Failed to create withdraw account with credentials");
+
+        assert_eq!(account.owner, party_id);
+        assert!(!account.contract_id.is_empty());
+    }
+
+    #[tokio::test]
     async fn test_list_withdraw_accounts() {
         dotenvy::dotenv().ok();
 

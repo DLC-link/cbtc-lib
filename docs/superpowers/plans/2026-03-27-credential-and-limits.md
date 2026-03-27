@@ -868,7 +868,224 @@ git commit -m "feat: implement credential query, accept, and find_user_service f
 
 ---
 
-### Task 6: Add credentials example
+### Task 6: Add integration tests for credentials and unit tests for check_limits
+
+**Files:**
+- Modify: `src/credentials.rs`
+- Modify: `src/mint_redeem/models.rs`
+
+- [ ] **Step 1: Add integration tests to `src/credentials.rs`**
+
+Add at the bottom of `src/credentials.rs`:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use keycloak::login::{PasswordParams, password, password_url};
+    use std::env;
+
+    #[tokio::test]
+    async fn test_list_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+
+        let credentials = list_credentials(ListCredentialsParams {
+            ledger_host,
+            party: party_id,
+            access_token: login_response.access_token,
+        })
+        .await
+        .expect("Failed to list credentials");
+
+        // Test that the function returns without error.
+        // Credentials may or may not exist depending on the test environment.
+        log::debug!("Found {} credentials", credentials.len());
+    }
+
+    #[tokio::test]
+    async fn test_list_credential_offers() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+
+        let offers = list_credential_offers(ListCredentialOffersParams {
+            ledger_host,
+            party: party_id,
+            access_token: login_response.access_token,
+        })
+        .await
+        .expect("Failed to list credential offers");
+
+        log::debug!("Found {} credential offers", offers.len());
+    }
+
+    #[tokio::test]
+    async fn test_find_user_service() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+
+        let user_service = find_user_service(FindUserServiceParams {
+            ledger_host,
+            party: party_id.clone(),
+            access_token: login_response.access_token,
+        })
+        .await
+        .expect("Failed to find UserService");
+
+        assert_eq!(user_service.user, party_id);
+        assert!(!user_service.contract_id.is_empty());
+        assert!(!user_service.operator.is_empty());
+    }
+}
+```
+
+- [ ] **Step 2: Add unit tests for `check_limits` to `src/mint_redeem/models.rs`**
+
+Add at the bottom of `src/mint_redeem/models.rs`:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_check_limits_none() {
+        assert!(check_limits("Withdraw", 1.0, &None).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_within_bounds() {
+        let limits = Some(Limits {
+            min_amount: Some("0.001".to_string()),
+            max_amount: Some("10.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_below_min() {
+        let limits = Some(Limits {
+            min_amount: Some("0.01".to_string()),
+            max_amount: None,
+        });
+        let result = check_limits("Withdraw", 0.001, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("below minimum"));
+    }
+
+    #[test]
+    fn test_check_limits_above_max() {
+        let limits = Some(Limits {
+            min_amount: None,
+            max_amount: Some("5.0".to_string()),
+        });
+        let result = check_limits("Deposit", 10.0, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("exceeds maximum"));
+    }
+
+    #[test]
+    fn test_check_limits_at_boundary() {
+        let limits = Some(Limits {
+            min_amount: Some("1.0".to_string()),
+            max_amount: Some("10.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+        assert!(check_limits("Withdraw", 10.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_only_min() {
+        let limits = Some(Limits {
+            min_amount: Some("0.5".to_string()),
+            max_amount: None,
+        });
+        assert!(check_limits("Withdraw", 100.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_only_max() {
+        let limits = Some(Limits {
+            min_amount: None,
+            max_amount: Some("5.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 0.0001, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_invalid_string() {
+        let limits = Some(Limits {
+            min_amount: Some("not_a_number".to_string()),
+            max_amount: None,
+        });
+        let result = check_limits("Withdraw", 1.0, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid min_amount"));
+    }
+}
+```
+
+- [ ] **Step 3: Run unit tests**
+
+Run: `cargo test --lib -- models::tests 2>&1 | tail -20`
+
+Expected: All 8 `check_limits` tests pass.
+
+- [ ] **Step 4: Verify it compiles**
+
+Run: `cargo build --lib 2>&1 | head -20`
+
+Expected: Success.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/credentials.rs src/mint_redeem/models.rs
+git commit -m "test: add integration tests for credentials and unit tests for check_limits"
+```
+
+---
+
+### Task 7: Add credentials example
 
 **Files:**
 - Create: `examples/credentials.rs`
@@ -1044,7 +1261,7 @@ git commit -m "feat: add credentials example showing lifecycle (list, accept, us
 
 ---
 
-### Task 7: Update `mint_cbtc_flow.rs` example with credentials
+### Task 8: Update `mint_cbtc_flow.rs` example with credentials
 
 **Files:**
 - Modify: `examples/mint_cbtc_flow.rs`
@@ -1119,7 +1336,7 @@ git commit -m "feat: update mint_cbtc_flow example to fetch and pass credentials
 
 ---
 
-### Task 8: Update `redeem_cbtc_flow.rs` example with credentials and limits
+### Task 9: Update `redeem_cbtc_flow.rs` example with credentials and limits
 
 **Files:**
 - Modify: `examples/redeem_cbtc_flow.rs`
@@ -1142,7 +1359,7 @@ use cbtc::mint_redeem::models::check_limits;
 
 - [ ] **Step 3: Add credential fetching before account creation**
 
-Before `create_withdraw_account` is called (before the `if !accounts.is_empty()` block around line 125), add credential fetching (same pattern as Task 7):
+Before `create_withdraw_account` is called (before the `if !accounts.is_empty()` block around line 125), add credential fetching (same pattern as Task 8):
 
 ```rust
     // Fetch Minter credentials
@@ -1238,7 +1455,7 @@ git commit -m "feat: update redeem_cbtc_flow example with credentials and limit 
 
 ---
 
-### Task 9: Final verification and cleanup
+### Task 10: Final verification and cleanup
 
 **Files:**
 - All modified files

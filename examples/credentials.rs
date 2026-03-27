@@ -56,7 +56,7 @@ async fn main() -> Result<(), String> {
             println!("      Issuer: {}", cred.issuer);
             for claim in &cred.claims {
                 println!(
-                    "      Claim: {}.{} = {}",
+                    "      Claim: subject={}, property={}, value={}",
                     claim.subject, claim.property, claim.value
                 );
             }
@@ -124,7 +124,7 @@ async fn main() -> Result<(), String> {
     println!("    ID: {}", credential.id);
     for claim in &credential.claims {
         println!(
-            "    Claim: {}.{} = {}",
+            "    Claim: subject={}, property={}, value={}",
             claim.subject, claim.property, claim.value
         );
     }

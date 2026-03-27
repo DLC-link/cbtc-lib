@@ -4,7 +4,7 @@
 **Branch:** `feature/credential-and-min-max-support` (off `release/v1.2.0`)
 **Related PRs:**
 - Canton Daml credential checks: https://github.com/DLC-link/canton/pull/59
-- Attestor-stack credential support: https://github.com/DLC-link/dlc-attestor-stack/pull/428
+- Attestor-stack credential support: https://github.com/DLC-link/dlc-attestor-stack/pull/434
 - Canton Daml transaction limits: https://github.com/DLC-link/canton/pull/61
 - Attestor-stack limits governance: https://github.com/DLC-link/dlc-attestor-stack/pull/438
 

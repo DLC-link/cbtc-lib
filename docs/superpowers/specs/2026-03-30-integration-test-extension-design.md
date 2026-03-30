@@ -96,6 +96,8 @@ This validates the format early. The actual balance sufficiency check happens at
 
 ### Step 3: Fetch Minter credentials
 
+Note: `minter_credential_cids` is declared as `let mut minter_credential_cids: Vec<String> = Vec::new();` in `main()` scope (see Variable Scoping). The async block assigns to it directly — no `let` binding, which would shadow the outer variable.
+
 ```rust
 let token = authenticate(&sender).await?;
 let credentials = cbtc::credentials::list_credentials(cbtc::credentials::ListCredentialsParams {
@@ -104,7 +106,7 @@ let credentials = cbtc::credentials::list_credentials(cbtc::credentials::ListCre
     access_token: token,
 }).await?;
 
-let minter_credential_cids: Vec<String> = credentials
+minter_credential_cids = credentials
     .iter()
     .filter(|c| c.claims.iter().any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter"))
     .map(|c| c.contract_id.clone())
@@ -113,68 +115,78 @@ let minter_credential_cids: Vec<String> = credentials
 if minter_credential_cids.is_empty() {
     return Err("No Minter credentials found for sender party".to_string());
 }
+Ok::<String, String>(format!("({} Minter credentials)", minter_credential_cids.len()))
 ```
-
-`minter_credential_cids` is stored in `main()` scope for reuse in steps 5, 7, and 16.
 
 ### Step 4: Fetch account rules
 
-```rust
-let account_rules = cbtc::mint_redeem::attestor::get_account_contract_rules(
-    &bitsafe_api_url
-).await?;
-```
+`account_rules` is `Option<AccountContractRuleSet>` in `main()` scope. Assign with `Some(...)`:
 
-Single argument. Result stored in `main()` scope for steps 5 and 7.
+```rust
+account_rules = Some(cbtc::mint_redeem::attestor::get_account_contract_rules(
+    &bitsafe_api_url
+).await?);
+Ok::<String, String>(format!("(da_rules + wa_rules)"))
+```
 
 ### Step 5: Create deposit account
 
+Unwrap `account_rules` (guaranteed `Some` after step 4). Assign result to outer `deposit_account`:
+
 ```rust
 let token = authenticate(&sender).await?;
-let deposit_account = cbtc::mint_redeem::mint::create_deposit_account(
+let rules = account_rules.as_ref().unwrap();
+let account = cbtc::mint_redeem::mint::create_deposit_account(
     cbtc::mint_redeem::mint::CreateDepositAccountParams {
         ledger_host: sender.ledger_host.clone(),
         party: sender.party_id.clone(),
         user_name: sender.keycloak_username.clone(),
         access_token: token,
-        account_rules: account_rules.clone(),
+        account_rules: rules.clone(),
         credential_cids: minter_credential_cids.clone(),
     }
 ).await?;
+deposit_account = Some(account.clone());
+Ok::<String, String>(format!("(owner={}, cid={})", account.owner, &account.contract_id[..16]))
 ```
-
-Verify: `deposit_account.owner == sender.party_id` and `contract_id` is non-empty.
 
 ### Step 6: Get Bitcoin address
 
+Unwrap `deposit_account` (guaranteed `Some` after step 5):
+
 ```rust
+let da = deposit_account.as_ref().unwrap();
 let btc_address = cbtc::mint_redeem::mint::get_bitcoin_address(
     cbtc::mint_redeem::mint::GetBitcoinAddressParams {
         api_url: bitsafe_api_url.clone(),
-        account_id: deposit_account.account_id().to_string(),
+        account_id: da.account_id().to_string(),
     }
 ).await?;
+Ok::<String, String>(format!("({})", btc_address))
 ```
-
-Print the BTC address in the OK output.
 
 ### Step 7: Create withdraw account
 
+Unwrap `account_rules`. Assign result to outer `withdraw_account`:
+
 ```rust
 let token = authenticate(&sender).await?;
-let withdraw_account = cbtc::mint_redeem::redeem::create_withdraw_account(
+let rules = account_rules.as_ref().unwrap();
+let account = cbtc::mint_redeem::redeem::create_withdraw_account(
     cbtc::mint_redeem::redeem::CreateWithdrawAccountParams {
         ledger_host: sender.ledger_host.clone(),
         party: sender.party_id.clone(),
         user_name: sender.keycloak_username.clone(),
         access_token: token,
-        account_rules_contract_id: account_rules.wa_rules.contract_id.clone(),
-        account_rules_template_id: account_rules.wa_rules.template_id.clone(),
-        account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
+        account_rules_contract_id: rules.wa_rules.contract_id.clone(),
+        account_rules_template_id: rules.wa_rules.template_id.clone(),
+        account_rules_created_event_blob: rules.wa_rules.created_event_blob.clone(),
         destination_btc_address: destination_btc_address.clone(),
         credential_cids: minter_credential_cids.clone(),
     }
 ).await?;
+withdraw_account = Some(account.clone());
+Ok::<String, String>(format!("(dest={})", account.destination_btc_address))
 ```
 
 ### Faucet steps (conditional, steps 8-10 when enabled)
@@ -194,7 +206,19 @@ if let Some(ref faucet_url) = faucet_url {
 
 **Step 8: Request CBTC from faucet**
 
+Captures baseline incoming transfer count in `pre_faucet_count` (outer `main()` variable) *before* making the faucet request. This is needed by step 9 to detect the new transfer.
+
 ```rust
+// Capture baseline incoming count before faucet request
+let token = authenticate(&sender).await?;
+let pre_faucet_incoming = cbtc::utils::fetch_incoming_transfers(
+    sender.ledger_host.clone(),
+    sender.party_id.clone(),
+    token,
+).await?;
+pre_faucet_count = pre_faucet_incoming.len();
+
+// Make faucet request
 let client = reqwest::Client::new();
 let resp = client.post(format!("{}/api/faucet", faucet_url))
     .json(&serde_json::json!({
@@ -209,26 +233,14 @@ let resp = client.post(format!("{}/api/faucet", faucet_url))
 if !resp.status().is_success() {
     return Err(format!("Faucet returned status: {}", resp.status()));
 }
+Ok::<String, String>(format!("(requested {} CBTC, {} existing incoming)", amount, pre_faucet_count))
 ```
 
 **Step 9: Poll for incoming faucet transfer**
 
-Fixed 3-second interval, 30-second timeout (10 attempts max).
-
-Important: `fetch_incoming_transfers` returns **all** incoming transfers for the party, not just the faucet one. If pre-existing incoming transfers exist from prior runs, a naive `!incoming.is_empty()` check passes immediately. To avoid this, capture the incoming count **before** the faucet request (in step 8) and poll until the count increases.
+Fixed 3-second interval, 30-second timeout (10 attempts max). Reads `pre_faucet_count` from outer scope (set in step 8). Polls until incoming transfer count exceeds the baseline — this avoids false positives from pre-existing transfers.
 
 ```rust
-// In step 8, before the faucet request, capture baseline count:
-let token = authenticate(&sender).await?;
-let pre_faucet_incoming = cbtc::utils::fetch_incoming_transfers(
-    sender.ledger_host.clone(),
-    sender.party_id.clone(),
-    token,
-).await?;
-let pre_faucet_count = pre_faucet_incoming.len();
-// ... then make the faucet request ...
-
-// In step 9, poll until count increases:
 let mut attempts = 0;
 let max_attempts = 10;
 let poll_interval = std::time::Duration::from_secs(3);
@@ -249,6 +261,7 @@ loop {
     }
     tokio::time::sleep(poll_interval).await;
 }
+Ok::<String, String>(format!("(found after {}s)", attempts * 3))
 ```
 
 **Step 10: Accept faucet transfer**
@@ -267,8 +280,11 @@ Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
 
 ### Step 16: Submit withdrawal
 
+Unwrap `withdraw_account` (guaranteed `Some` after step 7). Uses `withdraw_amount_f64` from early validation.
+
 ```rust
 let token = authenticate(&sender).await?;
+let wa = withdraw_account.as_ref().unwrap();
 
 // List holdings and select enough to cover withdraw_amount
 let holdings = cbtc::mint_redeem::redeem::list_holdings(
@@ -284,7 +300,6 @@ let cbtc_holdings: Vec<_> = holdings.iter()
     .collect();
 
 // Greedy select holdings to cover withdraw_amount
-// (withdraw_amount_f64 was already parsed during early validation)
 let mut selected = Vec::new();
 let mut selected_total = 0.0;
 for h in &cbtc_holdings {
@@ -298,7 +313,7 @@ if selected_total < withdraw_amount_f64 {
 }
 
 // Pre-check limits
-cbtc::mint_redeem::models::check_limits("Withdraw", withdraw_amount_f64, &withdraw_account.limits)?;
+cbtc::mint_redeem::models::check_limits("Withdraw", withdraw_amount_f64, &wa.limits)?;
 
 // Submit
 let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(
@@ -308,19 +323,20 @@ let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(
         user_name: sender.keycloak_username.clone(),
         access_token: token,
         api_url: bitsafe_api_url.clone(),
-        withdraw_account_contract_id: withdraw_account.contract_id.clone(),
-        withdraw_account_template_id: withdraw_account.template_id.clone(),
-        withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
+        withdraw_account_contract_id: wa.contract_id.clone(),
+        withdraw_account_template_id: wa.template_id.clone(),
+        withdraw_account_created_event_blob: wa.created_event_blob.clone(),
         amount: withdraw_amount.clone(),
         holding_contract_ids: selected,
         credential_cids: Some(minter_credential_cids.clone()),
     }
 ).await?;
+Ok::<String, String>(format!("(burned {} CBTC, pending={})", withdraw_amount, updated_account.pending_balance))
 ```
 
 ### Step 17: Check sender balance (post-withdraw)
 
-Use `check_balance()` and compare against the balance captured in step 15. The balance should have decreased by approximately `withdraw_amount`. To make this comparison, store the step 15 balance in a `main()`-scoped variable (e.g., `let mut pre_withdraw_balance: f64 = 0.0;`) and assert:
+Compare against `pre_withdraw_balance` (set in step 15). Fail if balance didn't decrease:
 
 ```rust
 let (balance, utxos) = check_balance(&sender).await?;

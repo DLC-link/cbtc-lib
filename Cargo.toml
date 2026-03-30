@@ -91,3 +91,7 @@ path = "examples/list_deposit_addresses.rs"
 [[example]]
 name = "credentials"
 path = "examples/credentials.rs"
+
+[[example]]
+name = "integration_test"
+path = "examples/integration_test.rs"

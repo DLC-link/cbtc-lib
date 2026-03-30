@@ -10,7 +10,7 @@ Extend `examples/integration_test.rs` to cover deposit account creation, withdra
 |----------|----------|---------|-------------|
 | `BITSAFE_API_URL` | Yes | -- | Bitsafe/attestor API URL (already used elsewhere in codebase) |
 | `DESTINATION_BTC_ADDRESS` | No | `tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx` | BTC address for withdraw account |
-| `WITHDRAW_AMOUNT` | No | Value of `TRANSFER_AMOUNT` | Amount to withdraw/burn |
+| `WITHDRAW_AMOUNT` | No | Value of `TRANSFER_AMOUNT` | Amount to withdraw/burn. Must be <= sender's starting balance. |
 | `FAUCET_URL` | No | -- | If set, enables faucet deposit steps |
 | `FAUCET_NETWORK` | No | `devnet` | Network name for faucet API |
 
@@ -65,7 +65,12 @@ let base_steps: usize = 18;
 let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
 ```
 
-Update `print_step`, `print_summary`, and the `run_step!` macro to use `total_steps` variable instead of `TOTAL_STEPS` const.
+Changes needed to replace the `TOTAL_STEPS` const:
+
+1. **`print_step`**: Add a `total: usize` parameter. Signature becomes `fn print_step(step: usize, total: usize, description: &str)`. Replace `TOTAL_STEPS` with `total` in the format string.
+2. **`run_step!` macro**: Replace all references to `TOTAL_STEPS` with the local `total_steps` variable. The macro captures locals by name, so it will pick up `total_steps` from `main()` scope automatically. Both the `print_step(step, total_steps, $desc)` call and the `print_summary(passed, total_steps, ...)` call in the error path need updating.
+3. **`print_summary`**: Already takes `total: usize` as a parameter -- no change needed.
+4. **Final `print_summary` call** at the end of `main()`: Change `TOTAL_STEPS` to `total_steps`.
 
 ### New env var loading (in `main()`)
 
@@ -77,6 +82,17 @@ let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.clon
 let faucet_url = env::var("FAUCET_URL").ok();
 let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 ```
+
+### Early validation (before steps begin)
+
+After loading env vars and checking `sender.party_id != receiver.party_id` (existing check), add:
+
+```rust
+let withdraw_amount_f64: f64 = withdraw_amount.parse()
+    .expect("WITHDRAW_AMOUNT must be a valid number");
+```
+
+This validates the format early. The actual balance sufficiency check happens at step 16 when holdings are known.
 
 ### Step 3: Fetch Minter credentials
 
@@ -163,7 +179,18 @@ let withdraw_account = cbtc::mint_redeem::redeem::create_withdraw_account(
 
 ### Faucet steps (conditional, steps 8-10 when enabled)
 
-Only run if `FAUCET_URL` is set.
+Only run if `FAUCET_URL` is set. The code structure is a single `if let Some(ref faucet_url) = faucet_url { ... }` block containing three `run_step!` calls. Because `run_step!` auto-increments `step` via `step += 1`, the step counter adjusts automatically — no manual offset logic is needed. When faucet is disabled, these three `run_step!` calls are simply skipped and subsequent steps get lower numbers, which is correct since `total_steps` was computed without the faucet bonus.
+
+```rust
+if let Some(ref faucet_url) = faucet_url {
+    // step 8: request from faucet
+    run_step!("Request CBTC from faucet", async { ... });
+    // step 9: poll for incoming
+    run_step!("Poll for faucet transfer", async { ... });
+    // step 10: accept
+    run_step!("Accept faucet transfer", async { ... });
+}
+```
 
 **Step 8: Request CBTC from faucet**
 
@@ -186,23 +213,35 @@ if !resp.status().is_success() {
 
 **Step 9: Poll for incoming faucet transfer**
 
-Fixed 3-second interval, 30-second timeout (10 attempts max):
+Fixed 3-second interval, 30-second timeout (10 attempts max).
+
+Important: `fetch_incoming_transfers` returns **all** incoming transfers for the party, not just the faucet one. If pre-existing incoming transfers exist from prior runs, a naive `!incoming.is_empty()` check passes immediately. To avoid this, capture the incoming count **before** the faucet request (in step 8) and poll until the count increases.
 
 ```rust
+// In step 8, before the faucet request, capture baseline count:
+let token = authenticate(&sender).await?;
+let pre_faucet_incoming = cbtc::utils::fetch_incoming_transfers(
+    sender.ledger_host.clone(),
+    sender.party_id.clone(),
+    token,
+).await?;
+let pre_faucet_count = pre_faucet_incoming.len();
+// ... then make the faucet request ...
+
+// In step 9, poll until count increases:
 let mut attempts = 0;
 let max_attempts = 10;
 let poll_interval = std::time::Duration::from_secs(3);
-let mut incoming = Vec::new();
 
 loop {
     let token = authenticate(&sender).await?;
-    incoming = cbtc::utils::fetch_incoming_transfers(
+    let incoming = cbtc::utils::fetch_incoming_transfers(
         sender.ledger_host.clone(),
         sender.party_id.clone(),
         token,
     ).await?;
 
-    if !incoming.is_empty() { break; }
+    if incoming.len() > pre_faucet_count { break; }
 
     attempts += 1;
     if attempts >= max_attempts {
@@ -272,7 +311,21 @@ let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(
 
 ### Step 17: Check sender balance (post-withdraw)
 
-Same as existing `check_balance()` call. Print balance to confirm decrease.
+Use `check_balance()` and compare against the balance captured in step 15. The balance should have decreased by approximately `withdraw_amount`. To make this comparison, store the step 15 balance in a `main()`-scoped variable (e.g., `let mut pre_withdraw_balance: f64 = 0.0;`) and assert:
+
+```rust
+let (balance, utxos) = check_balance(&sender).await?;
+if balance >= pre_withdraw_balance {
+    return Err(format!(
+        "Balance did not decrease after withdrawal: was {:.8}, now {:.8}",
+        pre_withdraw_balance, balance
+    ));
+}
+Ok::<String, String>(format!(
+    "({:.8} CBTC, {} UTXOs, burned ~{:.8})",
+    balance, utxos, pre_withdraw_balance - balance
+))
+```
 
 ### Step 18: Consolidate (unchanged logic)
 
@@ -293,7 +346,7 @@ Unwrap with `.expect()` or `.clone().unwrap()` in later steps -- safe because st
 
 ## Account Cleanup Note
 
-No cleanup API exists for deposit/withdraw accounts. These are persistent Canton contracts. Accounts created during the test will remain -- this is harmless. Each test run creates new accounts. Document this in the test's doc comment.
+No cleanup API exists for deposit/withdraw accounts. These are persistent Canton contracts. Accounts created during the test will remain -- this is harmless. Each test run creates new accounts. If the test fails mid-way (e.g., step 5 succeeds but step 7 fails), orphaned accounts are left behind -- this is also harmless. The existing `run_step!` error handler only cleans up pending transfer offers, which remains correct. Document this in the test's doc comment.
 
 ## What's NOT Changing
 

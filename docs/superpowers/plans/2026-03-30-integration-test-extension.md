@@ -308,12 +308,20 @@ account, get BTC address, create withdraw account."
 **Files:**
 - Modify: `examples/integration_test.rs` — insert conditional `if let` block after step 7
 
+**Faucet API reference:** https://github.com/DLC-link/cbtc-faucet
+- Route: `POST {FAUCET_URL}/api/faucet`
+- Request body: `{ "network": String, "recipient_party": String, "amount": String }`
+- Response body: `{ "success": bool, "message": String, "network": String, "recipient_party": String, "amount": String }`
+- Error body: `{ "error": String }` (non-2xx status)
+- The faucet submits a `cbtc::transfer::submit()` to the recipient. The recipient must then accept the transfer.
+
 - [ ] **Step 1: Insert faucet block after step 7**
 
 After the "Step 7: Create withdraw account" `run_step!` block, add:
 
 ```rust
     // Faucet steps (conditional, only if FAUCET_URL is set)
+    // Faucet API: https://github.com/DLC-link/cbtc-faucet
     if let Some(ref faucet_url) = faucet_url {
         // Step 8: Request CBTC from faucet
         run_step!("Request CBTC from faucet", async {
@@ -327,7 +335,7 @@ After the "Step 7: Create withdraw account" `run_step!` block, add:
             .await?;
             pre_faucet_count = pre_faucet_incoming.len();
 
-            // Make faucet request
+            // POST /api/faucet — submits a CBTC transfer to the recipient
             let client = reqwest::Client::new();
             let resp = client
                 .post(format!("{}/api/faucet", faucet_url))
@@ -341,8 +349,23 @@ After the "Step 7: Create withdraw account" `run_step!` block, add:
                 .map_err(|e| format!("Faucet request failed: {}", e))?;
 
             if !resp.status().is_success() {
-                return Err(format!("Faucet returned status: {}", resp.status()));
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                return Err(format!("Faucet returned status {}: {}", status, body));
             }
+
+            // Verify the response indicates success
+            let faucet_resp: serde_json::Value = resp
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse faucet response: {}", e))?;
+            if faucet_resp["success"].as_bool() != Some(true) {
+                return Err(format!(
+                    "Faucet returned success=false: {}",
+                    faucet_resp["message"].as_str().unwrap_or("unknown error")
+                ));
+            }
+
             Ok::<String, String>(format!(
                 "(requested {} CBTC, {} existing incoming)",
                 amount, pre_faucet_count

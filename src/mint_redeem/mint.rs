@@ -25,6 +25,7 @@ pub struct CreateDepositAccountParams {
     pub user_name: String,
     pub access_token: String,
     pub account_rules: AccountContractRuleSet,
+    pub credential_cids: Vec<String>,
 }
 
 /// Parameters for getting a deposit account's Bitcoin address
@@ -129,7 +130,8 @@ pub async fn create_deposit_account(
 
     // Build the choice argument
     let choice_argument = json!({
-        "owner": params.party
+        "owner": params.party,
+        "credentialCids": params.credential_cids
     });
 
     // Build the exercise command
@@ -264,6 +266,7 @@ pub async fn get_deposit_account_status(
         registrar: account.registrar,
         bitcoin_address,
         last_processed_bitcoin_block: account.last_processed_bitcoin_block,
+        limits: account.limits,
     })
 }
 
@@ -272,6 +275,72 @@ mod tests {
     use super::*;
     use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
+
+    #[tokio::test]
+    async fn test_create_deposit_account_with_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+        let access_token = login_response.access_token;
+
+        // Fetch credentials
+        let credentials =
+            crate::credentials::list_credentials(crate::credentials::ListCredentialsParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                access_token: access_token.clone(),
+            })
+            .await
+            .expect("Failed to list credentials");
+
+        let minter_credential_cids: Vec<String> = credentials
+            .iter()
+            .filter(|c| {
+                c.claims
+                    .iter()
+                    .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+            })
+            .map(|c| c.contract_id.clone())
+            .collect();
+
+        assert!(
+            !minter_credential_cids.is_empty(),
+            "No Minter credentials found for party"
+        );
+
+        // Fetch account rules
+        let account_rules = crate::mint_redeem::attestor::get_account_contract_rules(&api_url)
+            .await
+            .expect("Failed to get account rules");
+
+        // Create deposit account with credentials
+        let account = create_deposit_account(CreateDepositAccountParams {
+            ledger_host,
+            party: party_id.clone(),
+            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            access_token,
+            account_rules,
+            credential_cids: minter_credential_cids,
+        })
+        .await
+        .expect("Failed to create deposit account with credentials");
+
+        assert_eq!(account.owner, party_id);
+        assert!(!account.contract_id.is_empty());
+    }
 
     #[tokio::test]
     async fn test_list_deposit_accounts() {

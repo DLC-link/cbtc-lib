@@ -1,3 +1,4 @@
+use cbtc::credentials::ListCredentialsParams;
 use cbtc::mint_redeem::attestor;
 use cbtc::mint_redeem::mint::{
     CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,
@@ -79,6 +80,33 @@ async fn main() -> Result<(), String> {
     );
     println!();
 
+    // Step 3b: Fetch Minter credentials
+    println!("Step 3b: Fetching Minter credentials...");
+    let credentials = cbtc::credentials::list_credentials(ListCredentialsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
+
+    let minter_credential_cids: Vec<String> = credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect();
+
+    if minter_credential_cids.is_empty() {
+        return Err("No Minter credentials found. Run the credentials example first to accept a credential offer.".to_string());
+    }
+    println!(
+        "  Found {} Minter credential(s)\n",
+        minter_credential_cids.len()
+    );
+
     // Step 4: Create a new deposit account
     println!("Step 4: Creating a new deposit account...");
     let deposit_account =
@@ -88,6 +116,7 @@ async fn main() -> Result<(), String> {
             user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             access_token: access_token.clone(),
             account_rules: account_rules.clone(),
+            credential_cids: minter_credential_cids,
         })
         .await?;
 

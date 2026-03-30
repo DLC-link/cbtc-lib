@@ -32,6 +32,7 @@ pub struct CreateWithdrawAccountParams {
     pub account_rules_template_id: String,
     pub account_rules_created_event_blob: String,
     pub destination_btc_address: String,
+    pub credential_cids: Vec<String>,
 }
 
 /// Parameters for listing CBTC holdings
@@ -57,6 +58,7 @@ pub struct SubmitWithdrawParams {
     pub withdraw_account_created_event_blob: String,
     pub amount: String,
     pub holding_contract_ids: Vec<String>,
+    pub credential_cids: Option<Vec<String>>,
 }
 
 /// Parameters for listing withdraw requests
@@ -159,7 +161,8 @@ pub async fn create_withdraw_account(
     // Build the choice argument
     let choice_argument = json!({
         "owner": params.party,
-        "destinationBtcAddress": params.destination_btc_address
+        "destinationBtcAddress": params.destination_btc_address,
+        "credentialCids": params.credential_cids
     });
 
     // Build the exercise command
@@ -414,17 +417,24 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     // Build choice argument JSON manually to preserve decimal format
     // serde_json can use scientific notation for small numbers, which Canton rejects
     // Keep amount as a JSON string (quoted) to ensure Canton receives it in decimal format
+    let credential_cids_json = match &params.credential_cids {
+        Some(cids) => serde_json::to_string(cids).unwrap(),
+        None => "null".to_string(),
+    };
+
     let choice_argument_str = format!(
         r#"{{
             "tokens": {},
             "amount": "{}",
             "burnMintFactoryCid": "{}",
-            "extraArgs": {}
+            "extraArgs": {},
+            "credentialCids": {}
         }}"#,
         serde_json::to_string(&params.holding_contract_ids).unwrap(),
         params.amount, // Keep as quoted string
         token_contracts.burn_mint_factory.contract_id,
-        serde_json::to_string(&extra_args).unwrap()
+        serde_json::to_string(&extra_args).unwrap(),
+        credential_cids_json
     );
 
     let choice_argument: serde_json::Value = serde_json::from_str(&choice_argument_str)
@@ -575,6 +585,75 @@ mod tests {
     use super::*;
     use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
+
+    #[tokio::test]
+    async fn test_create_withdraw_account_with_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+        let access_token = login_response.access_token;
+
+        // Fetch credentials
+        let credentials =
+            crate::credentials::list_credentials(crate::credentials::ListCredentialsParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                access_token: access_token.clone(),
+            })
+            .await
+            .expect("Failed to list credentials");
+
+        let minter_credential_cids: Vec<String> = credentials
+            .iter()
+            .filter(|c| {
+                c.claims
+                    .iter()
+                    .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+            })
+            .map(|c| c.contract_id.clone())
+            .collect();
+
+        assert!(
+            !minter_credential_cids.is_empty(),
+            "No Minter credentials found for party"
+        );
+
+        // Fetch account rules
+        let account_rules = crate::mint_redeem::attestor::get_account_contract_rules(&api_url)
+            .await
+            .expect("Failed to get account rules");
+
+        // Create withdraw account with credentials
+        let account = create_withdraw_account(CreateWithdrawAccountParams {
+            ledger_host,
+            party: party_id.clone(),
+            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            access_token,
+            account_rules_contract_id: account_rules.wa_rules.contract_id,
+            account_rules_template_id: account_rules.wa_rules.template_id,
+            account_rules_created_event_blob: account_rules.wa_rules.created_event_blob,
+            destination_btc_address: "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080".to_string(),
+            credential_cids: minter_credential_cids,
+        })
+        .await
+        .expect("Failed to create withdraw account with credentials");
+
+        assert_eq!(account.owner, party_id);
+        assert!(!account.contract_id.is_empty());
+    }
 
     #[tokio::test]
     async fn test_list_withdraw_accounts() {

@@ -16,6 +16,54 @@ This directory contains example programs demonstrating how to use the Canton CBT
 
 All examples should be run from the project root directory using `cargo run --example <name>`.
 
+### Prerequisites for Mint & Redeem Examples
+
+The mint/redeem examples require a Minter credential issued by the CBTC registrar. Run examples in this order:
+
+1. **`credentials`** — Check for existing credentials, accept a pending Minter credential offer if needed
+2. **`mint_cbtc_flow`** — Create a deposit account and get a BTC address (requires Minter credential)
+3. **`redeem_cbtc_flow`** — Create a withdraw account and burn CBTC (requires Minter credential + CBTC balance)
+
+These also require `BITSAFE_API_URL` in your `.env`.
+
+### Credentials
+
+List, accept, and manage CBTC Minter credentials:
+
+```bash
+cargo run --example credentials
+```
+
+This example checks for existing Minter credentials. If none are found, it looks for pending credential offers from the registrar, accepts the first Minter offer, and displays the credential CID for use in other operations.
+
+### Mint CBTC Flow
+
+Complete flow for minting CBTC from BTC:
+
+```bash
+cargo run --example mint_cbtc_flow
+```
+
+Creates a deposit account with Minter credentials, retrieves the BTC address, and displays account status. Requires a Minter credential (run `credentials` first).
+
+### Redeem CBTC Flow
+
+Complete flow for redeeming CBTC back to BTC:
+
+```bash
+cargo run --example redeem_cbtc_flow
+```
+
+Creates a withdraw account, checks transaction limits, and submits a withdrawal. Requires a Minter credential and CBTC balance.
+
+### Test Burn CBTC
+
+Burn a small amount of CBTC using an existing withdraw account:
+
+```bash
+cargo run --example test_burn_cbtc
+```
+
 ### Check Balance
 
 Check your CBTC balance and UTXO count:

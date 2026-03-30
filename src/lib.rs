@@ -3,6 +3,7 @@ pub mod active_contracts;
 pub mod batch;
 pub mod cancel_offers;
 pub mod consolidate;
+pub mod credentials;
 pub mod distribute;
 pub mod mint_redeem;
 pub mod split;

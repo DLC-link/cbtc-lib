@@ -147,7 +147,9 @@ After `let mut receiver_has_pending_offer = false;` (line 190), add:
 
 Run: `cargo check --example integration_test`
 
-Expected: compiles with no errors. The test still works with 18 steps (base), just no new steps yet. There will be a warning about unused variables — that's expected and will resolve as we add steps.
+Expected: compiles with no errors. There will be warnings about unused variables (`withdraw_amount_f64`, `faucet_network`, `pre_faucet_count`, `pre_withdraw_balance`, `deposit_account`, `withdraw_account`, `minter_credential_cids`, `account_rules`) — that's expected and will resolve as we add steps in subsequent tasks.
+
+**Important:** Do NOT run the test at this point. `base_steps` is 18 but only 11 actual steps exist. The output would misleadingly print "FAILED at step 12 of 18" even though all existing steps pass. Only use `cargo check` for verification until all tasks are complete.
 
 - [ ] **Step 7: Commit**
 
@@ -677,3 +679,9 @@ git commit -m "fix: address issues found during final verification"
 ```
 
 If no issues found, skip this step.
+
+---
+
+### Execution Approach: Subagent-Driven
+
+Use `superpowers:subagent-driven-development` to implement this plan. Dispatch a fresh subagent per task, review between tasks.

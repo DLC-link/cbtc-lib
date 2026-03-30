@@ -81,15 +81,30 @@ async fn main() -> Result<(), String> {
     })
     .await?;
 
-    if offers.is_empty() {
-        println!("  No credential offers found.");
-        println!("  The attestor network must offer you a credential before you can accept one.");
+    // Filter for CBTC Minter offers
+    let minter_offers: Vec<_> = offers
+        .iter()
+        .filter(|o| {
+            o.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .collect();
+
+    if minter_offers.is_empty() {
+        println!("  No CBTC Minter credential offers found.");
+        println!(
+            "  The attestor network must offer you a Minter credential before you can accept one."
+        );
         println!("  Contact your CBTC operator to request credential issuance.");
         return Ok(());
     }
 
-    println!("  Found {} credential offer(s):", offers.len());
-    for offer in &offers {
+    println!(
+        "  Found {} Minter credential offer(s):",
+        minter_offers.len()
+    );
+    for offer in &minter_offers {
         println!("    - ID: {}, Contract: {}", offer.id, offer.contract_id);
         println!("      Issuer: {}", offer.issuer);
         println!("      Description: {}", offer.description);
@@ -106,8 +121,8 @@ async fn main() -> Result<(), String> {
     .await?;
     println!("  Found UserService: {}\n", user_service.contract_id);
 
-    // Step 5: Accept the first offer
-    let offer = &offers[0];
+    // Step 5: Accept the first Minter offer
+    let offer = minter_offers[0];
     println!("Step 5: Accepting credential offer '{}'...", offer.id);
     let credential = cbtc::credentials::accept_credential_offer(AcceptCredentialOfferParams {
         ledger_host: ledger_host.clone(),

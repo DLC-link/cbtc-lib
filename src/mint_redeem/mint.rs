@@ -306,7 +306,7 @@ mod tests {
             .await
             .expect("Failed to list credentials");
 
-        let credential_cids: Vec<String> = credentials
+        let minter_credential_cids: Vec<String> = credentials
             .iter()
             .filter(|c| {
                 c.claims
@@ -317,7 +317,7 @@ mod tests {
             .collect();
 
         assert!(
-            !credential_cids.is_empty(),
+            !minter_credential_cids.is_empty(),
             "No Minter credentials found for party"
         );
 
@@ -333,7 +333,7 @@ mod tests {
             user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             access_token,
             account_rules,
-            credential_cids,
+            credential_cids: minter_credential_cids,
         })
         .await
         .expect("Failed to create deposit account with credentials");

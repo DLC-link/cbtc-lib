@@ -616,7 +616,7 @@ mod tests {
             .await
             .expect("Failed to list credentials");
 
-        let credential_cids: Vec<String> = credentials
+        let minter_credential_cids: Vec<String> = credentials
             .iter()
             .filter(|c| {
                 c.claims
@@ -627,7 +627,7 @@ mod tests {
             .collect();
 
         assert!(
-            !credential_cids.is_empty(),
+            !minter_credential_cids.is_empty(),
             "No Minter credentials found for party"
         );
 
@@ -646,7 +646,7 @@ mod tests {
             account_rules_template_id: account_rules.wa_rules.template_id,
             account_rules_created_event_blob: account_rules.wa_rules.created_event_blob,
             destination_btc_address: "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080".to_string(),
-            credential_cids,
+            credential_cids: minter_credential_cids,
         })
         .await
         .expect("Failed to create withdraw account with credentials");

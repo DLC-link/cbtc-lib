@@ -40,7 +40,7 @@ async fn main() -> Result<(), String> {
     })
     .await?;
 
-    let credential_cids: Vec<String> = credentials
+    let minter_credential_cids: Vec<String> = credentials
         .iter()
         .filter(|c| {
             c.claims
@@ -50,7 +50,7 @@ async fn main() -> Result<(), String> {
         .map(|c| c.contract_id.clone())
         .collect();
 
-    if credential_cids.is_empty() {
+    if minter_credential_cids.is_empty() {
         return Err("No Minter credentials found. Run the credentials example first.".to_string());
     }
 
@@ -120,7 +120,7 @@ async fn main() -> Result<(), String> {
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: burn_amount.to_string(),
         holding_contract_ids: selected_holdings,
-        credential_cids: Some(credential_cids),
+        credential_cids: Some(minter_credential_cids),
     })
     .await?;
 

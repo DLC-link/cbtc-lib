@@ -89,7 +89,7 @@ async fn main() -> Result<(), String> {
     })
     .await?;
 
-    let credential_cids: Vec<String> = credentials
+    let minter_credential_cids: Vec<String> = credentials
         .iter()
         .filter(|c| {
             c.claims
@@ -99,10 +99,13 @@ async fn main() -> Result<(), String> {
         .map(|c| c.contract_id.clone())
         .collect();
 
-    if credential_cids.is_empty() {
+    if minter_credential_cids.is_empty() {
         return Err("No Minter credentials found. Run the credentials example first to accept a credential offer.".to_string());
     }
-    println!("  Found {} Minter credential(s)\n", credential_cids.len());
+    println!(
+        "  Found {} Minter credential(s)\n",
+        minter_credential_cids.len()
+    );
 
     // Step 4: Create a new deposit account
     println!("Step 4: Creating a new deposit account...");
@@ -113,7 +116,7 @@ async fn main() -> Result<(), String> {
             user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             access_token: access_token.clone(),
             account_rules: account_rules.clone(),
-            credential_cids,
+            credential_cids: minter_credential_cids,
         })
         .await?;
 

@@ -133,7 +133,7 @@ async fn main() -> Result<(), String> {
     })
     .await?;
 
-    let credential_cids: Vec<String> = credentials
+    let minter_credential_cids: Vec<String> = credentials
         .iter()
         .filter(|c| {
             c.claims
@@ -143,10 +143,13 @@ async fn main() -> Result<(), String> {
         .map(|c| c.contract_id.clone())
         .collect();
 
-    if credential_cids.is_empty() {
+    if minter_credential_cids.is_empty() {
         return Err("No Minter credentials found. Run the credentials example first.".to_string());
     }
-    println!("  Found {} Minter credential(s)\n", credential_cids.len());
+    println!(
+        "  Found {} Minter credential(s)\n",
+        minter_credential_cids.len()
+    );
 
     if !accounts.is_empty() {
         println!("Step 5: Withdraw account already exists, skipping creation...");
@@ -169,7 +172,7 @@ async fn main() -> Result<(), String> {
                 account_rules_template_id: account_rules.wa_rules.template_id.clone(),
                 account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
                 destination_btc_address: destination_btc_address.clone(),
-                credential_cids: credential_cids.clone(),
+                credential_cids: minter_credential_cids.clone(),
             })
             .await?;
 
@@ -253,7 +256,7 @@ async fn main() -> Result<(), String> {
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: withdraw_amount.to_string(),
         holding_contract_ids: selected_holdings,
-        credential_cids: Some(credential_cids),
+        credential_cids: Some(minter_credential_cids),
     })
     .await?;
 

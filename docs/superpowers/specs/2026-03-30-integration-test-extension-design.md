@@ -36,7 +36,7 @@ Note: The original plan proposed `ATTESTOR_URL` and `CANTON_NETWORK` but these d
 | 12 | Check receiver balance | | Existing (was step 7) |
 | 13 | Return CBTC receiver -> sender | | Existing (was step 8) |
 | 14 | Accept transfers (sender) | | Existing (was step 9) |
-| 15 | Check sender balance | | Existing (was step 10) |
+| 15 | Check sender balance | **MODIFIED** | Existing (was step 10). Now also stores balance in `pre_withdraw_balance` for step 17 comparison. |
 | **16** | **Submit withdrawal (sender)** | **NEW** | Burns CBTC, includes limit pre-check |
 | **17** | **Check sender balance (post-withdraw)** | **NEW** | Verifies tokens were burned |
 | 18 | Consolidate UTXOs (sender) | | Existing (was step 11) |
@@ -255,6 +255,16 @@ loop {
 
 Use `cbtc::accept::accept_all()` (same pattern as existing step 11/accept transfers).
 
+### Step 15: Check sender balance (modified)
+
+The existing step 15 (was step 10) checks sender balance. Modify it to also store the balance for post-withdraw comparison:
+
+```rust
+let (balance, utxos) = check_balance(&sender).await?;
+pre_withdraw_balance = balance;
+Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
+```
+
 ### Step 16: Submit withdrawal
 
 ```rust
@@ -274,8 +284,7 @@ let cbtc_holdings: Vec<_> = holdings.iter()
     .collect();
 
 // Greedy select holdings to cover withdraw_amount
-let withdraw_amount_f64: f64 = withdraw_amount.parse()
-    .map_err(|e| format!("Invalid WITHDRAW_AMOUNT: {}", e))?;
+// (withdraw_amount_f64 was already parsed during early validation)
 let mut selected = Vec::new();
 let mut selected_total = 0.0;
 for h in &cbtc_holdings {
@@ -337,16 +346,28 @@ Values that need to be shared across `run_step!` closures must be declared in `m
 
 ```rust
 let mut minter_credential_cids: Vec<String> = Vec::new();
-let mut account_rules = None;       // Option<AccountContractRuleSet>
-let mut deposit_account = None;     // Option<DepositAccount>
-let mut withdraw_account = None;    // Option<WithdrawAccount>
+let mut account_rules = None;           // Option<AccountContractRuleSet>
+let mut deposit_account = None;         // Option<DepositAccount>
+let mut withdraw_account = None;        // Option<WithdrawAccount>
+let mut pre_faucet_count: usize = 0;    // baseline incoming transfer count before faucet request
+let mut pre_withdraw_balance: f64 = 0.0; // sender balance captured in step 15 for post-withdraw assertion
 ```
 
 Unwrap with `.expect()` or `.clone().unwrap()` in later steps -- safe because step ordering guarantees they're set.
 
+Note: `pre_faucet_count` is set inside the step 8 async block and read inside the step 9 async block. This works because the `run_step!` macro's async closures capture mutable locals from `main()` scope (same pattern as the existing `sender_has_pending_offer` flag).
+
 ## Account Cleanup Note
 
 No cleanup API exists for deposit/withdraw accounts. These are persistent Canton contracts. Accounts created during the test will remain -- this is harmless. Each test run creates new accounts. If the test fails mid-way (e.g., step 5 succeeds but step 7 fails), orphaned accounts are left behind -- this is also harmless. The existing `run_step!` error handler only cleans up pending transfer offers, which remains correct. Document this in the test's doc comment.
+
+## Doc Comment Update
+
+The file's top-level doc comment (lines 1-23) lists required and optional env vars. Update it to include:
+
+- **Required**: `BITSAFE_API_URL`
+- **Optional**: `DESTINATION_BTC_ADDRESS`, `WITHDRAW_AMOUNT`, `FAUCET_URL`, `FAUCET_NETWORK`
+- **Note**: Add a line about persistent deposit/withdraw accounts created during the test.
 
 ## What's NOT Changing
 

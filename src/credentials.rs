@@ -75,10 +75,11 @@ impl CredentialOffer {
             .ok_or("Missing 'description' field")?
             .to_string();
 
-        let claims = args
-            .get("claims")
-            .and_then(|v| serde_json::from_value::<Vec<Claim>>(v.clone()).ok())
-            .unwrap_or_default();
+        let claims = match args.get("claims") {
+            None => Vec::new(),
+            Some(v) => serde_json::from_value::<Vec<Claim>>(v.clone())
+                .map_err(|e| format!("Failed to parse 'claims' field: {e}"))?,
+        };
 
         Ok(Self {
             contract_id,
@@ -143,10 +144,11 @@ impl UserCredential {
             .ok_or("Missing 'description' field")?
             .to_string();
 
-        let claims = args
-            .get("claims")
-            .and_then(|v| serde_json::from_value::<Vec<Claim>>(v.clone()).ok())
-            .unwrap_or_default();
+        let claims = match args.get("claims") {
+            None => Vec::new(),
+            Some(v) => serde_json::from_value::<Vec<Claim>>(v.clone())
+                .map_err(|e| format!("Failed to parse 'claims' field: {e}"))?,
+        };
 
         Ok(Self {
             contract_id,

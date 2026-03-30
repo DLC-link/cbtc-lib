@@ -15,6 +15,9 @@ pub struct Limits {
 /// Returns Ok(()) if within limits or no limits set,
 /// Err with a descriptive message otherwise.
 pub fn check_limits(operation: &str, amount: f64, limits: &Option<Limits>) -> Result<(), String> {
+    if !amount.is_finite() {
+        return Err(format!("{} amount is not a finite number", operation));
+    }
     if let Some(lim) = limits {
         if let Some(min) = &lim.min_amount {
             let min_val: f64 = min
@@ -133,13 +136,14 @@ impl DepositAccount {
             .and_then(|s| s.parse::<i64>().ok())
             .ok_or("Missing or invalid 'lastProcessedBitcoinBlock' field")?;
 
-        let limits = args.get("limits").and_then(|v| {
-            if v.is_null() {
-                None
-            } else {
-                serde_json::from_value::<Limits>(v.clone()).ok()
-            }
-        });
+        let limits = match args.get("limits") {
+            None => None,
+            Some(v) if v.is_null() => None,
+            Some(v) => Some(
+                serde_json::from_value::<Limits>(v.clone())
+                    .map_err(|e| format!("Invalid 'limits' field: {}", e))?,
+            ),
+        };
 
         Ok(Self {
             contract_id,
@@ -230,13 +234,14 @@ impl WithdrawAccount {
             .unwrap_or("0.0")
             .to_string();
 
-        let limits = args.get("limits").and_then(|v| {
-            if v.is_null() {
-                None
-            } else {
-                serde_json::from_value::<Limits>(v.clone()).ok()
-            }
-        });
+        let limits = match args.get("limits") {
+            None => None,
+            Some(v) if v.is_null() => None,
+            Some(v) => Some(
+                serde_json::from_value::<Limits>(v.clone())
+                    .map_err(|e| format!("Invalid 'limits' field: {}", e))?,
+            ),
+        };
 
         Ok(Self {
             contract_id,

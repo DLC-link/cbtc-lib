@@ -14,13 +14,14 @@
 
 ### New Step Descriptions (Given/When/Then)
 
+**Preconditions for all steps:** A running Bitsafe API at `BITSAFE_API_URL`, sender and receiver parties authenticated against Keycloak, and a live Canton network.
+
 **Step 3: Fetch Minter credentials**
-- **Given** a sender party authenticated against Keycloak
+- **Given** the sender party
 - **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
 - **Then** at least one Minter credential contract ID is found, stored for account creation
 
 **Step 4: Fetch account rules**
-- **Given** a running Bitsafe API at `BITSAFE_API_URL`
 - **When** calling `get_account_contract_rules`
 - **Then** an `AccountContractRuleSet` with `da_rules` and `wa_rules` is returned
 
@@ -40,7 +41,7 @@
 - **Then** a new `WithdrawAccount` contract is created with the specified destination address
 
 **Step 8: Request CBTC from faucet** *(conditional, requires `FAUCET_URL`)*
-- **Given** a running cbtc-faucet service and a baseline incoming transfer count
+- **Given** a running cbtc-faucet service at `FAUCET_URL` and a baseline incoming transfer count
 - **When** POSTing to `{FAUCET_URL}/api/faucet` with sender's party ID and amount
 - **Then** the faucet returns `success: true` and submits a CBTC transfer to the sender
 

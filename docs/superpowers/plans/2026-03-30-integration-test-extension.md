@@ -16,6 +16,8 @@
 
 **Preconditions for all steps:** A running Bitsafe API at `BITSAFE_API_URL`, sender and receiver parties authenticated against Keycloak, and a live Canton network.
 
+**Precondition for steps 8-10:** A running cbtc-faucet service at `FAUCET_URL`. These steps are skipped entirely if `FAUCET_URL` is not set.
+
 **Step 3: Fetch Minter credentials**
 - **Given** the sender party
 - **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
@@ -42,7 +44,7 @@
 - **Then** a new `WithdrawAccount` contract is created with the specified destination address
 
 **Step 8: Request CBTC from faucet** *(conditional, requires `FAUCET_URL`)*
-- **Given** a running cbtc-faucet service at `FAUCET_URL` and a baseline incoming transfer count
+- **Given** a baseline incoming transfer count captured before the request
 - **When** POSTing to `{FAUCET_URL}/api/faucet` with sender's party ID and amount
 - **Then** the faucet returns `success: true` and submits a CBTC transfer to the sender
 

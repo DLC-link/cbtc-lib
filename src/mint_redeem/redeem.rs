@@ -142,6 +142,7 @@ pub async fn list_withdraw_accounts(
 ///     account_rules_template_id: rules.wa_rules.template_id,
 ///     account_rules_created_event_blob: rules.wa_rules.created_event_blob,
 ///     destination_btc_address: "bc1q...".to_string(),
+///     credential_cids: vec!["00abc...".to_string()],
 /// }).await?;
 /// ```
 pub async fn create_withdraw_account(

@@ -110,8 +110,10 @@ pub async fn list_deposit_accounts(
 /// let account = mint::create_deposit_account(CreateDepositAccountParams {
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
+///     user_name: "user@example.com".to_string(),
 ///     access_token: "your-token".to_string(),
 ///     account_rules: rules,
+///     credential_cids: vec!["00abc...".to_string()],
 /// }).await?;
 /// ```
 pub async fn create_deposit_account(

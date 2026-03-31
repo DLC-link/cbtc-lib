@@ -189,7 +189,9 @@ async fn main() -> Result<(), String> {
 
     let bitsafe_api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
     let destination_btc_address = env::var("DESTINATION_BTC_ADDRESS")
-        .unwrap_or_else(|_| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
     let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.clone());
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());

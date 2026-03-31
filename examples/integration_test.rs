@@ -1,7 +1,11 @@
-/// Integration test: end-to-end CBTC transfer flow
+/// Integration test: end-to-end CBTC flow
 ///
-/// Runs a complete send -> verify -> accept -> return -> consolidate cycle
-/// between two parties to verify the current environment and network work correctly.
+/// Runs a complete cycle covering:
+/// - Credential validation and account setup (deposit + withdraw accounts)
+/// - Transfer round-trip: send -> verify -> accept -> return
+/// - Withdrawal: burn CBTC and verify balance decrease
+/// - UTXO consolidation
+/// - (Optional) Faucet deposit if FAUCET_URL is set
 ///
 /// Run with: cargo run --example integration_test
 ///
@@ -10,6 +14,7 @@
 ///   KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
 ///   LEDGER_HOST, PARTY_ID
 ///   DECENTRALIZED_PARTY_ID, REGISTRY_URL
+///   BITSAFE_API_URL
 ///
 /// Required environment variables (receiver - RECEIVER_ prefix):
 ///   RECEIVER_KEYCLOAK_USERNAME, RECEIVER_KEYCLOAK_PASSWORD
@@ -21,6 +26,13 @@
 /// Optional:
 ///   TRANSFER_AMOUNT (default: "0.00001")
 ///   CONSOLIDATION_THRESHOLD (default: "10")
+///   DESTINATION_BTC_ADDRESS (default: test address)
+///   WITHDRAW_AMOUNT (default: TRANSFER_AMOUNT)
+///   FAUCET_URL (if set, enables faucet deposit steps)
+///   FAUCET_NETWORK (default: "devnet")
+///
+/// Note: Deposit and withdraw accounts created during the test are persistent
+/// Canton contracts. No cleanup API exists; they remain after the test.
 use std::env;
 use std::time::Instant;
 

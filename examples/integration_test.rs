@@ -341,6 +341,106 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(msg)
     });
 
+    // Faucet steps (conditional, only if FAUCET_URL is set)
+    // Faucet API: https://github.com/DLC-link/cbtc-faucet
+    if let Some(ref faucet_url) = faucet_url {
+        // Step 8: Request CBTC from faucet
+        run_step!("Request CBTC from faucet", async {
+            // Capture baseline incoming count before faucet request
+            let token = authenticate(&sender).await?;
+            let pre_faucet_incoming = cbtc::utils::fetch_incoming_transfers(
+                sender.ledger_host.clone(),
+                sender.party_id.clone(),
+                token,
+            )
+            .await?;
+            pre_faucet_count = pre_faucet_incoming.len();
+
+            // POST /api/faucet — submits a CBTC transfer to the recipient
+            let client = reqwest::Client::new();
+            let resp = client
+                .post(format!("{}/api/faucet", faucet_url))
+                .json(&serde_json::json!({
+                    "network": faucet_network,
+                    "recipient_party": sender.party_id,
+                    "amount": amount,
+                }))
+                .send()
+                .await
+                .map_err(|e| format!("Faucet request failed: {}", e))?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                return Err(format!("Faucet returned status {}: {}", status, body));
+            }
+
+            // Verify the response indicates success
+            let faucet_resp: serde_json::Value = resp
+                .json()
+                .await
+                .map_err(|e| format!("Failed to parse faucet response: {}", e))?;
+            if faucet_resp["success"].as_bool() != Some(true) {
+                return Err(format!(
+                    "Faucet returned success=false: {}",
+                    faucet_resp["message"].as_str().unwrap_or("unknown error")
+                ));
+            }
+
+            Ok::<String, String>(format!(
+                "(requested {} CBTC, {} existing incoming)",
+                amount, pre_faucet_count
+            ))
+        });
+
+        // Step 9: Poll for incoming faucet transfer
+        run_step!("Poll for faucet transfer", async {
+            let mut attempts = 0;
+            let max_attempts = 10;
+            let poll_interval = std::time::Duration::from_secs(3);
+
+            loop {
+                let token = authenticate(&sender).await?;
+                let incoming = cbtc::utils::fetch_incoming_transfers(
+                    sender.ledger_host.clone(),
+                    sender.party_id.clone(),
+                    token,
+                )
+                .await?;
+
+                if incoming.len() > pre_faucet_count {
+                    break;
+                }
+
+                attempts += 1;
+                if attempts >= max_attempts {
+                    return Err("No incoming faucet transfer after 30s".to_string());
+                }
+                tokio::time::sleep(poll_interval).await;
+            }
+            Ok::<String, String>(format!("(found after {}s)", attempts * 3))
+        });
+
+        // Step 10: Accept faucet transfer
+        run_step!("Accept faucet transfer", async {
+            let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
+                receiver_party: sender.party_id.clone(),
+                ledger_host: sender.ledger_host.clone(),
+                registry_url: registry_url.clone(),
+                decentralized_party_id: decentralized_party_id.clone(),
+                keycloak_client_id: sender.keycloak_client_id.clone(),
+                keycloak_username: sender.keycloak_username.clone(),
+                keycloak_password: sender.keycloak_password.clone(),
+                keycloak_url: sender.keycloak_url.clone(),
+            })
+            .await?;
+            if result.failed_count > 0 {
+                return Err(format!("{} accept(s) failed", result.failed_count));
+            }
+            Ok::<String, String>(format!("({} accepted)", result.successful_count))
+        });
+    }
+
     // Step 8: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;

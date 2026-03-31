@@ -453,6 +453,9 @@ async fn main() -> Result<(), String> {
         });
     }
 
+    // Note: Step comments below use no-faucet numbering (8-18).
+    // When FAUCET_URL is set, runtime step numbers shift by +3 (becoming 11-21).
+
     // Step 8: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;

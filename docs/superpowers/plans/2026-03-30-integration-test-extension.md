@@ -24,51 +24,51 @@ These describe the **runtime behavior** of the integration test — the steps ex
 - Sender party has a non-zero CBTC balance (verified by existing step 1)
 - *(Steps 8-10 only)* A running cbtc-faucet service at `FAUCET_URL`. Skipped if `FAUCET_URL` is not set.
 
-**Step 3: Fetch Minter credentials**
+**Test step 3: Fetch Minter credentials**
 - **Given** the sender has Minter credentials on Canton
 - **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
 - **Then** at least one Minter credential contract ID is found and stored for steps 5, 7, and 16
 
-**Step 4: Fetch account rules**
+**Test step 4: Fetch account rules**
 - **When** calling `get_account_contract_rules` on the Bitsafe API
 - **Then** an `AccountContractRuleSet` with `da_rules` and `wa_rules` is returned and stored for steps 5 and 7
 
-**Step 5: Create deposit account**
+**Test step 5: Create deposit account**
 - **Given** credential CIDs from step 3 and account rules from step 4
 - **When** exercising the `CreateDepositAccount` choice on Canton via `create_deposit_account`
 - **Then** a new `DepositAccount` contract is created with `owner == sender.party_id`
 
-**Step 6: Get Bitcoin address for deposit account**
+**Test step 6: Get Bitcoin address for deposit account**
 - **Given** the deposit account from step 5
 - **When** calling `get_bitcoin_address` with the account's ID via the Bitsafe API
 - **Then** the attestor network returns a valid BTC address for the account
 
-**Step 7: Create withdraw account**
+**Test step 7: Create withdraw account**
 - **Given** credential CIDs from step 3, withdraw account rules from step 4, and a destination BTC address
 - **When** exercising the `CreateWithdrawAccount` choice on Canton via `create_withdraw_account`
 - **Then** a new `WithdrawAccount` contract is created with the specified destination address and stored for step 16
 
-**Step 8: Request CBTC from faucet** *(conditional)*
+**Test step 8: Request CBTC from faucet** *(conditional)*
 - **Given** a baseline incoming transfer count captured before the request
 - **When** POSTing to `{FAUCET_URL}/api/faucet` with sender's party ID and amount
 - **Then** the faucet returns `success: true` and submits a CBTC transfer to the sender
 
-**Step 9: Poll for incoming faucet transfer** *(conditional)*
+**Test step 9: Poll for incoming faucet transfer** *(conditional)*
 - **Given** a faucet request submitted in step 8
 - **When** polling `fetch_incoming_transfers` every 3s for up to 30s
 - **Then** the incoming transfer count exceeds the pre-faucet baseline
 
-**Step 10: Accept faucet transfer** *(conditional)*
+**Test step 10: Accept faucet transfer** *(conditional)*
 - **Given** an incoming faucet transfer detected in step 9
 - **When** calling `accept_all` for the sender party
 - **Then** the faucet transfer is accepted with zero failures
 
-**Step 16: Submit withdrawal**
+**Test step 16: Submit withdrawal**
 - **Given** the withdraw account from step 7 (including its limits) and the sender has CBTC holdings
 - **When** selecting holdings to cover `WITHDRAW_AMOUNT`, checking limits via `check_limits`, and calling `submit_withdraw`
 - **Then** the specified amount of CBTC is burned and the withdraw account's `pending_balance` increases
 
-**Step 17: Check sender balance (post-withdraw)**
+**Test step 17: Check sender balance (post-withdraw)**
 - **Given** the sender's balance captured in step 15
 - **When** checking the sender's balance after the withdrawal
 - **Then** the balance has decreased (confirming tokens were burned)
@@ -140,7 +140,7 @@ Replace the macro (lines 193-215) with:
     }
 ```
 
-- [ ] **Step 3: Update consolidation step and final summary**
+- [ ] **Test step 3: Update consolidation step and final summary**
 
 In the consolidation block (line 377), change:
 ```rust
@@ -169,7 +169,7 @@ to:
     print_summary(passed, total_steps, start.elapsed().as_secs_f64());
 ```
 
-- [ ] **Step 4: Add `total_steps` computation and new env vars in `main()`**
+- [ ] **Test step 4: Add `total_steps` computation and new env vars in `main()`**
 
 After the existing env var loading (after line 178, before the `sender.party_id == receiver.party_id` check), add:
 
@@ -193,7 +193,7 @@ After the `sender.party_id == receiver.party_id` check, add early validation:
         .expect("WITHDRAW_AMOUNT must be a valid number");
 ```
 
-- [ ] **Step 5: Add shared mutable variables for new steps**
+- [ ] **Test step 5: Add shared mutable variables for new steps**
 
 After `let mut receiver_has_pending_offer = false;` (line 190), add:
 
@@ -206,7 +206,7 @@ After `let mut receiver_has_pending_offer = false;` (line 190), add:
     let mut pre_withdraw_balance: f64 = 0.0;
 ```
 
-- [ ] **Step 6: Verify it compiles**
+- [ ] **Test step 6: Verify it compiles**
 
 Run: `cargo check --example integration_test`
 
@@ -214,7 +214,7 @@ Expected: compiles with no errors. There will be warnings about unused variables
 
 **Important:** Do NOT run the test at this point. `base_steps` is 18 but only 11 actual steps exist. The output would misleadingly print "FAILED at step 12 of 18" even though all existing steps pass. Only use `cargo check` for verification until all tasks are complete.
 
-- [ ] **Step 7: Commit**
+- [ ] **Test step 7: Commit**
 
 ```bash
 git add examples/integration_test.rs
@@ -275,7 +275,7 @@ After the "Step 2: Check receiver balance" `run_step!` block, add:
     });
 ```
 
-- [ ] **Step 3: Insert step 5 — Create deposit account**
+- [ ] **Test step 3: Insert step 5 — Create deposit account**
 
 ```rust
     // Step 5: Create deposit account (sender)
@@ -304,7 +304,7 @@ After the "Step 2: Check receiver balance" `run_step!` block, add:
     });
 ```
 
-- [ ] **Step 4: Insert step 6 — Get Bitcoin address**
+- [ ] **Test step 4: Insert step 6 — Get Bitcoin address**
 
 ```rust
     // Step 6: Get Bitcoin address for deposit account
@@ -321,7 +321,7 @@ After the "Step 2: Check receiver balance" `run_step!` block, add:
     });
 ```
 
-- [ ] **Step 5: Insert step 7 — Create withdraw account**
+- [ ] **Test step 5: Insert step 7 — Create withdraw account**
 
 ```rust
     // Step 7: Create withdraw account (sender)
@@ -348,13 +348,13 @@ After the "Step 2: Check receiver balance" `run_step!` block, add:
     });
 ```
 
-- [ ] **Step 6: Verify it compiles**
+- [ ] **Test step 6: Verify it compiles**
 
 Run: `cargo check --example integration_test`
 
 Expected: compiles with no errors (possibly warnings about unused `withdraw_amount_f64`, `faucet_network`, `pre_faucet_count`, `pre_withdraw_balance` — those are used in later tasks).
 
-- [ ] **Step 7: Commit**
+- [ ] **Test step 7: Commit**
 
 ```bash
 git add examples/integration_test.rs
@@ -490,7 +490,7 @@ Run: `cargo check --example integration_test`
 
 Expected: compiles. Warnings about unused `withdraw_amount_f64` and `pre_withdraw_balance` remain (used in Task 4).
 
-- [ ] **Step 3: Commit**
+- [ ] **Test step 3: Commit**
 
 ```bash
 git add examples/integration_test.rs
@@ -600,7 +600,7 @@ After the modified step 15, before the consolidation block, add:
     });
 ```
 
-- [ ] **Step 3: Insert step 17 — Post-withdraw balance check**
+- [ ] **Test step 3: Insert step 17 — Post-withdraw balance check**
 
 ```rust
     // Step 17: Check sender balance (post-withdraw)
@@ -621,13 +621,13 @@ After the modified step 15, before the consolidation block, add:
     });
 ```
 
-- [ ] **Step 4: Verify it compiles**
+- [ ] **Test step 4: Verify it compiles**
 
 Run: `cargo check --example integration_test`
 
 Expected: compiles with no errors and no warnings about unused variables.
 
-- [ ] **Step 5: Commit**
+- [ ] **Test step 5: Commit**
 
 ```bash
 git add examples/integration_test.rs
@@ -700,13 +700,13 @@ Update the comment above each existing step to reflect the new step numbers. The
 - "Step 10: Check sender balance" → already updated to "Step 15" in Task 4
 - "Step 11: Consolidate" → "Step 18: Consolidate"
 
-- [ ] **Step 3: Verify it compiles**
+- [ ] **Test step 3: Verify it compiles**
 
 Run: `cargo check --example integration_test`
 
 Expected: compiles with no errors.
 
-- [ ] **Step 4: Commit**
+- [ ] **Test step 4: Commit**
 
 ```bash
 git add examples/integration_test.rs
@@ -741,7 +741,7 @@ Run: `grep -n "TOTAL_STEPS" examples/integration_test.rs`
 
 Expected: no matches.
 
-- [ ] **Step 3: Verify no `let` shadowing of shared variables**
+- [ ] **Test step 3: Verify no `let` shadowing of shared variables**
 
 Confirm that inside `run_step!` blocks, the shared variables (`minter_credential_cids`, `account_rules`, `deposit_account`, `withdraw_account`, `pre_faucet_count`, `pre_withdraw_balance`) are assigned directly, never with `let` bindings that would shadow them.
 
@@ -749,13 +749,13 @@ Run: `grep -n "let minter_credential_cids\|let account_rules\|let deposit_accoun
 
 Expected: only the initial declarations in `main()` scope (the `let mut` lines), not inside any async blocks.
 
-- [ ] **Step 4: Count run_step! invocations**
+- [ ] **Test step 4: Count run_step! invocations**
 
 Run: `grep -c "run_step!" examples/integration_test.rs`
 
 Expected: 20 invocations. Breakdown: 10 existing + 7 new (steps 3,4,5,6,7,16,17) + 3 faucet (steps 8,9,10). The consolidation step (18) doesn't use `run_step!`. The `macro_rules! run_step` definition line doesn't contain `!` after the name, so it won't match.
 
-- [ ] **Step 5: Commit if any fixups were needed**
+- [ ] **Test step 5: Commit if any fixups were needed**
 
 If steps 1-4 revealed issues and you fixed them, commit:
 

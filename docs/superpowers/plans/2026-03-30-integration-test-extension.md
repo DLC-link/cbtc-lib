@@ -14,42 +14,45 @@
 
 ### New Step Descriptions (Given/When/Then)
 
-**Preconditions for all steps:** A running Bitsafe API at `BITSAFE_API_URL`, valid Keycloak credentials for sender and receiver parties, a live Canton network, and the sender party has been issued at least one Minter credential (`hasCBTCRole == "Minter"`).
-
-**Precondition for steps 8-10:** A running cbtc-faucet service at `FAUCET_URL`. These steps are skipped entirely if `FAUCET_URL` is not set.
+**Preconditions (environment):**
+- A running Bitsafe API at `BITSAFE_API_URL`
+- A live Canton network
+- Valid Keycloak credentials for sender and receiver parties
+- Sender party has been issued at least one Minter credential (`hasCBTCRole == "Minter"`)
+- Sender party has a non-zero CBTC balance (verified by existing step 1)
+- *(Steps 8-10 only)* A running cbtc-faucet service at `FAUCET_URL`. Skipped if `FAUCET_URL` is not set.
 
 **Step 3: Fetch Minter credentials**
-- **Given** the shared preconditions above (sender has Minter credentials)
+- **Given** the sender has Minter credentials on Canton
 - **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
-- **Then** at least one Minter credential contract ID is found, stored for account creation
+- **Then** at least one Minter credential contract ID is found and stored for steps 5, 7, and 16
 
 **Step 4: Fetch account rules**
-- **Given** the shared preconditions above
-- **When** calling `get_account_contract_rules`
-- **Then** an `AccountContractRuleSet` with `da_rules` and `wa_rules` is returned
+- **When** calling `get_account_contract_rules` on the Bitsafe API
+- **Then** an `AccountContractRuleSet` with `da_rules` and `wa_rules` is returned and stored for steps 5 and 7
 
 **Step 5: Create deposit account**
-- **Given** valid Minter credentials and account rules from steps 3-4
+- **Given** credential CIDs from step 3 and account rules from step 4
 - **When** exercising the `CreateDepositAccount` choice on Canton via `create_deposit_account`
 - **Then** a new `DepositAccount` contract is created with `owner == sender.party_id`
 
 **Step 6: Get Bitcoin address for deposit account**
-- **Given** a deposit account created in step 5
+- **Given** the deposit account from step 5
 - **When** calling `get_bitcoin_address` with the account's ID via the Bitsafe API
 - **Then** the attestor network returns a valid BTC address for the account
 
 **Step 7: Create withdraw account**
-- **Given** valid Minter credentials, withdraw account rules, and a destination BTC address
+- **Given** credential CIDs from step 3, withdraw account rules from step 4, and a destination BTC address
 - **When** exercising the `CreateWithdrawAccount` choice on Canton via `create_withdraw_account`
-- **Then** a new `WithdrawAccount` contract is created with the specified destination address
+- **Then** a new `WithdrawAccount` contract is created with the specified destination address and stored for step 16
 
-**Step 8: Request CBTC from faucet** *(conditional, requires `FAUCET_URL`)*
+**Step 8: Request CBTC from faucet** *(conditional)*
 - **Given** a baseline incoming transfer count captured before the request
 - **When** POSTing to `{FAUCET_URL}/api/faucet` with sender's party ID and amount
 - **Then** the faucet returns `success: true` and submits a CBTC transfer to the sender
 
 **Step 9: Poll for incoming faucet transfer** *(conditional)*
-- **Given** a faucet request was submitted in step 8
+- **Given** a faucet request submitted in step 8
 - **When** polling `fetch_incoming_transfers` every 3s for up to 30s
 - **Then** the incoming transfer count exceeds the pre-faucet baseline
 
@@ -59,12 +62,12 @@
 - **Then** the faucet transfer is accepted with zero failures
 
 **Step 16: Submit withdrawal**
-- **Given** a withdraw account from step 7, CBTC holdings, and valid limits
-- **When** selecting holdings to cover `WITHDRAW_AMOUNT`, checking limits, and calling `submit_withdraw`
+- **Given** the withdraw account from step 7 (including its limits) and the sender has CBTC holdings
+- **When** selecting holdings to cover `WITHDRAW_AMOUNT`, checking limits via `check_limits`, and calling `submit_withdraw`
 - **Then** the specified amount of CBTC is burned and the withdraw account's `pending_balance` increases
 
 **Step 17: Check sender balance (post-withdraw)**
-- **Given** the sender's balance captured in step 15 (pre-withdraw)
+- **Given** the sender's balance captured in step 15
 - **When** checking the sender's balance after the withdrawal
 - **Then** the balance has decreased (confirming tokens were burned)
 

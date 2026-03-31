@@ -110,8 +110,10 @@ pub async fn list_deposit_accounts(
 /// let account = mint::create_deposit_account(CreateDepositAccountParams {
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
+///     user_name: "user@example.com".to_string(),
 ///     access_token: "your-token".to_string(),
 ///     account_rules: rules,
+///     credential_cids: vec!["00abc...".to_string()],
 /// }).await?;
 /// ```
 pub async fn create_deposit_account(
@@ -162,46 +164,51 @@ pub async fn create_deposit_account(
     })
     .await?;
 
-    // Parse the response to extract the created DepositAccount
+    // Parse the response to extract the contract ID of the created DepositAccount
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    // Extract the created DepositAccount from eventsById
     let events_by_id = response["transactionTree"]["eventsById"]
         .as_object()
         .ok_or("Failed to find eventsById in transaction")?;
 
+    let mut created_contract_id: Option<String> = None;
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
             let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
-
-            // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
-                // Parse the created event as a JsActiveContract
-                let created_event_value = &created_event["value"];
-                let active_contract = ledger::models::JsActiveContract {
-                    created_event: Box::new(ledger::models::CreatedEvent {
-                        contract_id: created_event_value["contractId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        template_id: template_id.to_string(),
-                        create_argument: Some(Some(created_event_value["createArgument"].clone())),
-                        created_event_blob: created_event_value["createdEventBlob"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        ..Default::default()
-                    }),
-                    reassignment_counter: 0,
-                    synchronizer_id: String::new(),
-                };
-                return DepositAccount::from_active_contract(&active_contract);
+                created_contract_id = Some(
+                    created_event["value"]["contractId"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                );
+                break;
             }
         }
     }
 
-    Err("No DepositAccount was created in the transaction".to_string())
+    let contract_id =
+        created_contract_id.ok_or("No DepositAccount was created in the transaction")?;
+
+    // Re-fetch from active contracts to get the createdEventBlob
+    // (the deprecated submit-and-wait-for-transaction-tree endpoint doesn't return it)
+    let accounts = list_deposit_accounts(ListDepositAccountsParams {
+        ledger_host: params.ledger_host,
+        party: params.party,
+        access_token: params.access_token,
+    })
+    .await?;
+
+    accounts
+        .into_iter()
+        .find(|a| a.contract_id == contract_id)
+        .ok_or_else(|| {
+            format!(
+                "Created DepositAccount {} not found in active contracts",
+                contract_id
+            )
+        })
 }
 
 /// Get the Bitcoin address for a deposit account

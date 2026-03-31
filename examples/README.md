@@ -26,6 +26,138 @@ The mint/redeem examples require a Minter credential issued by the CBTC registra
 
 These also require `BITSAFE_API_URL` in your `.env`.
 
+### Integration Test
+
+End-to-end CBTC flow covering credential validation, account setup, transfers, withdrawals, and UTXO consolidation:
+
+```bash
+cargo run --example integration_test
+```
+
+Requires two parties (sender + receiver) with separate Keycloak credentials. The sender must have a Minter credential and a non-zero CBTC balance. See the [Environment Variables](#environment-variables) section for required config.
+
+Additional env vars for this example:
+
+- `BITSAFE_API_URL` (required) — Bitsafe API base URL
+- `RECEIVER_KEYCLOAK_USERNAME`, `RECEIVER_KEYCLOAK_PASSWORD`, `RECEIVER_KEYCLOAK_CLIENT_ID`, `RECEIVER_PARTY_ID` (required)
+- `RECEIVER_LEDGER_HOST`, `RECEIVER_KEYCLOAK_HOST`, `RECEIVER_KEYCLOAK_REALM` (optional, falls back to sender values)
+- `DESTINATION_BTC_ADDRESS` (optional, default: testnet address)
+- `WITHDRAW_AMOUNT` (optional, default: `TRANSFER_AMOUNT`)
+- `FAUCET_URL` (optional, enables faucet steps)
+- `FAUCET_NETWORK` (optional, default: `"devnet"`)
+
+#### Test Steps (Given/When/Then)
+
+[**Step 1: Check sender balance**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L249)
+- **Given** the sender party is configured with valid Keycloak credentials
+- **When** fetching active holding contracts for the sender
+- **Then** the sender has a positive CBTC balance (fails if zero)
+
+[**Step 2: Check receiver balance**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L258)
+- **Given** the receiver party is configured with valid Keycloak credentials
+- **When** fetching active holding contracts for the receiver
+- **Then** the receiver's current balance is reported (may be zero)
+
+[**Step 3: Fetch Minter credentials**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L264)
+- **Given** the sender has Minter credentials on Canton
+- **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
+- **Then** at least one Minter credential contract ID is found
+
+[**Step 4: Fetch account rules**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L290)
+- **When** calling `get_account_contract_rules` on the Bitsafe API
+- **Then** an `AccountContractRuleSet` with deposit and withdraw rules is returned
+
+[**Step 5: Create deposit account**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L298)
+- **Given** credential CIDs from step 3 and account rules from step 4
+- **When** exercising the `CreateDepositAccount` choice on Canton
+- **Then** a new `DepositAccount` contract is created with `owner == sender.party_id`
+
+[**Step 6: Get Bitcoin address for deposit account**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L323)
+- **Given** the deposit account from step 5
+- **When** calling `get_bitcoin_address` via the Bitsafe API
+- **Then** a valid BTC address is returned for the account
+
+[**Step 7: Create withdraw account**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L336)
+- **Given** credential CIDs from step 3, withdraw account rules from step 4, and a destination BTC address
+- **When** exercising the `CreateWithdrawAccount` choice on Canton
+- **Then** a new `WithdrawAccount` contract is created with the specified destination address
+
+**Steps 8-10: Faucet deposit** *(only if `FAUCET_URL` is set)*
+
+[**Step 8: Request CBTC from faucet**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L362)
+- **Given** a baseline incoming transfer count captured before the request
+- **When** POSTing to `{FAUCET_URL}/api/faucet` with sender's party ID and amount
+- **Then** the faucet returns `success: true` and submits a CBTC transfer to the sender
+
+[**Step 9: Poll for incoming faucet transfer**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L411)
+- **Given** a faucet request submitted in step 8
+- **When** polling `fetch_incoming_transfers` every 3s for up to 30s
+- **Then** the incoming transfer count exceeds the pre-faucet baseline
+
+[**Step 10: Accept faucet transfer**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L439)
+- **Given** an incoming faucet transfer detected in step 9
+- **When** calling `accept_all` for the sender party
+- **Then** the faucet transfer is accepted with zero failures
+
+[**Step 11: Send CBTC to receiver**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L462)
+- **Given** the sender has a CBTC balance
+- **When** submitting a transfer of `TRANSFER_AMOUNT` CBTC from sender to receiver
+- **Then** a transfer offer is created on Canton
+
+[**Step 12: List outgoing offers (sender)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L492)
+- **Given** a transfer was submitted in step 11
+- **When** fetching the sender's outgoing transfer offers
+- **Then** at least one pending offer exists
+
+[**Step 13: List incoming offers (receiver)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L507)
+- **Given** a transfer offer exists from step 11
+- **When** fetching the receiver's incoming transfer offers
+- **Then** at least one pending offer exists
+
+[**Step 14: Accept transfers (receiver)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L522)
+- **Given** the receiver has pending incoming offers
+- **When** calling `accept_all` for the receiver party
+- **Then** all offers are accepted with zero failures
+
+[**Step 15: Check receiver balance**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L542)
+- **Given** the receiver accepted a transfer in step 14
+- **When** fetching the receiver's balance
+- **Then** the balance reflects the received amount
+
+[**Step 16: Return CBTC to sender**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L548)
+- **Given** the receiver has CBTC from step 14
+- **When** submitting a transfer of `TRANSFER_AMOUNT` CBTC from receiver back to sender
+- **Then** a return transfer offer is created on Canton
+
+[**Step 17: Accept transfers (sender)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L578)
+- **Given** the sender has a pending incoming offer from step 16
+- **When** calling `accept_all` for the sender party
+- **Then** all offers are accepted with zero failures
+
+[**Step 18: Check sender balance (pre-withdraw)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L598)
+- **Given** the sender accepted the return transfer in step 17
+- **When** fetching the sender's balance
+- **Then** the balance is captured as the pre-withdraw baseline
+
+[**Step 19: Submit withdrawal**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L605)
+- **Given** the withdraw account from step 7 and the sender has CBTC holdings
+- **When** selecting holdings to cover `WITHDRAW_AMOUNT`, checking limits, and calling `submit_withdraw`
+- **Then** the specified amount of CBTC is burned and the withdraw account's pending balance increases
+
+[**Step 20: Check balance (post-withdraw)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L669)
+- **Given** the sender's pre-withdraw balance from step 18
+- **When** fetching the sender's balance after the withdrawal
+- **Then** the balance has decreased (confirming tokens were burned)
+
+[**Step 21: Consolidate UTXOs (sender)**](https://github.com/DLC-link/cbtc-lib/blob/09d85946e6ff23ac807813e465f767569adda971/examples/integration_test.rs#L685)
+- **Given** the sender may have accumulated multiple UTXOs during the test
+- **When** checking the UTXO count against `CONSOLIDATION_THRESHOLD`
+- **Then** UTXOs are consolidated if the count exceeds the threshold, otherwise skipped
+
+> **Note:** Step numbers above use faucet-enabled numbering (21 steps). Without `FAUCET_URL`, steps 8-10 are skipped and the total is 18 steps (the remaining steps shift down by 3).
+
+> **Note:** Deposit and withdraw accounts created during the test are persistent Canton contracts. No cleanup API exists; they remain after the test.
+
 ### Credentials
 
 List, accept, and manage CBTC Minter credentials:

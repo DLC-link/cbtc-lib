@@ -55,7 +55,6 @@ pub struct SubmitWithdrawParams {
     pub api_url: String,
     pub withdraw_account_contract_id: String,
     pub withdraw_account_template_id: String,
-    pub withdraw_account_created_event_blob: String,
     pub amount: String,
     pub holding_contract_ids: Vec<String>,
     pub credential_cids: Option<Vec<String>>,
@@ -142,6 +141,7 @@ pub async fn list_withdraw_accounts(
 ///     account_rules_template_id: rules.wa_rules.template_id,
 ///     account_rules_created_event_blob: rules.wa_rules.created_event_blob,
 ///     destination_btc_address: "bc1q...".to_string(),
+///     credential_cids: vec!["00abc...".to_string()],
 /// }).await?;
 /// ```
 pub async fn create_withdraw_account(
@@ -193,46 +193,51 @@ pub async fn create_withdraw_account(
     })
     .await?;
 
-    // Parse the response to extract the created WithdrawAccount
+    // Parse the response to extract the contract ID of the created WithdrawAccount
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    // Extract the created WithdrawAccount from eventsById
     let events_by_id = response["transactionTree"]["eventsById"]
         .as_object()
         .ok_or("Failed to find eventsById in transaction")?;
 
+    let mut created_contract_id: Option<String> = None;
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
             let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
-
-            // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
-                // Parse the created event as a JsActiveContract
-                let created_event_value = &created_event["value"];
-                let active_contract = ledger::models::JsActiveContract {
-                    created_event: Box::new(ledger::models::CreatedEvent {
-                        contract_id: created_event_value["contractId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        template_id: template_id.to_string(),
-                        create_argument: Some(Some(created_event_value["createArgument"].clone())),
-                        created_event_blob: created_event_value["createdEventBlob"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        ..Default::default()
-                    }),
-                    reassignment_counter: 0,
-                    synchronizer_id: String::new(),
-                };
-                return WithdrawAccount::from_active_contract(&active_contract);
+                created_contract_id = Some(
+                    created_event["value"]["contractId"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                );
+                break;
             }
         }
     }
 
-    Err("No WithdrawAccount was created in the transaction".to_string())
+    let contract_id =
+        created_contract_id.ok_or("No WithdrawAccount was created in the transaction")?;
+
+    // Re-fetch from active contracts to get the createdEventBlob
+    // (the deprecated submit-and-wait-for-transaction-tree endpoint doesn't return it)
+    let accounts = list_withdraw_accounts(ListWithdrawAccountsParams {
+        ledger_host: params.ledger_host,
+        party: params.party,
+        access_token: params.access_token,
+    })
+    .await?;
+
+    accounts
+        .into_iter()
+        .find(|a| a.contract_id == contract_id)
+        .ok_or_else(|| {
+            format!(
+                "Created WithdrawAccount {} not found in active contracts",
+                contract_id
+            )
+        })
 }
 
 /// List all CBTC holdings (token contracts) for a party
@@ -325,7 +330,6 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
 ///     withdraw_account_template_id: withdraw_account.template_id,
-///     withdraw_account_created_event_blob: withdraw_account.created_event_blob,
 ///     amount: "0.001".to_string(),
 ///     holding_contract_ids: holding_ids,
 /// }).await?;
@@ -344,12 +348,6 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     // Build disclosed contracts - include withdraw account and all token standard contracts
     let disclosed_contracts = vec![
         // Withdraw account being exercised
-        DisclosedContract {
-            contract_id: params.withdraw_account_contract_id.clone(),
-            created_event_blob: params.withdraw_account_created_event_blob.clone(),
-            template_id: Some(params.withdraw_account_template_id.clone()),
-            synchronizer_id: String::new(),
-        },
         DisclosedContract {
             contract_id: token_contracts.burn_mint_factory.contract_id.clone(),
             created_event_blob: token_contracts.burn_mint_factory.created_event_blob.clone(),

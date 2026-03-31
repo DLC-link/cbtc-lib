@@ -24,7 +24,6 @@
 use std::env;
 use std::time::Instant;
 
-const TOTAL_STEPS: usize = 11;
 
 struct PartyConfig {
     party_id: String,
@@ -107,9 +106,8 @@ fn print_header(amount: &str) {
     println!();
 }
 
-fn print_step(step: usize, description: &str) {
-    print!("[Step {:>2}/{}] {} ", step, TOTAL_STEPS, description);
-    // Pad dots to align results
+fn print_step(step: usize, total: usize, description: &str) {
+    print!("[Step {:>2}/{}] {} ", step, total, description);
     let pad = 40usize.saturating_sub(description.len());
     for _ in 0..pad {
         print!(".");
@@ -177,9 +175,23 @@ async fn main() -> Result<(), String> {
         .parse()
         .expect("CONSOLIDATION_THRESHOLD must be a valid number");
 
+    let bitsafe_api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+    let destination_btc_address = env::var("DESTINATION_BTC_ADDRESS")
+        .unwrap_or_else(|_| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
+    let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.clone());
+    let faucet_url = env::var("FAUCET_URL").ok();
+    let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
+
+    let base_steps: usize = 18;
+    let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
+
     if sender.party_id == receiver.party_id {
         return Err("Sender and receiver PARTY_ID must be different".to_string());
     }
+
+    let withdraw_amount_f64: f64 = withdraw_amount
+        .parse()
+        .expect("WITHDRAW_AMOUNT must be a valid number");
 
     print_header(&amount);
 
@@ -188,12 +200,17 @@ async fn main() -> Result<(), String> {
     // Track whether we need cleanup on failure
     let mut sender_has_pending_offer = false;
     let mut receiver_has_pending_offer = false;
+    let mut minter_credential_cids: Vec<String> = Vec::new();
+    let mut account_rules: Option<cbtc::mint_redeem::models::AccountContractRuleSet> = None;
+    let mut deposit_account: Option<cbtc::mint_redeem::models::DepositAccount> = None;
+    let mut withdraw_account: Option<cbtc::mint_redeem::models::WithdrawAccount> = None;
+    let mut pre_faucet_count: usize = 0;
+    let mut pre_withdraw_balance: f64 = 0.0;
 
-    // A macro to reduce boilerplate for each step
     macro_rules! run_step {
         ($desc:expr, $body:expr) => {{
             step += 1;
-            print_step(step, $desc);
+            print_step(step, total_steps, $desc);
             match $body.await {
                 Ok(detail) => {
                     print_ok(&detail);
@@ -207,7 +224,7 @@ async fn main() -> Result<(), String> {
                     if receiver_has_pending_offer {
                         println!("Note: receiver may have a pending outgoing offer to cancel manually.");
                     }
-                    print_summary(passed, TOTAL_STEPS, start.elapsed().as_secs_f64());
+                    print_summary(passed, total_steps, start.elapsed().as_secs_f64());
                     return Err(format!("Failed at step {}: {}", step, e));
                 }
             }
@@ -374,7 +391,7 @@ async fn main() -> Result<(), String> {
     // Step 11: Consolidate UTXOs (sender)
     {
         step += 1;
-        print_step(step, "Consolidate UTXOs (sender)");
+        print_step(step, total_steps, "Consolidate UTXOs (sender)");
         let token = authenticate(&sender).await.map_err(|e| format!("Auth failed: {}", e))?;
         match cbtc::consolidate::check_and_consolidate(
             cbtc::consolidate::CheckConsolidateParams {
@@ -398,12 +415,12 @@ async fn main() -> Result<(), String> {
             }
             Err(e) => {
                 print_fail(&e);
-                print_summary(passed, TOTAL_STEPS, start.elapsed().as_secs_f64());
+                print_summary(passed, total_steps, start.elapsed().as_secs_f64());
                 return Err(format!("Failed at step {}: {}", step, e));
             }
         }
     }
 
-    print_summary(passed, TOTAL_STEPS, start.elapsed().as_secs_f64());
+    print_summary(passed, total_steps, start.elapsed().as_secs_f64());
     Ok(())
 }

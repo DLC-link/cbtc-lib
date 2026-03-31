@@ -22,6 +22,7 @@
 - **Then** at least one Minter credential contract ID is found, stored for account creation
 
 **Step 4: Fetch account rules**
+- **Given** the shared preconditions above
 - **When** calling `get_account_contract_rules`
 - **Then** an `AccountContractRuleSet` with `da_rules` and `wa_rules` is returned
 

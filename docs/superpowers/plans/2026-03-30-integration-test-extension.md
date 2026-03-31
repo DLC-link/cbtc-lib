@@ -14,12 +14,12 @@
 
 ### New Step Descriptions (Given/When/Then)
 
-**Preconditions for all steps:** A running Bitsafe API at `BITSAFE_API_URL`, sender and receiver parties authenticated against Keycloak, and a live Canton network.
+**Preconditions for all steps:** A running Bitsafe API at `BITSAFE_API_URL`, valid Keycloak credentials for sender and receiver parties, a live Canton network, and the sender party has been issued at least one Minter credential (`hasCBTCRole == "Minter"`).
 
 **Precondition for steps 8-10:** A running cbtc-faucet service at `FAUCET_URL`. These steps are skipped entirely if `FAUCET_URL` is not set.
 
 **Step 3: Fetch Minter credentials**
-- **Given** the sender party has been issued at least one credential with `hasCBTCRole == "Minter"` on Canton
+- **Given** the shared preconditions above (sender has Minter credentials)
 - **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
 - **Then** at least one Minter credential contract ID is found, stored for account creation
 

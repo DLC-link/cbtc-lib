@@ -19,7 +19,7 @@
 **Precondition for steps 8-10:** A running cbtc-faucet service at `FAUCET_URL`. These steps are skipped entirely if `FAUCET_URL` is not set.
 
 **Step 3: Fetch Minter credentials**
-- **Given** the sender party
+- **Given** the sender party has been issued at least one credential with `hasCBTCRole == "Minter"` on Canton
 - **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
 - **Then** at least one Minter credential contract ID is found, stored for account creation
 

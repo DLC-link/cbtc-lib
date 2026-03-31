@@ -12,7 +12,9 @@
 
 ---
 
-### New Step Descriptions (Given/When/Then)
+### New Test Steps (Given/When/Then)
+
+These describe the **runtime behavior** of the integration test — the steps executed sequentially by `run_step!` when running `cargo run --example integration_test`. Step numbers here correspond to the test output (e.g., `[Step  3/18]`), not to the implementation tasks below.
 
 **Preconditions (environment):**
 - A running Bitsafe API at `BITSAFE_API_URL`

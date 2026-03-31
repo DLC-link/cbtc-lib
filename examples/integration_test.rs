@@ -36,7 +36,6 @@
 use std::env;
 use std::time::Instant;
 
-
 struct PartyConfig {
     party_id: String,
     ledger_host: String,
@@ -50,8 +49,7 @@ fn load_sender_config() -> PartyConfig {
     PartyConfig {
         party_id: env::var("PARTY_ID").expect("PARTY_ID must be set"),
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
-        keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID")
-            .expect("KEYCLOAK_CLIENT_ID must be set"),
+        keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         keycloak_username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         keycloak_password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
         keycloak_url: keycloak::login::password_url(
@@ -143,15 +141,27 @@ fn print_summary(passed: usize, total: usize, elapsed: f64) {
     println!();
     println!("===============================================");
     if passed == total {
-        println!("  ALL STEPS PASSED ({}/{}) -- {:.1}s", passed, total, elapsed);
+        println!(
+            "  ALL STEPS PASSED ({}/{}) -- {:.1}s",
+            passed, total, elapsed
+        );
     } else {
-        println!("  FAILED at step {} of {} -- {:.1}s", passed + 1, total, elapsed);
+        println!(
+            "  FAILED at step {} of {} -- {:.1}s",
+            passed + 1,
+            total,
+            elapsed
+        );
     }
     println!("===============================================");
     println!();
 }
 
-async fn cleanup_sender_offers(sender: &PartyConfig, decentralized_party_id: &str, registry_url: &str) {
+async fn cleanup_sender_offers(
+    sender: &PartyConfig,
+    decentralized_party_id: &str,
+    registry_url: &str,
+) {
     println!("\nAttempting cleanup: canceling pending sender offers...");
     let result = cbtc::cancel_offers::withdraw_all(cbtc::cancel_offers::WithdrawAllParams {
         sender_party: sender.party_id.clone(),
@@ -233,10 +243,13 @@ async fn main() -> Result<(), String> {
                 Err(e) => {
                     print_fail(&e);
                     if sender_has_pending_offer {
-                        cleanup_sender_offers(&sender, &decentralized_party_id, &registry_url).await;
+                        cleanup_sender_offers(&sender, &decentralized_party_id, &registry_url)
+                            .await;
                     }
                     if receiver_has_pending_offer {
-                        println!("Note: receiver may have a pending outgoing offer to cancel manually.");
+                        println!(
+                            "Note: receiver may have a pending outgoing offer to cancel manually."
+                        );
                     }
                     print_summary(passed, total_steps, start.elapsed().as_secs_f64());
                     return Err(format!("Failed at step {}: {}", step, e));
@@ -263,12 +276,13 @@ async fn main() -> Result<(), String> {
     // Step 3: Fetch Minter credentials (sender)
     run_step!("Fetch Minter credentials", async {
         let token = authenticate(&sender).await?;
-        let credentials = cbtc::credentials::list_credentials(cbtc::credentials::ListCredentialsParams {
-            ledger_host: sender.ledger_host.clone(),
-            party: sender.party_id.clone(),
-            access_token: token,
-        })
-        .await?;
+        let credentials =
+            cbtc::credentials::list_credentials(cbtc::credentials::ListCredentialsParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                access_token: token,
+            })
+            .await?;
 
         minter_credential_cids = credentials
             .iter()
@@ -283,14 +297,16 @@ async fn main() -> Result<(), String> {
         if minter_credential_cids.is_empty() {
             return Err("No Minter credentials found for sender party".to_string());
         }
-        Ok::<String, String>(format!("({} Minter credentials)", minter_credential_cids.len()))
+        Ok::<String, String>(format!(
+            "({} Minter credentials)",
+            minter_credential_cids.len()
+        ))
     });
 
     // Step 4: Fetch account rules from Bitsafe API
     run_step!("Fetch account rules", async {
-        account_rules = Some(
-            cbtc::mint_redeem::attestor::get_account_contract_rules(&bitsafe_api_url).await?,
-        );
+        account_rules =
+            Some(cbtc::mint_redeem::attestor::get_account_contract_rules(&bitsafe_api_url).await?);
         Ok::<String, String>(format!("(da_rules + wa_rules)"))
     });
 
@@ -652,7 +668,6 @@ async fn main() -> Result<(), String> {
                 api_url: bitsafe_api_url.clone(),
                 withdraw_account_contract_id: wa.contract_id.clone(),
                 withdraw_account_template_id: wa.template_id.clone(),
-                withdraw_account_created_event_blob: wa.created_event_blob.clone(),
                 amount: withdraw_amount.clone(),
                 holding_contract_ids: selected,
                 credential_cids: Some(minter_credential_cids.clone()),
@@ -686,24 +701,30 @@ async fn main() -> Result<(), String> {
     {
         step += 1;
         print_step(step, total_steps, "Consolidate UTXOs (sender)");
-        let token = authenticate(&sender).await.map_err(|e| format!("Auth failed: {}", e))?;
-        match cbtc::consolidate::check_and_consolidate(
-            cbtc::consolidate::CheckConsolidateParams {
-                party: sender.party_id.clone(),
-                threshold,
-                ledger_host: sender.ledger_host.clone(),
-                access_token: token,
-                registry_url: registry_url.clone(),
-                decentralized_party_id: decentralized_party_id.clone(),
-            },
-        )
+        let token = authenticate(&sender)
+            .await
+            .map_err(|e| format!("Auth failed: {}", e))?;
+        match cbtc::consolidate::check_and_consolidate(cbtc::consolidate::CheckConsolidateParams {
+            party: sender.party_id.clone(),
+            threshold,
+            ledger_host: sender.ledger_host.clone(),
+            access_token: token,
+            registry_url: registry_url.clone(),
+            decentralized_party_id: decentralized_party_id.clone(),
+        })
         .await
         {
             Ok(result) => {
                 if result.consolidated {
-                    print_ok(&format!("({} -> {} UTXOs)", result.utxos_before, result.utxos_after));
+                    print_ok(&format!(
+                        "({} -> {} UTXOs)",
+                        result.utxos_before, result.utxos_after
+                    ));
                 } else {
-                    print_skip(&format!("({} < {} threshold)", result.utxos_before, threshold));
+                    print_skip(&format!(
+                        "({} < {} threshold)",
+                        result.utxos_before, threshold
+                    ));
                 }
                 passed += 1;
             }

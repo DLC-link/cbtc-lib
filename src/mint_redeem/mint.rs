@@ -203,7 +203,12 @@ pub async fn create_deposit_account(
     accounts
         .into_iter()
         .find(|a| a.contract_id == contract_id)
-        .ok_or_else(|| format!("Created DepositAccount {} not found in active contracts", contract_id))
+        .ok_or_else(|| {
+            format!(
+                "Created DepositAccount {} not found in active contracts",
+                contract_id
+            )
+        })
 }
 
 /// Get the Bitcoin address for a deposit account

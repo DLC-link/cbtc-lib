@@ -55,7 +55,6 @@ pub struct SubmitWithdrawParams {
     pub api_url: String,
     pub withdraw_account_contract_id: String,
     pub withdraw_account_template_id: String,
-    pub withdraw_account_created_event_blob: String,
     pub amount: String,
     pub holding_contract_ids: Vec<String>,
     pub credential_cids: Option<Vec<String>>,
@@ -233,7 +232,12 @@ pub async fn create_withdraw_account(
     accounts
         .into_iter()
         .find(|a| a.contract_id == contract_id)
-        .ok_or_else(|| format!("Created WithdrawAccount {} not found in active contracts", contract_id))
+        .ok_or_else(|| {
+            format!(
+                "Created WithdrawAccount {} not found in active contracts",
+                contract_id
+            )
+        })
 }
 
 /// List all CBTC holdings (token contracts) for a party
@@ -326,7 +330,6 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
 ///     withdraw_account_template_id: withdraw_account.template_id,
-///     withdraw_account_created_event_blob: withdraw_account.created_event_blob,
 ///     amount: "0.001".to_string(),
 ///     holding_contract_ids: holding_ids,
 /// }).await?;
@@ -345,12 +348,6 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     // Build disclosed contracts - include withdraw account and all token standard contracts
     let disclosed_contracts = vec![
         // Withdraw account being exercised
-        DisclosedContract {
-            contract_id: params.withdraw_account_contract_id.clone(),
-            created_event_blob: params.withdraw_account_created_event_blob.clone(),
-            template_id: Some(params.withdraw_account_template_id.clone()),
-            synchronizer_id: String::new(),
-        },
         DisclosedContract {
             contract_id: token_contracts.burn_mint_factory.contract_id.clone(),
             created_event_blob: token_contracts.burn_mint_factory.created_event_blob.clone(),

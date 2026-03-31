@@ -246,7 +246,102 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
-    // Step 3: Send CBTC sender -> receiver
+    // Step 3: Fetch Minter credentials (sender)
+    run_step!("Fetch Minter credentials", async {
+        let token = authenticate(&sender).await?;
+        let credentials = cbtc::credentials::list_credentials(cbtc::credentials::ListCredentialsParams {
+            ledger_host: sender.ledger_host.clone(),
+            party: sender.party_id.clone(),
+            access_token: token,
+        })
+        .await?;
+
+        minter_credential_cids = credentials
+            .iter()
+            .filter(|c| {
+                c.claims
+                    .iter()
+                    .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+            })
+            .map(|c| c.contract_id.clone())
+            .collect();
+
+        if minter_credential_cids.is_empty() {
+            return Err("No Minter credentials found for sender party".to_string());
+        }
+        Ok::<String, String>(format!("({} Minter credentials)", minter_credential_cids.len()))
+    });
+
+    // Step 4: Fetch account rules from Bitsafe API
+    run_step!("Fetch account rules", async {
+        account_rules = Some(
+            cbtc::mint_redeem::attestor::get_account_contract_rules(&bitsafe_api_url).await?,
+        );
+        Ok::<String, String>(format!("(da_rules + wa_rules)"))
+    });
+
+    // Step 5: Create deposit account (sender)
+    run_step!("Create deposit account", async {
+        let token = authenticate(&sender).await?;
+        let rules = account_rules.as_ref().unwrap();
+        let account = cbtc::mint_redeem::mint::create_deposit_account(
+            cbtc::mint_redeem::mint::CreateDepositAccountParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                user_name: sender.keycloak_username.clone(),
+                access_token: token,
+                account_rules: rules.clone(),
+                credential_cids: minter_credential_cids.clone(),
+            },
+        )
+        .await?;
+        let cid_preview = if account.contract_id.len() > 16 {
+            &account.contract_id[..16]
+        } else {
+            &account.contract_id
+        };
+        let msg = format!("(owner={}, cid={}...)", account.owner, cid_preview);
+        deposit_account = Some(account);
+        Ok::<String, String>(msg)
+    });
+
+    // Step 6: Get Bitcoin address for deposit account
+    run_step!("Get deposit BTC address", async {
+        let da = deposit_account.as_ref().unwrap();
+        let btc_address = cbtc::mint_redeem::mint::get_bitcoin_address(
+            cbtc::mint_redeem::mint::GetBitcoinAddressParams {
+                api_url: bitsafe_api_url.clone(),
+                account_id: da.account_id().to_string(),
+            },
+        )
+        .await?;
+        Ok::<String, String>(format!("({})", btc_address))
+    });
+
+    // Step 7: Create withdraw account (sender)
+    run_step!("Create withdraw account", async {
+        let token = authenticate(&sender).await?;
+        let rules = account_rules.as_ref().unwrap();
+        let account = cbtc::mint_redeem::redeem::create_withdraw_account(
+            cbtc::mint_redeem::redeem::CreateWithdrawAccountParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                user_name: sender.keycloak_username.clone(),
+                access_token: token,
+                account_rules_contract_id: rules.wa_rules.contract_id.clone(),
+                account_rules_template_id: rules.wa_rules.template_id.clone(),
+                account_rules_created_event_blob: rules.wa_rules.created_event_blob.clone(),
+                destination_btc_address: destination_btc_address.clone(),
+                credential_cids: minter_credential_cids.clone(),
+            },
+        )
+        .await?;
+        let msg = format!("(dest={})", account.destination_btc_address);
+        withdraw_account = Some(account);
+        Ok::<String, String>(msg)
+    });
+
+    // Step 8: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;
         cbtc::transfer::submit(cbtc::transfer::Params {
@@ -276,7 +371,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
-    // Step 4: List outgoing offers (sender)
+    // Step 9: List outgoing offers (sender)
     run_step!("List outgoing offers (sender)", async {
         let token = authenticate(&sender).await?;
         let offers = cbtc::utils::fetch_outgoing_transfers(
@@ -291,7 +386,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} pending)", offers.len()))
     });
 
-    // Step 5: List incoming offers (receiver)
+    // Step 10: List incoming offers (receiver)
     run_step!("List incoming offers (receiver)", async {
         let token = authenticate(&receiver).await?;
         let offers = cbtc::utils::fetch_incoming_transfers(
@@ -306,7 +401,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} pending)", offers.len()))
     });
 
-    // Step 6: Accept transfers (receiver)
+    // Step 11: Accept transfers (receiver)
     run_step!("Accept transfers (receiver)", async {
         let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
             receiver_party: receiver.party_id.clone(),
@@ -326,13 +421,13 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 
-    // Step 7: Check receiver balance
+    // Step 12: Check receiver balance
     run_step!("Check receiver balance", async {
         let (balance, utxos) = check_balance(&receiver).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
-    // Step 8: Return CBTC receiver -> sender
+    // Step 13: Return CBTC receiver -> sender
     run_step!("Return CBTC to sender", async {
         let token = authenticate(&receiver).await?;
         cbtc::transfer::submit(cbtc::transfer::Params {
@@ -362,7 +457,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
-    // Step 9: Accept transfers (sender)
+    // Step 14: Accept transfers (sender)
     run_step!("Accept transfers (sender)", async {
         let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
             receiver_party: sender.party_id.clone(),
@@ -382,13 +477,13 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 
-    // Step 10: Check sender balance
+    // Step 15: Check sender balance
     run_step!("Check sender balance", async {
         let (balance, utxos) = check_balance(&sender).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
-    // Step 11: Consolidate UTXOs (sender)
+    // Step 16: Consolidate UTXOs (sender)
     {
         step += 1;
         print_step(step, total_steps, "Consolidate UTXOs (sender)");

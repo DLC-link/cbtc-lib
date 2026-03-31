@@ -577,13 +577,95 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 
-    // Step 15: Check sender balance
+    // Step 15: Check sender balance (pre-withdraw)
     run_step!("Check sender balance", async {
         let (balance, utxos) = check_balance(&sender).await?;
+        pre_withdraw_balance = balance;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
-    // Step 16: Consolidate UTXOs (sender)
+    // Step 16: Submit withdrawal (sender)
+    run_step!("Submit withdrawal", async {
+        let token = authenticate(&sender).await?;
+        let wa = withdraw_account.as_ref().unwrap();
+
+        // List holdings and select enough to cover withdraw_amount
+        let holdings = cbtc::mint_redeem::redeem::list_holdings(
+            cbtc::mint_redeem::redeem::ListHoldingsParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                access_token: token.clone(),
+            },
+        )
+        .await?;
+
+        let cbtc_holdings: Vec<_> = holdings
+            .iter()
+            .filter(|h| h.instrument_id == "CBTC")
+            .collect();
+
+        // Greedy select holdings to cover withdraw_amount
+        let mut selected = Vec::new();
+        let mut selected_total = 0.0;
+        for h in &cbtc_holdings {
+            let amt = h.amount.parse::<f64>().unwrap_or(0.0);
+            selected.push(h.contract_id.clone());
+            selected_total += amt;
+            if selected_total >= withdraw_amount_f64 {
+                break;
+            }
+        }
+        if selected_total < withdraw_amount_f64 {
+            return Err(format!(
+                "Insufficient holdings: have {}, need {}",
+                selected_total, withdraw_amount
+            ));
+        }
+
+        // Pre-check limits
+        cbtc::mint_redeem::models::check_limits("Withdraw", withdraw_amount_f64, &wa.limits)?;
+
+        // Submit
+        let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(
+            cbtc::mint_redeem::redeem::SubmitWithdrawParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                user_name: sender.keycloak_username.clone(),
+                access_token: token,
+                api_url: bitsafe_api_url.clone(),
+                withdraw_account_contract_id: wa.contract_id.clone(),
+                withdraw_account_template_id: wa.template_id.clone(),
+                withdraw_account_created_event_blob: wa.created_event_blob.clone(),
+                amount: withdraw_amount.clone(),
+                holding_contract_ids: selected,
+                credential_cids: Some(minter_credential_cids.clone()),
+            },
+        )
+        .await?;
+        Ok::<String, String>(format!(
+            "(burned {} CBTC, pending={})",
+            withdraw_amount, updated_account.pending_balance
+        ))
+    });
+
+    // Step 17: Check sender balance (post-withdraw)
+    run_step!("Check balance (post-withdraw)", async {
+        let (balance, utxos) = check_balance(&sender).await?;
+        if balance >= pre_withdraw_balance {
+            return Err(format!(
+                "Balance did not decrease after withdrawal: was {:.8}, now {:.8}",
+                pre_withdraw_balance, balance
+            ));
+        }
+        Ok::<String, String>(format!(
+            "({:.8} CBTC, {} UTXOs, burned ~{:.8})",
+            balance,
+            utxos,
+            pre_withdraw_balance - balance
+        ))
+    });
+
+    // Step 18: Consolidate UTXOs (sender)
     {
         step += 1;
         print_step(step, total_steps, "Consolidate UTXOs (sender)");

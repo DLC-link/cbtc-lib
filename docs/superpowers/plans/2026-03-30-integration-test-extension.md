@@ -12,6 +12,60 @@
 
 ---
 
+### New Step Descriptions (Given/When/Then)
+
+**Step 3: Fetch Minter credentials**
+- **Given** a sender party authenticated against Keycloak
+- **When** listing credentials and filtering for `hasCBTCRole == "Minter"`
+- **Then** at least one Minter credential contract ID is found, stored for account creation
+
+**Step 4: Fetch account rules**
+- **Given** a running Bitsafe API at `BITSAFE_API_URL`
+- **When** calling `get_account_contract_rules`
+- **Then** an `AccountContractRuleSet` with `da_rules` and `wa_rules` is returned
+
+**Step 5: Create deposit account**
+- **Given** valid Minter credentials and account rules from steps 3-4
+- **When** exercising the `CreateDepositAccount` choice on Canton via `create_deposit_account`
+- **Then** a new `DepositAccount` contract is created with `owner == sender.party_id`
+
+**Step 6: Get Bitcoin address for deposit account**
+- **Given** a deposit account created in step 5
+- **When** calling `get_bitcoin_address` with the account's ID via the Bitsafe API
+- **Then** the attestor network returns a valid BTC address for the account
+
+**Step 7: Create withdraw account**
+- **Given** valid Minter credentials, withdraw account rules, and a destination BTC address
+- **When** exercising the `CreateWithdrawAccount` choice on Canton via `create_withdraw_account`
+- **Then** a new `WithdrawAccount` contract is created with the specified destination address
+
+**Step 8: Request CBTC from faucet** *(conditional, requires `FAUCET_URL`)*
+- **Given** a running cbtc-faucet service and a baseline incoming transfer count
+- **When** POSTing to `{FAUCET_URL}/api/faucet` with sender's party ID and amount
+- **Then** the faucet returns `success: true` and submits a CBTC transfer to the sender
+
+**Step 9: Poll for incoming faucet transfer** *(conditional)*
+- **Given** a faucet request was submitted in step 8
+- **When** polling `fetch_incoming_transfers` every 3s for up to 30s
+- **Then** the incoming transfer count exceeds the pre-faucet baseline
+
+**Step 10: Accept faucet transfer** *(conditional)*
+- **Given** an incoming faucet transfer detected in step 9
+- **When** calling `accept_all` for the sender party
+- **Then** the faucet transfer is accepted with zero failures
+
+**Step 16: Submit withdrawal**
+- **Given** a withdraw account from step 7, CBTC holdings, and valid limits
+- **When** selecting holdings to cover `WITHDRAW_AMOUNT`, checking limits, and calling `submit_withdraw`
+- **Then** the specified amount of CBTC is burned and the withdraw account's `pending_balance` increases
+
+**Step 17: Check sender balance (post-withdraw)**
+- **Given** the sender's balance captured in step 15 (pre-withdraw)
+- **When** checking the sender's balance after the withdrawal
+- **Then** the balance has decreased (confirming tokens were burned)
+
+---
+
 ### File Map
 
 - Modify: `examples/integration_test.rs` — the only file changed

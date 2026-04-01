@@ -1,4 +1,6 @@
+use cbtc::credentials::ListCredentialsParams;
 use cbtc::mint_redeem::attestor;
+use cbtc::mint_redeem::models::check_limits;
 use cbtc::mint_redeem::redeem::{
     CreateWithdrawAccountParams, ListHoldingsParams, ListWithdrawAccountsParams,
     SubmitWithdrawParams,
@@ -51,8 +53,7 @@ async fn main() -> Result<(), String> {
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
-    let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-    let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
     // Step 2: List existing withdraw accounts
     println!("Step 2: Listing existing withdraw accounts...");
@@ -109,9 +110,9 @@ async fn main() -> Result<(), String> {
         return Ok(());
     }
 
-    // Step 4: Get account rules from attestor
-    println!("Step 4: Getting account contract rules from attestor...");
-    let account_rules = attestor::get_account_contract_rules(&attestor_url, &chain).await?;
+    // Step 4: Get account rules from Bitsafe API
+    println!("Step 4: Getting account contract rules from Bitsafe API...");
+    let account_rules = attestor::get_account_contract_rules(&api_url).await?;
     println!("✓ Retrieved account rules:");
     println!(
         "  - WithdrawAccountRules CID: {}",
@@ -122,6 +123,33 @@ async fn main() -> Result<(), String> {
     // Step 5: Create a new withdraw account (or skip if one already exists)
     // For production, you should provide a real Bitcoin address via DESTINATION_BTC_ADDRESS env var
     // For testing/devnet, we use a test address
+
+    // Step 4b: Fetch Minter credentials
+    println!("Step 4b: Fetching Minter credentials...");
+    let credentials = cbtc::credentials::list_credentials(ListCredentialsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
+
+    let minter_credential_cids: Vec<String> = credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect();
+
+    if minter_credential_cids.is_empty() {
+        return Err("No Minter credentials found. Run the credentials example first.".to_string());
+    }
+    println!(
+        "  Found {} Minter credential(s)\n",
+        minter_credential_cids.len()
+    );
 
     if !accounts.is_empty() {
         println!("Step 5: Withdraw account already exists, skipping creation...");
@@ -144,6 +172,7 @@ async fn main() -> Result<(), String> {
                 account_rules_template_id: account_rules.wa_rules.template_id.clone(),
                 account_rules_created_event_blob: account_rules.wa_rules.created_event_blob.clone(),
                 destination_btc_address: destination_btc_address.clone(),
+                credential_cids: minter_credential_cids.clone(),
             })
             .await?;
 
@@ -212,18 +241,22 @@ async fn main() -> Result<(), String> {
         selected_total
     );
 
+    // Pre-check limits before submitting
+    check_limits("Withdraw", withdraw_amount_f64, &withdraw_account.limits)?;
+    println!("  Limit check passed");
+
     let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         access_token: access_token.clone(),
-        attestor_url: attestor_url.clone(),
-        chain: chain.clone(),
+        api_url: api_url.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
         withdraw_account_template_id: withdraw_account.template_id.clone(),
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: withdraw_amount.to_string(),
         holding_contract_ids: selected_holdings,
+        credential_cids: Some(minter_credential_cids),
     })
     .await?;
 

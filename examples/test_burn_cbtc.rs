@@ -1,3 +1,4 @@
+use cbtc::credentials::ListCredentialsParams;
 use cbtc::mint_redeem;
 /// Test burning CBTC using an existing withdraw account
 ///
@@ -29,8 +30,29 @@ async fn main() -> Result<(), String> {
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
-    let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-    let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+    // Fetch Minter credentials
+    let credentials = cbtc::credentials::list_credentials(ListCredentialsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
+
+    let minter_credential_cids: Vec<String> = credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect();
+
+    if minter_credential_cids.is_empty() {
+        return Err("No Minter credentials found. Run the credentials example first.".to_string());
+    }
 
     let accounts = mint_redeem::redeem::list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: ledger_host.clone(),
@@ -92,13 +114,13 @@ async fn main() -> Result<(), String> {
         party: party_id.clone(),
         user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         access_token: access_token.clone(),
-        attestor_url: attestor_url.clone(),
-        chain: chain.clone(),
+        api_url: api_url.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
         withdraw_account_template_id: withdraw_account.template_id.clone(),
         withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: burn_amount.to_string(),
         holding_contract_ids: selected_holdings,
+        credential_cids: Some(minter_credential_cids),
     })
     .await?;
 

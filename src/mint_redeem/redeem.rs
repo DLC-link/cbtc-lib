@@ -32,6 +32,7 @@ pub struct CreateWithdrawAccountParams {
     pub account_rules_template_id: String,
     pub account_rules_created_event_blob: String,
     pub destination_btc_address: String,
+    pub credential_cids: Vec<String>,
 }
 
 /// Parameters for listing CBTC holdings
@@ -51,13 +52,12 @@ pub struct SubmitWithdrawParams {
     pub party: String,
     pub user_name: String,
     pub access_token: String,
-    pub attestor_url: String,
-    pub chain: String,
+    pub api_url: String,
     pub withdraw_account_contract_id: String,
     pub withdraw_account_template_id: String,
-    pub withdraw_account_created_event_blob: String,
     pub amount: String,
     pub holding_contract_ids: Vec<String>,
+    pub credential_cids: Option<Vec<String>>,
 }
 
 /// Parameters for listing withdraw requests
@@ -126,10 +126,9 @@ pub async fn list_withdraw_accounts(
 /// ```ignore
 /// use mint_redeem::attestor;
 ///
-/// // First get the account rules from the attestor
+/// // First get the account rules from the Bitsafe API
 /// let rules = attestor::get_account_contract_rules(
-///     "https://devnet.dlc.link/attestor-1",
-///     "canton-devnet"
+///     "https://api.bitsafe.finance"
 /// ).await?;
 ///
 /// // Create the withdraw account with a BTC address
@@ -142,6 +141,7 @@ pub async fn list_withdraw_accounts(
 ///     account_rules_template_id: rules.wa_rules.template_id,
 ///     account_rules_created_event_blob: rules.wa_rules.created_event_blob,
 ///     destination_btc_address: "bc1q...".to_string(),
+///     credential_cids: vec!["00abc...".to_string()],
 /// }).await?;
 /// ```
 pub async fn create_withdraw_account(
@@ -161,7 +161,8 @@ pub async fn create_withdraw_account(
     // Build the choice argument
     let choice_argument = json!({
         "owner": params.party,
-        "destinationBtcAddress": params.destination_btc_address
+        "destinationBtcAddress": params.destination_btc_address,
+        "credentialCids": params.credential_cids
     });
 
     // Build the exercise command
@@ -192,46 +193,51 @@ pub async fn create_withdraw_account(
     })
     .await?;
 
-    // Parse the response to extract the created WithdrawAccount
+    // Parse the response to extract the contract ID of the created WithdrawAccount
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    // Extract the created WithdrawAccount from eventsById
     let events_by_id = response["transactionTree"]["eventsById"]
         .as_object()
         .ok_or("Failed to find eventsById in transaction")?;
 
+    let mut created_contract_id: Option<String> = None;
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
             let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
-
-            // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
-                // Parse the created event as a JsActiveContract
-                let created_event_value = &created_event["value"];
-                let active_contract = ledger::models::JsActiveContract {
-                    created_event: Box::new(ledger::models::CreatedEvent {
-                        contract_id: created_event_value["contractId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        template_id: template_id.to_string(),
-                        create_argument: Some(Some(created_event_value["createArgument"].clone())),
-                        created_event_blob: created_event_value["createdEventBlob"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        ..Default::default()
-                    }),
-                    reassignment_counter: 0,
-                    synchronizer_id: String::new(),
-                };
-                return WithdrawAccount::from_active_contract(&active_contract);
+                created_contract_id = Some(
+                    created_event["value"]["contractId"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                );
+                break;
             }
         }
     }
 
-    Err("No WithdrawAccount was created in the transaction".to_string())
+    let contract_id =
+        created_contract_id.ok_or("No WithdrawAccount was created in the transaction")?;
+
+    // Re-fetch from active contracts to get the createdEventBlob
+    // (the deprecated submit-and-wait-for-transaction-tree endpoint doesn't return it)
+    let accounts = list_withdraw_accounts(ListWithdrawAccountsParams {
+        ledger_host: params.ledger_host,
+        party: params.party,
+        access_token: params.access_token,
+    })
+    .await?;
+
+    accounts
+        .into_iter()
+        .find(|a| a.contract_id == contract_id)
+        .ok_or_else(|| {
+            format!(
+                "Created WithdrawAccount {} not found in active contracts",
+                contract_id
+            )
+        })
 }
 
 /// List all CBTC holdings (token contracts) for a party
@@ -321,11 +327,9 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     ledger_host: ledger_host.clone(),
 ///     party: party_id.clone(),
 ///     access_token: access_token.clone(),
-///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
-///     chain: "canton-devnet".to_string(),
+///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
 ///     withdraw_account_template_id: withdraw_account.template_id,
-///     withdraw_account_created_event_blob: withdraw_account.created_event_blob,
 ///     amount: "0.001".to_string(),
 ///     holding_contract_ids: holding_ids,
 /// }).await?;
@@ -334,22 +338,16 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 /// // Later, check for WithdrawRequests using list_withdraw_requests()
 /// ```
 pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAccount, String> {
-    // Get token standard contracts from attestor
+    // Get token standard contracts from Bitsafe API
     let token_contracts: TokenStandardContracts =
-        attestor::get_token_standard_contracts(&params.attestor_url, &params.chain).await?;
+        attestor::get_token_standard_contracts(&params.api_url).await?;
 
     // Generate a random command ID
     let command_id = format!("cmd-{}", uuid::Uuid::new_v4());
 
     // Build disclosed contracts - include withdraw account and all token standard contracts
-    let mut disclosed_contracts = vec![
+    let disclosed_contracts = vec![
         // Withdraw account being exercised
-        DisclosedContract {
-            contract_id: params.withdraw_account_contract_id.clone(),
-            created_event_blob: params.withdraw_account_created_event_blob.clone(),
-            template_id: Some(params.withdraw_account_template_id.clone()),
-            synchronizer_id: String::new(),
-        },
         DisclosedContract {
             contract_id: token_contracts.burn_mint_factory.contract_id.clone(),
             created_event_blob: token_contracts.burn_mint_factory.created_event_blob.clone(),
@@ -365,35 +363,13 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
             template_id: Some(token_contracts.instrument_configuration.template_id.clone()),
             synchronizer_id: String::new(),
         },
+        DisclosedContract {
+            contract_id: token_contracts.issuer_credential.contract_id.clone(),
+            created_event_blob: token_contracts.issuer_credential.created_event_blob.clone(),
+            template_id: Some(token_contracts.issuer_credential.template_id.clone()),
+            synchronizer_id: String::new(),
+        },
     ];
-
-    // Add optional contracts if present
-    if let Some(issuer_credential) = &token_contracts.issuer_credential {
-        disclosed_contracts.push(DisclosedContract {
-            contract_id: issuer_credential.contract_id.clone(),
-            created_event_blob: issuer_credential.created_event_blob.clone(),
-            template_id: Some(issuer_credential.template_id.clone()),
-            synchronizer_id: String::new(),
-        });
-    }
-
-    if let Some(app_reward_config) = &token_contracts.app_reward_configuration {
-        disclosed_contracts.push(DisclosedContract {
-            contract_id: app_reward_config.contract_id.clone(),
-            created_event_blob: app_reward_config.created_event_blob.clone(),
-            template_id: Some(app_reward_config.template_id.clone()),
-            synchronizer_id: String::new(),
-        });
-    }
-
-    if let Some(featured_app_right) = &token_contracts.featured_app_right {
-        disclosed_contracts.push(DisclosedContract {
-            contract_id: featured_app_right.contract_id.clone(),
-            created_event_blob: featured_app_right.created_event_blob.clone(),
-            template_id: Some(featured_app_right.template_id.clone()),
-            synchronizer_id: String::new(),
-        });
-    }
 
     // Build extraArgs for burn operation with proper token standard context structure
     let mut context_values = serde_json::Map::new();
@@ -407,41 +383,17 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
         }),
     );
 
-    // Add issuer credentials as a list if present
-    if let Some(issuer_cred) = &token_contracts.issuer_credential {
-        context_values.insert(
-            "utility.digitalasset.com/issuer-credentials".to_string(),
-            json!({
-                "tag": "AV_List",
-                "value": [{
-                    "tag": "AV_ContractId",
-                    "value": issuer_cred.contract_id
-                }]
-            }),
-        );
-    }
-
-    // Add app reward configuration if present
-    if let Some(app_reward) = &token_contracts.app_reward_configuration {
-        context_values.insert(
-            "utility.digitalasset.com/app-reward-configuration".to_string(),
-            json!({
+    // Add issuer credentials as a list
+    context_values.insert(
+        "utility.digitalasset.com/issuer-credentials".to_string(),
+        json!({
+            "tag": "AV_List",
+            "value": [{
                 "tag": "AV_ContractId",
-                "value": app_reward.contract_id
-            }),
-        );
-    }
-
-    // Add featured app right if present
-    if let Some(featured_app) = &token_contracts.featured_app_right {
-        context_values.insert(
-            "utility.digitalasset.com/featured-app-right".to_string(),
-            json!({
-                "tag": "AV_ContractId",
-                "value": featured_app.contract_id
-            }),
-        );
-    }
+                "value": token_contracts.issuer_credential.contract_id
+            }]
+        }),
+    );
 
     let extra_args = json!({
         "context": {
@@ -463,17 +415,24 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     // Build choice argument JSON manually to preserve decimal format
     // serde_json can use scientific notation for small numbers, which Canton rejects
     // Keep amount as a JSON string (quoted) to ensure Canton receives it in decimal format
+    let credential_cids_json = match &params.credential_cids {
+        Some(cids) => serde_json::to_string(cids).unwrap(),
+        None => "null".to_string(),
+    };
+
     let choice_argument_str = format!(
         r#"{{
             "tokens": {},
             "amount": "{}",
             "burnMintFactoryCid": "{}",
-            "extraArgs": {}
+            "extraArgs": {},
+            "credentialCids": {}
         }}"#,
         serde_json::to_string(&params.holding_contract_ids).unwrap(),
         params.amount, // Keep as quoted string
         token_contracts.burn_mint_factory.contract_id,
-        serde_json::to_string(&extra_args).unwrap()
+        serde_json::to_string(&extra_args).unwrap(),
+        credential_cids_json
     );
 
     let choice_argument: serde_json::Value = serde_json::from_str(&choice_argument_str)
@@ -624,6 +583,75 @@ mod tests {
     use super::*;
     use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
+
+    #[tokio::test]
+    async fn test_create_withdraw_account_with_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+        let access_token = login_response.access_token;
+
+        // Fetch credentials
+        let credentials =
+            crate::credentials::list_credentials(crate::credentials::ListCredentialsParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                access_token: access_token.clone(),
+            })
+            .await
+            .expect("Failed to list credentials");
+
+        let minter_credential_cids: Vec<String> = credentials
+            .iter()
+            .filter(|c| {
+                c.claims
+                    .iter()
+                    .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+            })
+            .map(|c| c.contract_id.clone())
+            .collect();
+
+        assert!(
+            !minter_credential_cids.is_empty(),
+            "No Minter credentials found for party"
+        );
+
+        // Fetch account rules
+        let account_rules = crate::mint_redeem::attestor::get_account_contract_rules(&api_url)
+            .await
+            .expect("Failed to get account rules");
+
+        // Create withdraw account with credentials
+        let account = create_withdraw_account(CreateWithdrawAccountParams {
+            ledger_host,
+            party: party_id.clone(),
+            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            access_token,
+            account_rules_contract_id: account_rules.wa_rules.contract_id,
+            account_rules_template_id: account_rules.wa_rules.template_id,
+            account_rules_created_event_blob: account_rules.wa_rules.created_event_blob,
+            destination_btc_address: "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080".to_string(),
+            credential_cids: minter_credential_cids,
+        })
+        .await
+        .expect("Failed to create withdraw account with credentials");
+
+        assert_eq!(account.owner, party_id);
+        assert!(!account.contract_id.is_empty());
+    }
 
     #[tokio::test]
     async fn test_list_withdraw_accounts() {

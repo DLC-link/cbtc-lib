@@ -1,3 +1,4 @@
+use cbtc::credentials::ListCredentialsParams;
 use cbtc::mint_redeem::attestor;
 use cbtc::mint_redeem::mint::{
     CreateDepositAccountParams, GetBitcoinAddressParams, GetDepositAccountStatusParams,
@@ -47,8 +48,7 @@ async fn main() -> Result<(), String> {
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
-    let attestor_url = env::var("ATTESTOR_URL").expect("ATTESTOR_URL must be set");
-    let chain = env::var("CANTON_NETWORK").expect("CANTON_NETWORK must be set");
+    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
     // Step 2: List existing deposit accounts
     println!("Step 2: Listing existing deposit accounts...");
@@ -66,9 +66,9 @@ async fn main() -> Result<(), String> {
     }
     println!();
 
-    // Step 3: Get account rules from attestor
-    println!("Step 3: Getting account contract rules from attestor...");
-    let account_rules = attestor::get_account_contract_rules(&attestor_url, &chain).await?;
+    // Step 3: Get account rules from Bitsafe API
+    println!("Step 3: Getting account contract rules from Bitsafe API...");
+    let account_rules = attestor::get_account_contract_rules(&api_url).await?;
     println!("✓ Retrieved account rules:");
     println!(
         "  - DepositAccountRules CID: {}",
@@ -80,6 +80,33 @@ async fn main() -> Result<(), String> {
     );
     println!();
 
+    // Step 3b: Fetch Minter credentials
+    println!("Step 3b: Fetching Minter credentials...");
+    let credentials = cbtc::credentials::list_credentials(ListCredentialsParams {
+        ledger_host: ledger_host.clone(),
+        party: party_id.clone(),
+        access_token: access_token.clone(),
+    })
+    .await?;
+
+    let minter_credential_cids: Vec<String> = credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect();
+
+    if minter_credential_cids.is_empty() {
+        return Err("No Minter credentials found. Run the credentials example first to accept a credential offer.".to_string());
+    }
+    println!(
+        "  Found {} Minter credential(s)\n",
+        minter_credential_cids.len()
+    );
+
     // Step 4: Create a new deposit account
     println!("Step 4: Creating a new deposit account...");
     let deposit_account =
@@ -89,6 +116,7 @@ async fn main() -> Result<(), String> {
             user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             access_token: access_token.clone(),
             account_rules: account_rules.clone(),
+            credential_cids: minter_credential_cids,
         })
         .await?;
 
@@ -100,9 +128,8 @@ async fn main() -> Result<(), String> {
     // Step 5: Get the Bitcoin address for this account
     println!("Step 5: Getting Bitcoin address for the deposit account...");
     let bitcoin_address = cbtc::mint_redeem::mint::get_bitcoin_address(GetBitcoinAddressParams {
-        attestor_url: attestor_url.clone(),
+        api_url: api_url.clone(),
         account_id: deposit_account.account_id().to_string(),
-        chain: chain.clone(),
     })
     .await?;
 
@@ -120,8 +147,7 @@ async fn main() -> Result<(), String> {
             ledger_host: ledger_host.clone(),
             party: party_id.clone(),
             access_token: access_token.clone(),
-            attestor_url: attestor_url.clone(),
-            chain: chain.clone(),
+            api_url: api_url.clone(),
             account_contract_id: deposit_account.contract_id.clone(),
         })
         .await?;

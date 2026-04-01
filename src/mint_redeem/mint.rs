@@ -25,13 +25,13 @@ pub struct CreateDepositAccountParams {
     pub user_name: String,
     pub access_token: String,
     pub account_rules: AccountContractRuleSet,
+    pub credential_cids: Vec<String>,
 }
 
 /// Parameters for getting a deposit account's Bitcoin address
 pub struct GetBitcoinAddressParams {
-    pub attestor_url: String,
+    pub api_url: String,
     pub account_id: String,
-    pub chain: String,
 }
 
 /// Parameters for getting deposit account status
@@ -39,8 +39,7 @@ pub struct GetDepositAccountStatusParams {
     pub ledger_host: String,
     pub party: String,
     pub access_token: String,
-    pub attestor_url: String,
-    pub chain: String,
+    pub api_url: String,
     pub account_contract_id: String,
 }
 
@@ -102,18 +101,19 @@ pub async fn list_deposit_accounts(
 /// ```ignore
 /// use mint_redeem::attestor;
 ///
-/// // First get the account rules from the attestor
+/// // First get the account rules from the Bitsafe API
 /// let rules = attestor::get_account_contract_rules(
-///     "https://devnet.dlc.link/attestor-1",
-///     "canton-devnet"
+///     "https://api.bitsafe.finance"
 /// ).await?;
 ///
 /// // Create the deposit account
 /// let account = mint::create_deposit_account(CreateDepositAccountParams {
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
+///     user_name: "user@example.com".to_string(),
 ///     access_token: "your-token".to_string(),
 ///     account_rules: rules,
+///     credential_cids: vec!["00abc...".to_string()],
 /// }).await?;
 /// ```
 pub async fn create_deposit_account(
@@ -132,7 +132,8 @@ pub async fn create_deposit_account(
 
     // Build the choice argument
     let choice_argument = json!({
-        "owner": params.party
+        "owner": params.party,
+        "credentialCids": params.credential_cids
     });
 
     // Build the exercise command
@@ -163,46 +164,51 @@ pub async fn create_deposit_account(
     })
     .await?;
 
-    // Parse the response to extract the created DepositAccount
+    // Parse the response to extract the contract ID of the created DepositAccount
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    // Extract the created DepositAccount from eventsById
     let events_by_id = response["transactionTree"]["eventsById"]
         .as_object()
         .ok_or("Failed to find eventsById in transaction")?;
 
+    let mut created_contract_id: Option<String> = None;
     for (_key, event) in events_by_id {
         if let Some(created_event) = event.get("CreatedTreeEvent") {
             let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
-
-            // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
-                // Parse the created event as a JsActiveContract
-                let created_event_value = &created_event["value"];
-                let active_contract = ledger::models::JsActiveContract {
-                    created_event: Box::new(ledger::models::CreatedEvent {
-                        contract_id: created_event_value["contractId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        template_id: template_id.to_string(),
-                        create_argument: Some(Some(created_event_value["createArgument"].clone())),
-                        created_event_blob: created_event_value["createdEventBlob"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        ..Default::default()
-                    }),
-                    reassignment_counter: 0,
-                    synchronizer_id: String::new(),
-                };
-                return DepositAccount::from_active_contract(&active_contract);
+                created_contract_id = Some(
+                    created_event["value"]["contractId"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                );
+                break;
             }
         }
     }
 
-    Err("No DepositAccount was created in the transaction".to_string())
+    let contract_id =
+        created_contract_id.ok_or("No DepositAccount was created in the transaction")?;
+
+    // Re-fetch from active contracts to get the createdEventBlob
+    // (the deprecated submit-and-wait-for-transaction-tree endpoint doesn't return it)
+    let accounts = list_deposit_accounts(ListDepositAccountsParams {
+        ledger_host: params.ledger_host,
+        party: params.party,
+        access_token: params.access_token,
+    })
+    .await?;
+
+    accounts
+        .into_iter()
+        .find(|a| a.contract_id == contract_id)
+        .ok_or_else(|| {
+            format!(
+                "Created DepositAccount {} not found in active contracts",
+                contract_id
+            )
+        })
 }
 
 /// Get the Bitcoin address for a deposit account
@@ -210,15 +216,14 @@ pub async fn create_deposit_account(
 /// # Example
 /// ```ignore
 /// let bitcoin_address = mint::get_bitcoin_address(GetBitcoinAddressParams {
-///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
+///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     account_id: deposit_account.contract_id,
-///     chain: "canton-devnet".to_string(),
 /// }).await?;
 ///
 /// log::debug!("Send BTC to: {}", bitcoin_address);
 /// ```
 pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<String, String> {
-    attestor::get_bitcoin_address(&params.attestor_url, &params.account_id, &params.chain).await
+    attestor::get_bitcoin_address(&params.api_url, &params.account_id).await
 }
 
 /// Get the full status of a deposit account including its Bitcoin address
@@ -229,8 +234,7 @@ pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<Stri
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
 ///     access_token: "your-token".to_string(),
-///     attestor_url: "https://devnet.dlc.link/attestor-1".to_string(),
-///     chain: "canton-devnet".to_string(),
+///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     account_contract_id: deposit_account.contract_id,
 /// }).await?;
 ///
@@ -258,10 +262,9 @@ pub async fn get_deposit_account_status(
             )
         })?;
 
-    // Get the Bitcoin address from attestor using the account's ID
+    // Get the Bitcoin address from Bitsafe API using the account's ID
     let bitcoin_address =
-        attestor::get_bitcoin_address(&params.attestor_url, account.account_id(), &params.chain)
-            .await?;
+        attestor::get_bitcoin_address(&params.api_url, account.account_id()).await?;
 
     Ok(DepositAccountStatus {
         contract_id: account.contract_id,
@@ -270,6 +273,7 @@ pub async fn get_deposit_account_status(
         registrar: account.registrar,
         bitcoin_address,
         last_processed_bitcoin_block: account.last_processed_bitcoin_block,
+        limits: account.limits,
     })
 }
 
@@ -278,6 +282,72 @@ mod tests {
     use super::*;
     use keycloak::login::{PasswordParams, password, password_url};
     use std::env;
+
+    #[tokio::test]
+    async fn test_create_deposit_account_with_credentials() {
+        dotenvy::dotenv().ok();
+
+        let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+        let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+
+        let params = PasswordParams {
+            client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
+            username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
+            url: password_url(
+                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
+                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
+            ),
+        };
+        let login_response = password(params).await.unwrap();
+        let access_token = login_response.access_token;
+
+        // Fetch credentials
+        let credentials =
+            crate::credentials::list_credentials(crate::credentials::ListCredentialsParams {
+                ledger_host: ledger_host.clone(),
+                party: party_id.clone(),
+                access_token: access_token.clone(),
+            })
+            .await
+            .expect("Failed to list credentials");
+
+        let minter_credential_cids: Vec<String> = credentials
+            .iter()
+            .filter(|c| {
+                c.claims
+                    .iter()
+                    .any(|claim| claim.property == "hasCBTCRole" && claim.value == "Minter")
+            })
+            .map(|c| c.contract_id.clone())
+            .collect();
+
+        assert!(
+            !minter_credential_cids.is_empty(),
+            "No Minter credentials found for party"
+        );
+
+        // Fetch account rules
+        let account_rules = crate::mint_redeem::attestor::get_account_contract_rules(&api_url)
+            .await
+            .expect("Failed to get account rules");
+
+        // Create deposit account with credentials
+        let account = create_deposit_account(CreateDepositAccountParams {
+            ledger_host,
+            party: party_id.clone(),
+            user_name: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
+            access_token,
+            account_rules,
+            credential_cids: minter_credential_cids,
+        })
+        .await
+        .expect("Failed to create deposit account with credentials");
+
+        assert_eq!(account.owner, party_id);
+        assert!(!account.contract_id.is_empty());
+    }
 
     #[tokio::test]
     async fn test_list_deposit_accounts() {

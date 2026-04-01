@@ -1,6 +1,50 @@
 use canton_api_client::models::JsActiveContract;
 use serde::{Deserialize, Serialize};
 
+/// Transaction limits for deposit/withdraw operations.
+/// Amounts are stored as strings to preserve decimal precision (Canton uses Numeric 10).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Limits {
+    #[serde(rename = "minAmount")]
+    pub min_amount: Option<String>,
+    #[serde(rename = "maxAmount")]
+    pub max_amount: Option<String>,
+}
+
+/// Check if an amount is within the account's limits.
+/// Returns Ok(()) if within limits or no limits set,
+/// Err with a descriptive message otherwise.
+pub fn check_limits(operation: &str, amount: f64, limits: &Option<Limits>) -> Result<(), String> {
+    if !amount.is_finite() {
+        return Err(format!("{} amount is not a finite number", operation));
+    }
+    if let Some(lim) = limits {
+        if let Some(min) = &lim.min_amount {
+            let min_val: f64 = min
+                .parse()
+                .map_err(|e| format!("Invalid min_amount: {}", e))?;
+            if amount < min_val {
+                return Err(format!(
+                    "{} amount {} is below minimum {}",
+                    operation, amount, min
+                ));
+            }
+        }
+        if let Some(max) = &lim.max_amount {
+            let max_val: f64 = max
+                .parse()
+                .map_err(|e| format!("Invalid max_amount: {}", e))?;
+            if amount > max_val {
+                return Err(format!(
+                    "{} amount {} exceeds maximum {}",
+                    operation, amount, max
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Information about a contract (template ID, contract ID, and created event blob)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractInfo {
@@ -9,21 +53,27 @@ pub struct ContractInfo {
     pub created_event_blob: String,
 }
 
-/// Account contract rules returned from attestor
+/// Account contract rules returned from the Bitsafe API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountContractRuleSet {
     pub da_rules: ContractInfo, // DepositAccountRules
     pub wa_rules: ContractInfo, // WithdrawAccountRules
 }
 
-/// Token standard contracts returned from attestor
+/// Token standard contracts returned from the Bitsafe API
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenStandardContracts {
     pub burn_mint_factory: ContractInfo,
     pub instrument_configuration: ContractInfo,
-    pub issuer_credential: Option<ContractInfo>,
-    pub app_reward_configuration: Option<ContractInfo>,
-    pub featured_app_right: Option<ContractInfo>,
+    pub issuer_credential: ContractInfo,
+}
+
+/// Response from the Bitsafe API bitcoin-address endpoint
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BitcoinAddressResponse {
+    pub bitcoin_address: String,
+    pub attestors_requested: u32,
+    pub attestors_responded: u32,
 }
 
 /// A deposit account contract with its details
@@ -38,6 +88,7 @@ pub struct DepositAccount {
     pub operator: String,
     pub registrar: String,
     pub last_processed_bitcoin_block: i64,
+    pub limits: Option<Limits>,
 }
 
 impl DepositAccount {
@@ -85,6 +136,15 @@ impl DepositAccount {
             .and_then(|s| s.parse::<i64>().ok())
             .ok_or("Missing or invalid 'lastProcessedBitcoinBlock' field")?;
 
+        let limits = match args.get("limits") {
+            None => None,
+            Some(v) if v.is_null() => None,
+            Some(v) => Some(
+                serde_json::from_value::<Limits>(v.clone())
+                    .map_err(|e| format!("Invalid 'limits' field: {}", e))?,
+            ),
+        };
+
         Ok(Self {
             contract_id,
             id,
@@ -92,6 +152,7 @@ impl DepositAccount {
             operator,
             registrar,
             last_processed_bitcoin_block,
+            limits,
         })
     }
 
@@ -111,6 +172,7 @@ pub struct DepositAccountStatus {
     pub registrar: String,
     pub bitcoin_address: String,
     pub last_processed_bitcoin_block: i64,
+    pub limits: Option<Limits>,
 }
 
 /// A withdraw account contract with its details
@@ -124,6 +186,7 @@ pub struct WithdrawAccount {
     pub destination_btc_address: String,
     pub pending_balance: String,
     pub created_event_blob: String,
+    pub limits: Option<Limits>,
 }
 
 impl WithdrawAccount {
@@ -171,6 +234,15 @@ impl WithdrawAccount {
             .unwrap_or("0.0")
             .to_string();
 
+        let limits = match args.get("limits") {
+            None => None,
+            Some(v) if v.is_null() => None,
+            Some(v) => Some(
+                serde_json::from_value::<Limits>(v.clone())
+                    .map_err(|e| format!("Invalid 'limits' field: {}", e))?,
+            ),
+        };
+
         Ok(Self {
             contract_id,
             template_id,
@@ -180,6 +252,7 @@ impl WithdrawAccount {
             destination_btc_address,
             pending_balance,
             created_event_blob,
+            limits,
         })
     }
 }
@@ -324,5 +397,85 @@ impl Holding {
             .and_then(|v| v.as_object())
             .and_then(|args| args.get("lock"))
             .is_some_and(|lock| !lock.is_null())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_check_limits_none() {
+        assert!(check_limits("Withdraw", 1.0, &None).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_within_bounds() {
+        let limits = Some(Limits {
+            min_amount: Some("0.001".to_string()),
+            max_amount: Some("10.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_below_min() {
+        let limits = Some(Limits {
+            min_amount: Some("0.01".to_string()),
+            max_amount: None,
+        });
+        let result = check_limits("Withdraw", 0.001, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("below minimum"));
+    }
+
+    #[test]
+    fn test_check_limits_above_max() {
+        let limits = Some(Limits {
+            min_amount: None,
+            max_amount: Some("5.0".to_string()),
+        });
+        let result = check_limits("Deposit", 10.0, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("exceeds maximum"));
+    }
+
+    #[test]
+    fn test_check_limits_at_boundary() {
+        let limits = Some(Limits {
+            min_amount: Some("1.0".to_string()),
+            max_amount: Some("10.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+        assert!(check_limits("Withdraw", 10.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_only_min() {
+        let limits = Some(Limits {
+            min_amount: Some("0.5".to_string()),
+            max_amount: None,
+        });
+        assert!(check_limits("Withdraw", 100.0, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_only_max() {
+        let limits = Some(Limits {
+            min_amount: None,
+            max_amount: Some("5.0".to_string()),
+        });
+        assert!(check_limits("Withdraw", 0.0001, &limits).is_ok());
+    }
+
+    #[test]
+    fn test_check_limits_invalid_string() {
+        let limits = Some(Limits {
+            min_amount: Some("not_a_number".to_string()),
+            max_amount: None,
+        });
+        let result = check_limits("Withdraw", 1.0, &limits);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid min_amount"));
     }
 }

@@ -117,7 +117,6 @@ async fn main() -> Result<(), String> {
         api_url: api_url.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
         withdraw_account_template_id: withdraw_account.template_id.clone(),
-        withdraw_account_created_event_blob: withdraw_account.created_event_blob.clone(),
         amount: burn_amount.to_string(),
         holding_contract_ids: selected_holdings,
         credential_cids: Some(minter_credential_cids),

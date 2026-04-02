@@ -191,7 +191,8 @@ async fn main() -> Result<(), String> {
     let decentralized_party_id =
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
     let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
-    let amount = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.00001".to_string());
+    let amount_str = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.00001".to_string());
+    let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
     let threshold: usize = env::var("CONSOLIDATION_THRESHOLD")
         .unwrap_or_else(|_| "10".to_string())
         .parse()
@@ -202,7 +203,7 @@ async fn main() -> Result<(), String> {
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
-    let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.clone());
+    let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.to_string());
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
@@ -216,7 +217,7 @@ async fn main() -> Result<(), String> {
     let withdraw_amount_decimal = cbtc::DamlDecimal::parse(&withdraw_amount)
         .expect("WITHDRAW_AMOUNT must be a valid number");
 
-    print_header(&amount);
+    print_header(&amount.to_string());
 
     let mut step = 0;
     let mut passed = 0;

@@ -1,3 +1,5 @@
+pub use common::decimal::DamlDecimal;
+
 pub mod accept;
 pub mod active_contracts;
 pub mod batch;

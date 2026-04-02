@@ -25,11 +25,8 @@ pub struct AcceptAllParams {
     pub registry_url: String,
     /// Decentralized party ID for CBTC
     pub decentralized_party_id: String,
-    // Keycloak authentication
-    pub keycloak_client_id: String,
-    pub keycloak_username: String,
-    pub keycloak_password: String,
-    pub keycloak_url: String,
+    /// Authentication config (Keycloak or Auth0)
+    pub auth: crate::auth::AuthConfig,
 }
 
 /// Result of accepting a single transfer
@@ -139,15 +136,8 @@ pub async fn submit(params: Params) -> Result<(), String> {
 ///
 /// Returns a summary of successful and failed acceptances.
 pub async fn accept_all(params: AcceptAllParams) -> Result<AcceptAllResult, String> {
-    log::debug!("Authenticating with Keycloak...");
-    let auth = keycloak::login::password(keycloak::login::PasswordParams {
-        client_id: params.keycloak_client_id,
-        username: params.keycloak_username,
-        password: params.keycloak_password,
-        url: params.keycloak_url,
-    })
-    .await
-    .map_err(|e| format!("Authentication failed: {}", e))?;
+    log::debug!("Authenticating...");
+    let auth = params.auth.authenticate().await?;
 
     log::debug!("✓ Authenticated successfully");
 

@@ -12,11 +12,8 @@ pub struct Params {
     pub ledger_host: String,
     pub registry_url: String,
     pub decentralized_party_id: String,
-    // Keycloak authentication
-    pub keycloak_client_id: String,
-    pub keycloak_username: String,
-    pub keycloak_password: String,
-    pub keycloak_url: String,
+    /// Authentication config (Keycloak or Auth0)
+    pub auth: crate::auth::AuthConfig,
     // Optional reference base for unique transfer IDs (run ID)
     pub reference_base: Option<String>,
     // Optional callback for handling each transfer result
@@ -39,15 +36,10 @@ pub struct Params {
 pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult, String> {
     log::debug!("Distributing to {} recipients", params.recipients.len());
 
-    // Authenticate with Keycloak
-    let mut token_state = transfer::TokenState::new(
-        params.keycloak_username,
-        params.keycloak_password,
-        params.keycloak_client_id.clone(),
-        params.keycloak_url.clone(),
-    )
-    .await
-    .map_err(|e| format!("Failed to initialize token state: {}", e))?;
+    // Authenticate
+    let mut token_state = transfer::TokenState::new(params.auth)
+        .await
+        .map_err(|e| format!("Failed to initialize token state: {}", e))?;
 
     let access_token = token_state.get_fresh_token().await?;
 
@@ -109,7 +101,6 @@ pub async fn submit(params: Params) -> Result<transfer::SequentialChainedResult,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::password_url;
     use std::env;
 
     #[tokio::test]
@@ -140,16 +131,7 @@ mod tests {
             registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
             decentralized_party_id: env::var("DECENTRALIZED_PARTY_ID")
                 .expect("DECENTRALIZED_PARTY_ID must be set"),
-            keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID")
-                .expect("KEYCLOAK_CLIENT_ID must be set"),
-            keycloak_username: env::var("KEYCLOAK_USERNAME")
-                .expect("KEYCLOAK_USERNAME must be set"),
-            keycloak_password: env::var("KEYCLOAK_PASSWORD")
-                .expect("KEYCLOAK_PASSWORD must be set"),
-            keycloak_url: password_url(
-                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
-                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
-            ),
+            auth: crate::auth::AuthConfig::from_env().expect("Auth config must be available"),
             reference_base: Some("test-distribute-run-001".to_string()),
             on_transfer_complete: None,
         };

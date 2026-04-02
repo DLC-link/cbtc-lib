@@ -25,7 +25,8 @@ async fn main() -> Result<(), String> {
         .expect("TRANSFER_COUNT must be set")
         .parse()
         .expect("TRANSFER_COUNT must be a valid number");
-    let transfer_amount = env::var("TRANSFER_AMOUNT").expect("TRANSFER_AMOUNT must be set");
+    let transfer_amount_str = env::var("TRANSFER_AMOUNT").expect("TRANSFER_AMOUNT must be set");
+    let transfer_amount = cbtc::DamlDecimal::parse(&transfer_amount_str).expect("TRANSFER_AMOUNT must be a valid decimal");
 
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
@@ -50,7 +51,10 @@ async fn main() -> Result<(), String> {
     println!("Amount per transfer: {}", transfer_amount);
     println!(
         "Total amount: {} CBTC",
-        transfer_count as f64 * transfer_amount.parse::<f64>().unwrap_or(0.0)
+        {
+            let count = cbtc::DamlDecimal::parse(&transfer_count.to_string()).unwrap();
+            count * transfer_amount
+        }
     );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
@@ -101,7 +105,7 @@ async fn main() -> Result<(), String> {
     let recipients: Vec<cbtc::distribute::Recipient> = (0..transfer_count)
         .map(|_| cbtc::distribute::Recipient {
             receiver: receiver_party.clone(),
-            amount: transfer_amount.clone(),
+            amount: transfer_amount,
         })
         .collect();
 

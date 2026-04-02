@@ -87,22 +87,20 @@ async fn main() -> Result<(), String> {
         return Err("No CBTC holdings found to burn".to_string());
     }
 
-    let burn_amount = "0.0001";
-    let burn_amount_f64: f64 = burn_amount.parse().unwrap();
+    let burn_amount = cbtc::DamlDecimal::parse("0.0001").unwrap();
 
     let mut selected_holdings = Vec::new();
-    let mut selected_total = 0.0;
+    let mut selected_total = cbtc::DamlDecimal::parse("0").unwrap();
 
     for holding in &cbtc_holdings {
-        let amount = holding.amount.parse::<f64>().unwrap_or(0.0);
         selected_holdings.push(holding.contract_id.clone());
-        selected_total += amount;
-        if selected_total >= burn_amount_f64 {
+        selected_total += holding.amount;
+        if selected_total >= burn_amount {
             break;
         }
     }
 
-    if selected_total < burn_amount_f64 {
+    if selected_total < burn_amount {
         return Err(format!(
             "Insufficient balance. Have {}, need {}",
             selected_total, burn_amount
@@ -117,7 +115,7 @@ async fn main() -> Result<(), String> {
         api_url: api_url.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
         withdraw_account_template_id: withdraw_account.template_id.clone(),
-        amount: burn_amount.to_string(),
+        amount: burn_amount,
         holding_contract_ids: selected_holdings,
         credential_cids: Some(minter_credential_cids),
     })

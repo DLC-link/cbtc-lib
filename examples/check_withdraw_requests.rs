@@ -73,8 +73,8 @@ async fn main() -> Result<(), String> {
                 } else {
                     println!("Withdraw Accounts ({}):", accounts.len());
                     for account in &accounts {
-                        let pending: f64 = account.pending_balance.parse().unwrap_or(0.0);
-                        let status = if pending > 0.0 { "PENDING" } else { "ready" };
+                        let zero = cbtc::DamlDecimal::parse("0").unwrap();
+                        let status = if account.pending_balance > zero { "PENDING" } else { "ready" };
                         println!(
                             "  [{:>7}] {} BTC -> {}",
                             status, account.pending_balance, &account.destination_btc_address

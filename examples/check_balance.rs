@@ -56,13 +56,13 @@ async fn main() -> Result<(), String> {
     let holdings = cbtc::active_contracts::get(balance_params).await?;
 
     // Calculate total balance
-    let total_balance: f64 = holdings
+    let total_balance: cbtc::DamlDecimal = holdings
         .iter()
         .filter_map(cbtc::utils::extract_amount)
         .sum();
 
     // Display results
-    println!("Total CBTC Balance: {:.8}", total_balance);
+    println!("Total CBTC Balance: {}", total_balance);
     println!("Number of UTXOs:    {}", holdings.len());
     println!();
 
@@ -82,7 +82,8 @@ async fn main() -> Result<(), String> {
         println!("\nIndividual Holdings:");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         for (i, holding) in holdings.iter().enumerate() {
-            let amount = cbtc::utils::extract_amount(holding).unwrap_or(0.0);
+            let amount = cbtc::utils::extract_amount(holding)
+                .unwrap_or(cbtc::DamlDecimal::parse("0").unwrap());
             let contract_id = &holding.created_event.contract_id;
             let short_id = if contract_id.len() > 12 {
                 format!(
@@ -93,7 +94,7 @@ async fn main() -> Result<(), String> {
             } else {
                 contract_id.clone()
             };
-            println!("  {}. {:.8} CBTC  ({})", i + 1, amount, short_id);
+            println!("  {}. {} CBTC  ({})", i + 1, amount, short_id);
         }
     }
 

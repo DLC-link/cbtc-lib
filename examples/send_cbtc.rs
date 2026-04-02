@@ -33,7 +33,8 @@ async fn main() -> Result<(), String> {
     let sender_party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let receiver_party = env::var("LIB_TEST_RECEIVER_PARTY_ID")
         .expect("LIB_TEST_RECEIVER_PARTY_ID must be set (the party to send CBTC to)");
-    let amount = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.1".to_string());
+    let amount_str = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.1".to_string());
+    let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
 
     println!("\nSending {} CBTC", amount);
     println!("From: {}", sender_party);

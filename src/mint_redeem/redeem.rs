@@ -55,7 +55,7 @@ pub struct SubmitWithdrawParams {
     pub api_url: String,
     pub withdraw_account_contract_id: String,
     pub withdraw_account_template_id: String,
-    pub amount: String,
+    pub amount: common::decimal::DamlDecimal,
     pub holding_contract_ids: Vec<String>,
     pub credential_cids: Option<Vec<String>>,
 }
@@ -250,9 +250,9 @@ pub async fn create_withdraw_account(
 ///     access_token: "your-token".to_string(),
 /// }).await?;
 ///
-/// let total_cbtc: f64 = holdings.iter()
+/// let total_cbtc: common::decimal::DamlDecimal = holdings.iter()
 ///     .filter(|h| h.instrument_id == "CBTC")
-///     .map(|h| h.amount.parse::<f64>().unwrap_or(0.0))
+///     .map(|h| h.amount)
 ///     .sum();
 /// log::debug!("Total CBTC holdings: {}", total_cbtc);
 /// ```
@@ -330,7 +330,7 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     api_url: "https://api.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
 ///     withdraw_account_template_id: withdraw_account.template_id,
-///     amount: "0.001".to_string(),
+///     amount: common::decimal::DamlDecimal::parse("0.001").unwrap(),
 ///     holding_contract_ids: holding_ids,
 /// }).await?;
 ///
@@ -405,12 +405,6 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
             }
         }
     });
-
-    // Validate amount is a valid number
-    let _: f64 = params
-        .amount
-        .parse()
-        .map_err(|e| format!("Invalid amount format: {}", e))?;
 
     // Build choice argument JSON manually to preserve decimal format
     // serde_json can use scientific notation for small numbers, which Canton rejects

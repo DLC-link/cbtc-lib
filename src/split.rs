@@ -3,7 +3,7 @@ use std::ops::Add;
 
 pub struct Params {
     pub party: String,
-    pub amounts: Vec<String>,
+    pub amounts: Vec<common::decimal::DamlDecimal>,
     pub instrument_id: common::transfer::InstrumentId,
     pub input_holding_cids: Vec<String>,
     pub ledger_host: String,
@@ -21,7 +21,7 @@ pub struct SplitResult {
 #[allow(clippy::too_many_arguments)]
 async fn split_once(
     party: String,
-    amount: String,
+    amount: common::decimal::DamlDecimal,
     instrument_id: common::transfer::InstrumentId,
     input_holding_cids: Vec<String>,
     ledger_host: String,
@@ -235,7 +235,11 @@ mod tests {
 
         let split_params = Params {
             party,
-            amounts: vec!["1.0".to_string(), "2.0".to_string(), "0.5".to_string()], // Split into 1.0, 2.0, 0.5, and change
+            amounts: vec![
+                common::decimal::DamlDecimal::parse("1.0").unwrap(),
+                common::decimal::DamlDecimal::parse("2.0").unwrap(),
+                common::decimal::DamlDecimal::parse("0.5").unwrap(),
+            ], // Split into 1.0, 2.0, 0.5, and change
             instrument_id: common::transfer::InstrumentId {
                 admin: decentralized_party.clone(),
                 id: "CBTC".to_string(),

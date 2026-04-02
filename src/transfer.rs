@@ -27,7 +27,7 @@ pub struct MultiParams {
 #[derive(Clone, Debug)]
 pub struct Recipient {
     pub receiver: String,
-    pub amount: String,
+    pub amount: common::decimal::DamlDecimal,
     pub reference: Option<String>,
 }
 
@@ -356,7 +356,7 @@ pub async fn submit_sequential_chained(
                 success: false,
                 transfer_index: idx,
                 receiver: recipient.receiver.clone(),
-                amount: recipient.amount.clone(),
+                amount: recipient.amount.to_string(),
                 transfer_offer_cid: None,
                 update_id: None,
                 reference: None,
@@ -385,7 +385,7 @@ pub async fn submit_sequential_chained(
                     success: false,
                     transfer_index: idx,
                     receiver: recipient.receiver.clone(),
-                    amount: recipient.amount.clone(),
+                    amount: recipient.amount.to_string(),
                     transfer_offer_cid: None,
                     update_id: None,
                     reference: None,
@@ -497,7 +497,7 @@ pub async fn submit_sequential_chained(
                             success: true,
                             transfer_index: idx,
                             receiver: recipient.receiver.clone(),
-                            amount: recipient.amount.clone(),
+                            amount: recipient.amount.to_string(),
                             transfer_offer_cid: Some(transfer_offer_cid),
                             update_id: Some(update_id),
                             reference: transfer_reference.clone(),
@@ -526,7 +526,7 @@ pub async fn submit_sequential_chained(
                             success: false,
                             transfer_index: idx,
                             receiver: recipient.receiver.clone(),
-                            amount: recipient.amount.clone(),
+                            amount: recipient.amount.to_string(),
                             transfer_offer_cid: None,
                             update_id: None,
                             reference: transfer_reference.clone(),
@@ -555,7 +555,7 @@ pub async fn submit_sequential_chained(
                     success: false,
                     transfer_index: idx,
                     receiver: recipient.receiver.clone(),
-                    amount: recipient.amount.clone(),
+                    amount: recipient.amount.to_string(),
                     transfer_offer_cid: None,
                     update_id: None,
                     reference: transfer_reference.clone(),
@@ -685,7 +685,7 @@ mod tests {
             transfer: common::transfer::Transfer {
                 sender: sender_party,
                 receiver: receiver_party,
-                amount: "0.02".to_string(),
+                amount: common::decimal::DamlDecimal::parse("0.02").unwrap(),
                 instrument_id: common::transfer::InstrumentId {
                     admin: decentralized_party.clone(),
                     id: "CBTC".to_string(),

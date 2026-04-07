@@ -223,12 +223,9 @@ impl WithdrawAccount {
             .ok_or("Missing 'destinationBtcAddress' field")?
             .to_string();
 
-        let pending_balance_str = args
-            .get("pendingBalance")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0");
-        let pending_balance = DamlDecimal::parse(pending_balance_str)
-            .map_err(|e| format!("Invalid 'pendingBalance' field: {}", e))?;
+        let pending_balance = DamlDecimal::parse(
+            args.get("pendingBalance").and_then(|v| v.as_str()).unwrap_or("0")
+        ).map_err(|e| format!("Invalid 'pendingBalance' field: {}", e))?;
 
         let limits = match args.get("limits") {
             None => None,
@@ -293,12 +290,9 @@ impl WithdrawRequest {
             .ok_or("Missing 'registrar' field")?
             .to_string();
 
-        let amount_str = args
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'amount' field")?;
-        let amount = DamlDecimal::parse(amount_str)
-            .map_err(|e| format!("Invalid 'amount' field: {}", e))?;
+        let amount = DamlDecimal::parse(
+            args.get("amount").and_then(|v| v.as_str()).ok_or("Missing 'amount' field")?
+        ).map_err(|e| format!("Invalid 'amount' field: {}", e))?;
 
         let destination_btc_address = args
             .get("destinationBtcAddress")
@@ -352,12 +346,9 @@ impl Holding {
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
-        let amount_str = args
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'amount' field")?;
-        let amount = DamlDecimal::parse(amount_str)
-            .map_err(|e| format!("Invalid 'amount' field: {}", e))?;
+        let amount = DamlDecimal::parse(
+            args.get("amount").and_then(|v| v.as_str()).ok_or("Missing 'amount' field")?
+        ).map_err(|e| format!("Invalid 'amount' field: {}", e))?;
 
         let instrument = args
             .get("instrument")

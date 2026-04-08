@@ -8,7 +8,7 @@
 /// This tool is intended for repo maintainers at release time.
 use semver::Version;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -16,7 +16,7 @@ use std::path::Path;
 #[derive(Serialize)]
 struct Manifest {
     cbtc_lib_version: String,
-    packages: HashMap<String, PackageInfo>,
+    packages: BTreeMap<String, PackageInfo>,
 }
 
 #[derive(Serialize)]
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Group by package name, keep only latest version
-    let mut latest_by_name: HashMap<String, DarInfo> = HashMap::new();
+    let mut latest_by_name: BTreeMap<String, DarInfo> = BTreeMap::new();
     for dar in all_dars {
         let existing = latest_by_name.get(&dar.name);
         if existing.is_none() || existing.unwrap().version < dar.version {
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build manifest
     let cbtc_lib_version = env!("CARGO_PKG_VERSION").to_string();
-    let mut packages = HashMap::new();
+    let mut packages = BTreeMap::new();
     for dar in latest_by_name.values() {
         packages.insert(
             dar.package_id.clone(),

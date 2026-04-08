@@ -1,17 +1,57 @@
 {
   "cbtc_lib_version": "0.3.1",
   "packages": {
-    "b7356fbb2cf8a3b22194d8c743c3c216d9c7527b257c8c38b257eb22942be358": {
-      "name": "splice-util",
-      "version": "0.1.4"
+    "170929b11d5f0ed1385f890f42887c31ff7e289c0f4bc482aff193a7173d576c": {
+      "name": "utility-registry-app-v0",
+      "version": "0.4.0"
+    },
+    "275064aacfe99cea72ee0c80563936129563776f67415ef9f13e4297eecbc520": {
+      "name": "splice-api-token-allocation-instruction-v1",
+      "version": "1.0.0"
+    },
+    "28bc75dc3ef75fa9d531133ac2e93020128b7c7967f1d8bc91b1b6d888ff31f2": {
+      "name": "utility-registry-operator-v0",
+      "version": "0.0.2"
+    },
+    "34ab886ee88b045637ff416f558734309f5650fec81a603cb5db76bbd863b950": {
+      "name": "utility-settlement-app-v1",
+      "version": "1.1.0"
+    },
+    "3ca1343ab26b453d38c8adb70dca5f1ead8440c42b59b68f070786955cbf9ec1": {
+      "name": "splice-amulet",
+      "version": "0.1.14"
+    },
+    "42e902610f593c6fb5516d7a7401ad0892dc44507a777ace0a468a5f6c9d3381": {
+      "name": "utility-version-v0",
+      "version": "0.0.1"
+    },
+    "4ded6b668cb3b64f7a88a30874cd41c75829f5e064b3fbbadf41ec7e8363354f": {
+      "name": "splice-api-token-metadata-v1",
+      "version": "1.0.0"
+    },
+    "512449f872b9770ca1b2aab52eafd1e382f09b987227dbd849635a9cfec78a5a": {
+      "name": "utility-credential-app-v0",
+      "version": "0.2.4"
     },
     "55ba4deb0ad4662c4168b39859738a0e91388d252286480c7331b3f71a517281": {
       "name": "splice-api-token-transfer-instruction-v1",
       "version": "1.0.0"
     },
-    "ed73d5b9ab717333f3dbd122de7be3156f8bf2614a67360c3dd61fc0135133fa": {
-      "name": "utility-registry-v0",
-      "version": "0.4.0"
+    "6bb2a795fd783646676705085d6548175783a5e63dd9084a6792cb25b32769d0": {
+      "name": "utility-collateral-app-v1",
+      "version": "1.0.0"
+    },
+    "6c656fb4169c35ec4c3be8d134fc4bc9a93e11fb5c939ab5a7e7e7f345f1b5dc": {
+      "name": "utility-commercials-v0",
+      "version": "0.2.2"
+    },
+    "6fe848530b2404017c4a12874c956ad7d5c8a419ee9b040f96b5c13172d2e193": {
+      "name": "splice-api-token-allocation-request-v1",
+      "version": "1.0.0"
+    },
+    "718a0f77e505a8de22f188bd4c87fe74101274e9d4cb1bfac7d09aec7158d35b": {
+      "name": "splice-api-token-holding-v1",
+      "version": "1.0.0"
     },
     "77df4e7b980c12de438d7b052141a762215fae790d81f71179c8fb534beb68f7": {
       "name": "utility-credential-v0",
@@ -21,69 +61,29 @@
       "name": "splice-api-featured-app-v1",
       "version": "1.0.0"
     },
-    "512449f872b9770ca1b2aab52eafd1e382f09b987227dbd849635a9cfec78a5a": {
-      "name": "utility-credential-app-v0",
-      "version": "0.2.4"
-    },
     "93c942ae2b4c2ba674fb152fe38473c507bda4e82b4e4c5da55a552a9d8cce1d": {
       "name": "splice-api-token-allocation-v1",
       "version": "1.0.0"
-    },
-    "28bc75dc3ef75fa9d531133ac2e93020128b7c7967f1d8bc91b1b6d888ff31f2": {
-      "name": "utility-registry-operator-v0",
-      "version": "0.0.2"
-    },
-    "6bb2a795fd783646676705085d6548175783a5e63dd9084a6792cb25b32769d0": {
-      "name": "utility-collateral-app-v1",
-      "version": "1.0.0"
-    },
-    "42e902610f593c6fb5516d7a7401ad0892dc44507a777ace0a468a5f6c9d3381": {
-      "name": "utility-version-v0",
-      "version": "0.0.1"
-    },
-    "170929b11d5f0ed1385f890f42887c31ff7e289c0f4bc482aff193a7173d576c": {
-      "name": "utility-registry-app-v0",
-      "version": "0.4.0"
-    },
-    "6c656fb4169c35ec4c3be8d134fc4bc9a93e11fb5c939ab5a7e7e7f345f1b5dc": {
-      "name": "utility-commercials-v0",
-      "version": "0.2.2"
-    },
-    "718a0f77e505a8de22f188bd4c87fe74101274e9d4cb1bfac7d09aec7158d35b": {
-      "name": "splice-api-token-holding-v1",
-      "version": "1.0.0"
-    },
-    "6fe848530b2404017c4a12874c956ad7d5c8a419ee9b040f96b5c13172d2e193": {
-      "name": "splice-api-token-allocation-request-v1",
-      "version": "1.0.0"
-    },
-    "3ca1343ab26b453d38c8adb70dca5f1ead8440c42b59b68f070786955cbf9ec1": {
-      "name": "splice-amulet",
-      "version": "0.1.14"
-    },
-    "dd3a9f2d51cc4c52d9ec2e1d7ff235298dcfb3afd1d50ab44328b1aaa9a18587": {
-      "name": "utility-registry-holding-v0",
-      "version": "0.1.2"
     },
     "9cc2cbc838ef38dc2c7f34014c9c452bcf71b8e2a4f939235fc0b5d0924b185e": {
       "name": "splice-api-token-burn-mint-v1",
       "version": "1.0.0"
     },
-    "275064aacfe99cea72ee0c80563936129563776f67415ef9f13e4297eecbc520": {
-      "name": "splice-api-token-allocation-instruction-v1",
-      "version": "1.0.0"
+    "b7356fbb2cf8a3b22194d8c743c3c216d9c7527b257c8c38b257eb22942be358": {
+      "name": "splice-util",
+      "version": "0.1.4"
     },
-    "34ab886ee88b045637ff416f558734309f5650fec81a603cb5db76bbd863b950": {
-      "name": "utility-settlement-app-v1",
-      "version": "1.1.0"
-    },
-    "4ded6b668cb3b64f7a88a30874cd41c75829f5e064b3fbbadf41ec7e8363354f": {
-      "name": "splice-api-token-metadata-v1",
-      "version": "1.0.0"
+    "dd3a9f2d51cc4c52d9ec2e1d7ff235298dcfb3afd1d50ab44328b1aaa9a18587": {
+      "name": "utility-registry-holding-v0",
+      "version": "0.1.2"
     },
     "e0b1ae1cf5bb4bcff668df849c397d551065cfc0563a69c6b106a639f4f43b2c": {
       "name": "cbtc",
       "version": "1.1.1"
+    },
+    "ed73d5b9ab717333f3dbd122de7be3156f8bf2614a67360c3dd61fc0135133fa": {
+      "name": "utility-registry-v0",
+      "version": "0.4.0"
     }
   }
 }

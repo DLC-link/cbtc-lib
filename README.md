@@ -275,11 +275,9 @@ Before using cbtc-lib, your Canton participant node must have all required DAR p
 cargo run --example check_dars
 ```
 
-The tool authenticates via Keycloak, fetches the list of packages from your participant's Ledger API (`GET /v2/packages`), and compares them against `cbtc-dars/expected_packages.json`. It exits with code 0 if all packages are present, or code 1 if any are missing.
+The tool authenticates via Keycloak, scans the DAR files in `cbtc-dars/dars/` to determine expected packages, fetches the list of packages from your participant's Ledger API (`GET /v2/packages`), and compares them. It exits with code 0 if all packages are present, or code 1 if any are missing.
 
 **Required environment variables**: `KEYCLOAK_HOST`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_USERNAME`, `KEYCLOAK_PASSWORD`, `LEDGER_HOST`
-
-**Optional**: `DAR_MANIFEST_PATH` (defaults to `cbtc-dars/expected_packages.json`)
 
 ### Using in Your Code
 
@@ -287,25 +285,18 @@ The tool authenticates via Keycloak, fetches the list of packages from your part
 let result = cbtc::dar_check::check(cbtc::dar_check::Params {
     ledger_host: "https://participant.example.com".to_string(),
     access_token: auth.access_token,
-    manifest_path: "cbtc-dars/expected_packages.json".to_string(),
+    dar_dirs: vec![
+        "cbtc-dars/dars/dependencies".to_string(),
+        "cbtc-dars/dars/cbtc".to_string(),
+    ],
 }).await?;
 
 if result.status == cbtc::dar_check::DarCheckStatus::Fail {
-    for (_, info) in &result.missing {
+    for info in &result.missing {
         println!("Missing: {} v{}", info.name, info.version);
     }
 }
 ```
-
-### Regenerating the Manifest
-
-When DAR files are updated, repo maintainers can regenerate the manifest:
-
-```bash
-cargo run --example generate_manifest
-```
-
-This scans `cbtc-dars/dars/`, extracts the main package ID from each DAR, selects the latest version per package family, and writes `cbtc-dars/expected_packages.json`.
 
 ---
 

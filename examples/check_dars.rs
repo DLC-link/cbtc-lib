@@ -1,7 +1,7 @@
 /// Example: Check DAR packages on participant
 ///
 /// Verifies that all required DAR packages are uploaded to the participant node
-/// by comparing against the expected packages manifest.
+/// by scanning the DAR files in cbtc-dars/ and comparing against the participant.
 ///
 /// Run with: cargo run --example check_dars
 ///
@@ -9,9 +9,6 @@
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 /// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
 /// - LEDGER_HOST
-///
-/// Optional environment variables:
-/// - DAR_MANIFEST_PATH (defaults to "cbtc-dars/expected_packages.json")
 use std::env;
 use std::process;
 
@@ -40,18 +37,18 @@ async fn main() {
         });
 
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-    let manifest_path = env::var("DAR_MANIFEST_PATH")
-        .unwrap_or_else(|_| "cbtc-dars/expected_packages.json".to_string());
 
     println!("Checking DAR packages on participant...");
     println!("  Ledger host: {}", ledger_host);
-    println!("  Manifest:    {}", manifest_path);
     println!();
 
     let params = cbtc::dar_check::Params {
         ledger_host,
         access_token: auth.access_token,
-        manifest_path,
+        dar_dirs: vec![
+            "cbtc-dars/dars/dependencies".to_string(),
+            "cbtc-dars/dars/cbtc".to_string(),
+        ],
     };
 
     let result = cbtc::dar_check::check(params).await.unwrap_or_else(|e| {
@@ -69,8 +66,8 @@ async fn main() {
 
     if !result.missing.is_empty() {
         println!("Missing packages:");
-        for (pkg_id, info) in &result.missing {
-            println!("  {} v{} ({})", info.name, info.version, pkg_id);
+        for info in &result.missing {
+            println!("  {} v{} ({})", info.name, info.version, info.package_id);
         }
         println!();
     }

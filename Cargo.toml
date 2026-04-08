@@ -24,6 +24,8 @@ base64 = "0.22"
 log = "0.4"
 canton-api-client = "3.3.0-0.1.0"
 reqwest = { version = "0.12.24", features = ["json"] }
+zip = "2"
+semver = "1"
 
 [dev-dependencies]
 env_logger = "0.11"
@@ -95,3 +97,11 @@ path = "examples/credentials.rs"
 [[example]]
 name = "integration_test"
 path = "examples/integration_test.rs"
+
+[[example]]
+name = "generate_manifest"
+path = "examples/generate_manifest.rs"
+
+[[example]]
+name = "check_dars"
+path = "examples/check_dars.rs"

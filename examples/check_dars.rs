@@ -78,9 +78,19 @@ async fn main() {
         }
         cbtc::dar_check::DarCheckStatus::Fail => {
             println!(
-                "FAIL: {} packages are missing. Upload them using cbtc-dars/upload_dars.sh",
+                "FAIL: {} packages are missing.",
                 result.missing.len()
             );
+            println!();
+            println!("Note: Missing packages may not yet be required for your environment.");
+            println!("This repo may include DARs ahead of what is deployed on Canton Network mainnet.");
+            println!();
+            println!("To verify which versions are required for your environment:");
+            println!("  Splice DARs:  https://github.com/hyperledger-labs/splice/tree/main/daml/dars");
+            println!("                (select the tag matching your environment release)");
+            println!("  Utility DARs: https://docs.digitalasset.com/utilities/releases/index.html");
+            println!();
+            println!("To upload missing DARs to your participant: cbtc-dars/upload_dars.sh");
             process::exit(1);
         }
     }

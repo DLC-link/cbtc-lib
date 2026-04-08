@@ -279,6 +279,10 @@ The tool authenticates via Keycloak, scans the DAR files in `cbtc-dars/dars/` to
 
 **Required environment variables**: `KEYCLOAK_HOST`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_USERNAME`, `KEYCLOAK_PASSWORD`, `LEDGER_HOST`
 
+> **Note**: This repo may include DAR versions ahead of what is currently deployed on Canton Network mainnet. If the check reports missing packages, they may not yet be required for your environment. To verify which versions are required:
+> - **Splice DARs**: [hyperledger-labs/splice daml/dars](https://github.com/hyperledger-labs/splice/tree/main/daml/dars) (select the tag matching your environment release)
+> - **Utility DARs**: [Canton Network Utility releases](https://docs.digitalasset.com/utilities/releases/index.html)
+
 ### Using in Your Code
 
 ```rust

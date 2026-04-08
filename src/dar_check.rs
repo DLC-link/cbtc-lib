@@ -100,8 +100,7 @@ pub fn scan_dar_dirs(dar_dirs: &[String]) -> Result<Vec<PackageInfo>, String> {
     for dir in dar_dirs {
         let dir_path = Path::new(dir);
         if !dir_path.exists() {
-            warn!("DAR directory not found: {}", dir);
-            continue;
+            return Err(format!("DAR directory not found: {}", dir));
         }
 
         let entries = std::fs::read_dir(dir_path)
@@ -337,8 +336,8 @@ mod tests {
     #[test]
     fn scan_dar_dirs_missing_dir() {
         let result = scan_dar_dirs(&["nonexistent/path".to_string()]);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not found"));
     }
 
     #[test]

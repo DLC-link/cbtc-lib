@@ -267,7 +267,7 @@ See the [examples README](examples/README.md) for detailed usage instructions.
 
 ## DAR Version Check
 
-Before using cbtc-lib, your Canton participant node must have all required DAR packages uploaded. The DAR check tool verifies this by comparing the packages on your participant against a known-good manifest.
+Before using cbtc-lib, your Canton participant node must have all required DAR packages uploaded. The DAR check tool verifies this by scanning the DAR files in `cbtc-dars/dars/` and comparing the expected packages against what is uploaded on your participant.
 
 ### Running the Check
 

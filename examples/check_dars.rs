@@ -64,23 +64,20 @@ async fn main() {
     );
     println!();
 
-    if !result.missing.is_empty() {
-        println!("Missing packages:");
-        for info in &result.missing {
-            println!("  {} v{} ({})", info.name, info.version, info.package_id);
-        }
-        println!();
-    }
-
     match result.status {
         cbtc::dar_check::DarCheckStatus::Pass => {
             println!("PASS: All required DAR packages are present.");
         }
         cbtc::dar_check::DarCheckStatus::Fail => {
             println!(
-                "FAIL: {} packages are missing.",
-                result.missing.len()
+                "FAIL: {} of {} packages are missing:",
+                result.missing.len(),
+                result.total_expected
             );
+            println!();
+            for info in &result.missing {
+                println!("  {} v{} ({})", info.name, info.version, info.package_id);
+            }
             println!();
             println!("Note: Missing packages may not yet be required for your environment.");
             println!("This repo may include DARs ahead of what is deployed on Canton Network mainnet.");

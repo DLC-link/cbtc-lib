@@ -147,7 +147,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
     })
     .await?;
 
-    let zero = DamlDecimal::parse("0").unwrap();
+    let zero = DamlDecimal::ZERO;
 
     let holdings: Vec<Holding> = contracts
         .iter()

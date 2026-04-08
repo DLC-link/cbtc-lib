@@ -229,7 +229,7 @@ async fn main() -> Result<(), String> {
     let mut deposit_account: Option<cbtc::mint_redeem::models::DepositAccount> = None;
     let mut withdraw_account: Option<cbtc::mint_redeem::models::WithdrawAccount> = None;
     let mut pre_faucet_count: usize = 0;
-    let mut pre_withdraw_balance = cbtc::DamlDecimal::parse("0").unwrap();
+    let mut pre_withdraw_balance = cbtc::DamlDecimal::ZERO;
 
     macro_rules! run_step {
         ($desc:expr, $body:expr) => {{
@@ -261,7 +261,7 @@ async fn main() -> Result<(), String> {
     // Step 1: Check sender balance
     run_step!("Check sender balance", async {
         let (balance, utxos) = check_balance(&sender).await?;
-        if balance <= cbtc::DamlDecimal::parse("0").unwrap() {
+        if balance <= cbtc::DamlDecimal::ZERO {
             return Err("Sender has no CBTC balance".to_string());
         }
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
@@ -639,7 +639,7 @@ async fn main() -> Result<(), String> {
 
         // Greedy select holdings to cover withdraw_amount
         let mut selected = Vec::new();
-        let mut selected_total = cbtc::DamlDecimal::parse("0").unwrap();
+        let mut selected_total = cbtc::DamlDecimal::ZERO;
         for h in &cbtc_holdings {
             selected.push(h.contract_id.clone());
             selected_total += h.amount;

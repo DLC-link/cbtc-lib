@@ -83,7 +83,7 @@ async fn main() -> Result<(), String> {
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         for (i, holding) in holdings.iter().enumerate() {
             let amount = cbtc::utils::extract_amount(holding)
-                .unwrap_or(cbtc::DamlDecimal::parse("0").unwrap());
+                .unwrap_or(cbtc::DamlDecimal::ZERO);
             let contract_id = &holding.created_event.contract_id;
             let short_id = if contract_id.len() > 12 {
                 format!(

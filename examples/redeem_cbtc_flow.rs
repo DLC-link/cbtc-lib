@@ -223,7 +223,7 @@ async fn main() -> Result<(), String> {
     // Select holdings to burn - for simplicity, just use the first holding with enough balance
     // or combine multiple holdings
     let mut selected_holdings = Vec::new();
-    let mut selected_total = cbtc::DamlDecimal::parse("0").unwrap();
+    let mut selected_total = cbtc::DamlDecimal::ZERO;
 
     for holding in &cbtc_holdings {
         selected_holdings.push(holding.contract_id.clone());

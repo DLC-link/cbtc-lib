@@ -90,7 +90,7 @@ async fn main() -> Result<(), String> {
     let burn_amount = cbtc::DamlDecimal::parse("0.0001").unwrap();
 
     let mut selected_holdings = Vec::new();
-    let mut selected_total = cbtc::DamlDecimal::parse("0").unwrap();
+    let mut selected_total = cbtc::DamlDecimal::ZERO;
 
     for holding in &cbtc_holdings {
         selected_holdings.push(holding.contract_id.clone());

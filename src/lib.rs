@@ -4,6 +4,7 @@ pub mod batch;
 pub mod cancel_offers;
 pub mod consolidate;
 pub mod credentials;
+pub mod dar_check;
 pub mod distribute;
 pub mod mint_redeem;
 pub mod split;

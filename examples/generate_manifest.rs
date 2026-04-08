@@ -159,6 +159,7 @@ fn extract_dar_info(path: &Path) -> Result<DarInfo, Box<dyn std::error::Error>> 
     // Name format: {package-name}-{semver} (e.g., "utility-commercials-v0-0.2.2")
     // Strategy: try parsing progressively longer suffixes as semver.
     let version = parse_version_from_name(&name)?;
+    // Safe for x.y.z semver: Version::to_string() round-trips to the original text
     let pkg_name = name[..name.len() - version.to_string().len() - 1].to_string();
 
     Ok(DarInfo {
@@ -169,16 +170,11 @@ fn extract_dar_info(path: &Path) -> Result<DarInfo, Box<dyn std::error::Error>> 
 }
 
 /// Parse the semver version from a DAR name like "utility-commercials-v0-0.2.2".
-/// Tries splitting on '-' from the right and parsing as semver.
+/// Tries progressively larger suffixes of the dash-split name parts as a semver string.
 fn parse_version_from_name(name: &str) -> Result<Version, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = name.split('-').collect();
-    // Try from the rightmost 3 parts joined with '.', then 1 part, etc.
-    // Semver requires at least major.minor.patch.
-    // DAR names use '-' as separator, so "0.2.2" is a single segment,
-    // but some may have "1.0.0" as a single segment too.
     for i in (0..parts.len()).rev() {
         let candidate = parts[i..].join("-");
-        // Try parsing the candidate directly (e.g., "0.2.2")
         if let Ok(v) = Version::parse(&candidate) {
             return Ok(v);
         }

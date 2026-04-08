@@ -28,15 +28,16 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 4. [Usage Examples](#usage-examples)
    - [Core Operations](#core-operations)
    - [Key Concepts](#key-concepts)
-5. [CBTC Mint & Redeem](#cbtc-mint--redeem)
+5. [DAR Version Check](#dar-version-check)
+6. [CBTC Mint & Redeem](#cbtc-mint--redeem)
    - [Minting CBTC (BTC → CBTC)](#minting-cbtc-btc--cbtc)
    - [Redeeming CBTC (CBTC → BTC)](#redeeming-cbtc-cbtc--btc)
    - [Understanding UTXO Management](#understanding-utxo-management)
-6. [High-Volume Operations](#high-volume-operations)
-7. [API Reference](#api-reference)
-8. [Direct Canton API Usage (Reference)](#direct-canton-api-usage-reference)
-9. [Testing](#testing)
-10. [Contributing](#contributing)
+7. [High-Volume Operations](#high-volume-operations)
+8. [API Reference](#api-reference)
+9. [Direct Canton API Usage (Reference)](#direct-canton-api-usage-reference)
+10. [Testing](#testing)
+11. [Contributing](#contributing)
 
 ---
 
@@ -122,6 +123,7 @@ For advanced users who want direct control, see [Direct Canton API Usage](#direc
 | Task              | Function                                     | Section                                                 |
 | ----------------- | -------------------------------------------- | ------------------------------------------------------- |
 | Check balance     | `cbtc::active_contracts::get()`              | [Understanding UTXO Management](#understanding-utxo-management) |
+| Check DARs        | `cbtc::dar_check::check()`                   | [DAR Version Check](#dar-version-check)     |
 | Send tokens       | `cbtc::transfer::submit()`                   | [Core Operations](#core-operations)                     |
 | Accept tokens     | `cbtc::accept::submit()`                     | [Core Operations](#core-operations)                     |
 | Batch send        | `cbtc::batch::submit_from_csv()`             | [High-Volume Operations](#high-volume-operations)       |
@@ -237,6 +239,7 @@ This library provides several high-level operations for working with CBTC tokens
 | **Accept CBTC**          | [`accept_transfers.rs`](examples/accept_transfers.rs)              | `cargo run --example accept_transfers`       | Accept incoming transfers                        |
 | **List Incoming Offers** | [`list_incoming_offers.rs`](examples/list_incoming_offers.rs)      | `cargo run --example list_incoming_offers`   | List pending transfers where you're the receiver |
 | **List Outgoing Offers** | [`list_outgoing_offers.rs`](examples/list_outgoing_offers.rs)      | `cargo run --example list_outgoing_offers`   | List pending transfers where you're the sender   |
+| **Check DARs**           | [`check_dars.rs`](examples/check_dars.rs)                          | `cargo run --example check_dars`             | Verify required DAR packages are uploaded        |
 | **Cancel Offers**        | [`cancel_offers.rs`](examples/cancel_offers.rs)                    | `cargo run --example cancel_offers`          | Cancel all pending outgoing transfers            |
 | **Stream CBTC**          | [`stream.rs`](examples/stream.rs)                                  | `cargo run --example stream_cbtc`            | Stream CBTC to a single receiver multiple times  |
 | **Batch Distribution**   | [`batch_distribute.rs`](examples/batch_distribute.rs)              | `cargo run --example batch_distribute`       | Distribute to multiple recipients from CSV       |
@@ -259,6 +262,50 @@ This library provides several high-level operations for working with CBTC tokens
 - **Redeeming**: Burn CBTC → Create withdraw request → Attestor network sends BTC
 
 See the [examples README](examples/README.md) for detailed usage instructions.
+
+---
+
+## DAR Version Check
+
+Before using cbtc-lib, your Canton participant node must have all required DAR packages uploaded. The DAR check tool verifies this by comparing the packages on your participant against a known-good manifest.
+
+### Running the Check
+
+```bash
+cargo run --example check_dars
+```
+
+The tool authenticates via Keycloak, fetches the list of packages from your participant's Ledger API (`GET /v2/packages`), and compares them against `cbtc-dars/expected_packages.json`. It exits with code 0 if all packages are present, or code 1 if any are missing.
+
+**Required environment variables**: `KEYCLOAK_HOST`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_USERNAME`, `KEYCLOAK_PASSWORD`, `LEDGER_HOST`
+
+**Optional**: `DAR_MANIFEST_PATH` (defaults to `cbtc-dars/expected_packages.json`)
+
+### Using in Your Code
+
+```rust
+let result = cbtc::dar_check::check(cbtc::dar_check::Params {
+    ledger_host: "https://participant.example.com".to_string(),
+    access_token: auth.access_token,
+    manifest_path: "cbtc-dars/expected_packages.json".to_string(),
+}).await?;
+
+if result.status == cbtc::dar_check::DarCheckStatus::Fail {
+    for (_, info) in &result.missing {
+        println!("Missing: {} v{}", info.name, info.version);
+    }
+}
+```
+
+### Regenerating the Manifest
+
+When DAR files are updated, repo maintainers can regenerate the manifest:
+
+```bash
+cargo run --example generate_manifest
+```
+
+This scans `cbtc-dars/dars/`, extracts the main package ID from each DAR, selects the latest version per package family, and writes `cbtc-dars/expected_packages.json`.
 
 ---
 
@@ -399,6 +446,10 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 #### `cbtc::split`
 
 - `submit(Params)` - Split holdings into specific amounts
+
+#### `cbtc::dar_check`
+
+- `check(Params)` - Verify all required DAR packages are uploaded to the participant
 
 #### `cbtc::active_contracts`
 

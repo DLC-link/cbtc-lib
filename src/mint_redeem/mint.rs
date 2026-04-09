@@ -103,7 +103,7 @@ pub async fn list_deposit_accounts(
 ///
 /// // First get the account rules from the Bitsafe API
 /// let rules = attestor::get_account_contract_rules(
-///     "https://api.bitsafe.finance"
+///     "https://api.mainnet.bitsafe.finance"
 /// ).await?;
 ///
 /// // Create the deposit account
@@ -216,7 +216,7 @@ pub async fn create_deposit_account(
 /// # Example
 /// ```ignore
 /// let bitcoin_address = mint::get_bitcoin_address(GetBitcoinAddressParams {
-///     api_url: "https://api.bitsafe.finance".to_string(),
+///     api_url: "https://api.mainnet.bitsafe.finance".to_string(),
 ///     account_id: deposit_account.contract_id,
 /// }).await?;
 ///
@@ -234,7 +234,7 @@ pub async fn get_bitcoin_address(params: GetBitcoinAddressParams) -> Result<Stri
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
 ///     access_token: "your-token".to_string(),
-///     api_url: "https://api.bitsafe.finance".to_string(),
+///     api_url: "https://api.mainnet.bitsafe.finance".to_string(),
 ///     account_contract_id: deposit_account.contract_id,
 /// }).await?;
 ///

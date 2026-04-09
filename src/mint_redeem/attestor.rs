@@ -5,7 +5,7 @@ use crate::mint_redeem::models::{
 /// Get the Bitcoin address for a deposit or withdraw account
 ///
 /// # Arguments
-/// * `api_url` - Base URL of the Bitsafe API (e.g., "https://api.bitsafe.finance")
+/// * `api_url` - Base URL of the Bitsafe API (e.g., "https://api.mainnet.bitsafe.finance")
 /// * `account_id` - The account ID (UUID when present, otherwise contract ID) of the deposit/withdraw account
 ///
 /// # Returns
@@ -14,7 +14,7 @@ use crate::mint_redeem::models::{
 /// # Example
 /// ```ignore
 /// let bitcoin_address = get_bitcoin_address(
-///     "https://api.bitsafe.finance",
+///     "https://api.mainnet.bitsafe.finance",
 ///     "00febb6b97f5d214bb..."
 /// ).await?;
 /// println!("BTC address: {}", bitcoin_address);
@@ -55,7 +55,7 @@ pub async fn get_bitcoin_address(api_url: &str, account_id: &str) -> Result<Stri
 /// # Example
 /// ```ignore
 /// let rules = get_account_contract_rules(
-///     "https://api.bitsafe.finance"
+///     "https://api.mainnet.bitsafe.finance"
 /// ).await?;
 /// ```
 pub async fn get_account_contract_rules(api_url: &str) -> Result<AccountContractRuleSet, String> {
@@ -94,7 +94,7 @@ pub async fn get_account_contract_rules(api_url: &str) -> Result<AccountContract
 /// # Example
 /// ```ignore
 /// let contracts = get_token_standard_contracts(
-///     "https://api.bitsafe.finance"
+///     "https://api.mainnet.bitsafe.finance"
 /// ).await?;
 /// ```
 pub async fn get_token_standard_contracts(api_url: &str) -> Result<TokenStandardContracts, String> {

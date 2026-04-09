@@ -128,7 +128,7 @@ pub async fn list_withdraw_accounts(
 ///
 /// // First get the account rules from the Bitsafe API
 /// let rules = attestor::get_account_contract_rules(
-///     "https://api.bitsafe.finance"
+///     "https://api.mainnet.bitsafe.finance"
 /// ).await?;
 ///
 /// // Create the withdraw account with a BTC address
@@ -327,7 +327,7 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     ledger_host: ledger_host.clone(),
 ///     party: party_id.clone(),
 ///     access_token: access_token.clone(),
-///     api_url: "https://api.bitsafe.finance".to_string(),
+///     api_url: "https://api.mainnet.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
 ///     withdraw_account_template_id: withdraw_account.template_id,
 ///     amount: common::decimal::DamlDecimal::parse("0.001").unwrap(),

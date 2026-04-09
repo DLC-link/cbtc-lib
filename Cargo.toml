@@ -8,6 +8,7 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
+auth0 = { path = "../canton-lib/crates/auth0" }
 ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.1" }
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.1" }
 registry = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.3.1" }

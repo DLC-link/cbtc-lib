@@ -18,15 +18,6 @@ async fn main() -> Result<(), String> {
     let decentralized_party_id =
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
-    let keycloak_client_id =
-        env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
-    let keycloak_username = env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set");
-    let keycloak_password = env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set");
-    let keycloak_url = keycloak::login::password_url(
-        &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
-        &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
-    );
-
     println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     println!("Withdraw Pending CBTC Transfers");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -39,10 +30,7 @@ async fn main() -> Result<(), String> {
         ledger_host,
         registry_url,
         decentralized_party_id,
-        keycloak_client_id,
-        keycloak_username,
-        keycloak_password,
-        keycloak_url,
+        auth: cbtc::auth::AuthConfig::from_env()?,
     })
     .await?;
 

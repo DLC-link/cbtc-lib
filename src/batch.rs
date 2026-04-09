@@ -14,11 +14,8 @@ pub struct Params {
     pub ledger_host: String,
     pub registry_url: String,
     pub decentralized_party_id: String,
-    // Keycloak authentication
-    pub keycloak_client_id: String,
-    pub keycloak_username: String,
-    pub keycloak_password: String,
-    pub keycloak_url: String,
+    /// Authentication config (Keycloak or Auth0)
+    pub auth: crate::auth::AuthConfig,
     // Optional reference base for unique transfer IDs
     pub reference_base: Option<String>,
 }
@@ -77,10 +74,7 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
         ledger_host: params.ledger_host,
         registry_url: params.registry_url,
         decentralized_party_id: params.decentralized_party_id,
-        keycloak_client_id: params.keycloak_client_id,
-        keycloak_username: params.keycloak_username,
-        keycloak_password: params.keycloak_password,
-        keycloak_url: params.keycloak_url,
+        auth: params.auth,
         reference_base: params.reference_base,
         on_transfer_complete: None,
     })
@@ -110,7 +104,6 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::password_url;
     use std::env;
     use std::io::Write;
 
@@ -147,16 +140,7 @@ mod tests {
             registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
             decentralized_party_id: env::var("DECENTRALIZED_PARTY_ID")
                 .expect("DECENTRALIZED_PARTY_ID must be set"),
-            keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID")
-                .expect("KEYCLOAK_CLIENT_ID must be set"),
-            keycloak_username: env::var("KEYCLOAK_USERNAME")
-                .expect("KEYCLOAK_USERNAME must be set"),
-            keycloak_password: env::var("KEYCLOAK_PASSWORD")
-                .expect("KEYCLOAK_PASSWORD must be set"),
-            keycloak_url: password_url(
-                &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
-                &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
-            ),
+            auth: crate::auth::AuthConfig::from_env().expect("Auth config must be available"),
             reference_base: Some(format!("batch-test-{}", chrono::Utc::now().timestamp())),
         };
 

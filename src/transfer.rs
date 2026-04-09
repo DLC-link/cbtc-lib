@@ -67,87 +67,47 @@ pub struct SequentialChainedResult {
     pub failed_count: usize,
 }
 
-/// Simple token state that tracks expiry and refreshes when needed
+/// Token state that tracks expiry and refreshes when needed.
+/// Works with any auth provider via `AuthConfig`.
 pub struct TokenState {
     access_token: String,
-    refresh_token: String,
-    client_id: String,
-    url: String,
-    username: String,
-    password: String,
+    refresh_token: Option<String>,
+    auth_config: crate::auth::AuthConfig,
     expires_at: std::time::SystemTime,
 }
 
 impl TokenState {
-    pub async fn new(
-        username: String,
-        password: String,
-        client_id: String,
-        url: String,
-    ) -> Result<Self, String> {
-        let token = keycloak::login::password(keycloak::login::PasswordParams {
-            client_id: client_id.clone(),
-            username: username.clone(),
-            password: password.clone(),
-            url: url.clone(),
-        })
-        .await?;
+    pub async fn new(auth_config: crate::auth::AuthConfig) -> Result<Self, String> {
+        let response = auth_config.authenticate().await?;
+
+        let expires_at = std::time::SystemTime::now()
+            + std::time::Duration::from_secs(
+                response.expires_in.saturating_sub(60) as u64,
+            );
 
         Ok(TokenState {
-            access_token: token.access_token,
-            refresh_token: token.refresh_token,
-
-            username,
-            password,
-
-            client_id,
-            url,
-            expires_at: std::time::SystemTime::now()
-                .checked_sub(std::time::Duration::from_secs(
-                    (token.expires_in - 20) as u64,
-                ))
-                .unwrap_or(std::time::SystemTime::now()),
+            access_token: response.access_token,
+            refresh_token: response.refresh_token,
+            auth_config,
+            expires_at,
         })
     }
 
-    /// Get a fresh token, refreshing if needed (within 1 minute of expiry)
+    /// Get a fresh token, refreshing if needed
     pub async fn get_fresh_token(&mut self) -> Result<String, String> {
         let now = std::time::SystemTime::now();
-        let needs_refresh = now >= self.expires_at;
+        if now >= self.expires_at {
+            let response = self
+                .auth_config
+                .refresh(self.refresh_token.as_deref())
+                .await?;
 
-        if needs_refresh {
-            let auth = match keycloak::login::refresh(keycloak::login::RefreshParams {
-                client_id: self.client_id.clone(),
-                refresh_token: self.refresh_token.clone(),
-                url: self.url.clone(),
-            })
-            .await
-            {
-                Ok(auth_response) => auth_response,
-                Err(e) => {
-                    if e.contains("Token is not active") {
-                        // Try full password login as fallback
-                        let auth_response =
-                            keycloak::login::password(keycloak::login::PasswordParams {
-                                client_id: self.client_id.clone(),
-                                username: self.username.clone(),
-                                password: self.password.clone(),
-                                url: self.url.clone(),
-                            })
-                            .await?;
-
-                        auth_response
-                    } else {
-                        return Err(format!("Failed to refresh JWT: {}", e));
-                    }
-                }
-            };
-
-            self.access_token = auth.access_token.clone();
-            self.refresh_token = auth.refresh_token;
-            // Set expiry to 1 minute before actual expiry
+            self.access_token = response.access_token;
+            self.refresh_token = response.refresh_token;
             self.expires_at = std::time::SystemTime::now()
-                + std::time::Duration::from_secs(auth.expires_in as u64 - 60);
+                + std::time::Duration::from_secs(
+                    response.expires_in.saturating_sub(60) as u64,
+                );
         }
 
         Ok(self.access_token.clone())

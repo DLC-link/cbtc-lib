@@ -4,15 +4,15 @@ A Rust library for interacting with the Canton blockchain to manage CBTC (Canton
 
 ## Features
 
-- ✅ **Send CBTC** - Transfer tokens to other parties
-- ✅ **Accept CBTC** - Accept incoming transfers as a receiver
-- ✅ **Mint CBTC** - Deposit BTC and mint CBTC tokens via the Bitsafe API
-- ✅ **Redeem CBTC** - Burn CBTC tokens and withdraw BTC
-- ✅ **Batch Distribution** - Efficiently distribute tokens to multiple recipients
-- ✅ **UTXO Management** - Consolidate and split holdings
-- ✅ **High-Volume Transfers** - Optimized for high-volume transfer operations
-- ✅ **Multi-Environment** - Support for devnet, testnet, and mainnet
-- ✅ **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
+- **Send CBTC** - Transfer tokens to other parties
+- **Accept CBTC** - Accept incoming transfers as a receiver
+- **Mint CBTC** - Deposit BTC and mint CBTC tokens via the Bitsafe API
+- **Redeem CBTC** - Burn CBTC tokens and withdraw BTC
+- **Batch Distribution** - Efficiently distribute tokens to multiple recipients
+- **UTXO Management** - Consolidate and split holdings
+- **High-Volume Transfers** - Optimized for high-volume transfer operations
+- **Multi-Environment** - Support for devnet, testnet, and mainnet
+- **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
 
 > **Important Setup Requirements**:
 > - **For Send/Receive Operations**: The [Digital Asset Registry Utility](https://docs.digitalasset.com/utilities/mainnet/index.html) must be installed on your validator node
@@ -256,7 +256,7 @@ This library provides several high-level operations for working with CBTC tokens
 1. Sender creates a transfer offer
 2. Receiver must accept the transfer to complete it
 
-**BTC ↔ CBTC Bridge**: The mint/redeem flow allows you to bridge between native Bitcoin and CBTC tokens:
+**BTC/CBTC Bridge**: The mint/redeem flow allows you to bridge between native Bitcoin and CBTC tokens:
 
 - **Minting**: Create deposit account → Get BTC address → Send BTC → Attestor network confirms (6+ blocks) → CBTC automatically minted
 - **Redeeming**: Burn CBTC → Create withdraw request → Attestor network sends BTC

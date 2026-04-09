@@ -91,7 +91,7 @@ async fn authenticate(config: &PartyConfig) -> Result<String, String> {
     Ok(auth.access_token)
 }
 
-async fn check_balance(config: &PartyConfig) -> Result<(f64, usize), String> {
+async fn check_balance(config: &PartyConfig) -> Result<(cbtc::DamlDecimal, usize), String> {
     let token = authenticate(config).await?;
     let holdings = cbtc::active_contracts::get(cbtc::active_contracts::Params {
         ledger_host: config.ledger_host.clone(),
@@ -100,7 +100,7 @@ async fn check_balance(config: &PartyConfig) -> Result<(f64, usize), String> {
     })
     .await?;
 
-    let total: f64 = holdings
+    let total: cbtc::DamlDecimal = holdings
         .iter()
         .filter_map(cbtc::utils::extract_amount)
         .sum();
@@ -191,7 +191,8 @@ async fn main() -> Result<(), String> {
     let decentralized_party_id =
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
     let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
-    let amount = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.00001".to_string());
+    let amount_str = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.00001".to_string());
+    let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
     let threshold: usize = env::var("CONSOLIDATION_THRESHOLD")
         .unwrap_or_else(|_| "10".to_string())
         .parse()
@@ -202,7 +203,7 @@ async fn main() -> Result<(), String> {
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
-    let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.clone());
+    let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.to_string());
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
@@ -213,11 +214,10 @@ async fn main() -> Result<(), String> {
         return Err("Sender and receiver PARTY_ID must be different".to_string());
     }
 
-    let withdraw_amount_f64: f64 = withdraw_amount
-        .parse()
+    let withdraw_amount_decimal = cbtc::DamlDecimal::parse(&withdraw_amount)
         .expect("WITHDRAW_AMOUNT must be a valid number");
 
-    print_header(&amount);
+    print_header(&amount.to_string());
 
     let mut step = 0;
     let mut passed = 0;
@@ -229,7 +229,7 @@ async fn main() -> Result<(), String> {
     let mut deposit_account: Option<cbtc::mint_redeem::models::DepositAccount> = None;
     let mut withdraw_account: Option<cbtc::mint_redeem::models::WithdrawAccount> = None;
     let mut pre_faucet_count: usize = 0;
-    let mut pre_withdraw_balance: f64 = 0.0;
+    let mut pre_withdraw_balance = cbtc::DamlDecimal::ZERO;
 
     macro_rules! run_step {
         ($desc:expr, $body:expr) => {{
@@ -261,7 +261,7 @@ async fn main() -> Result<(), String> {
     // Step 1: Check sender balance
     run_step!("Check sender balance", async {
         let (balance, utxos) = check_balance(&sender).await?;
-        if balance <= 0.0 {
+        if balance <= cbtc::DamlDecimal::ZERO {
             return Err("Sender has no CBTC balance".to_string());
         }
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
@@ -639,16 +639,15 @@ async fn main() -> Result<(), String> {
 
         // Greedy select holdings to cover withdraw_amount
         let mut selected = Vec::new();
-        let mut selected_total = 0.0;
+        let mut selected_total = cbtc::DamlDecimal::ZERO;
         for h in &cbtc_holdings {
-            let amt = h.amount.parse::<f64>().unwrap_or(0.0);
             selected.push(h.contract_id.clone());
-            selected_total += amt;
-            if selected_total >= withdraw_amount_f64 {
+            selected_total += h.amount;
+            if selected_total >= withdraw_amount_decimal {
                 break;
             }
         }
-        if selected_total < withdraw_amount_f64 {
+        if selected_total < withdraw_amount_decimal {
             return Err(format!(
                 "Insufficient holdings: have {}, need {}",
                 selected_total, withdraw_amount
@@ -656,7 +655,7 @@ async fn main() -> Result<(), String> {
         }
 
         // Pre-check limits
-        cbtc::mint_redeem::models::check_limits("Withdraw", withdraw_amount_f64, &wa.limits)?;
+        cbtc::mint_redeem::models::check_limits("Withdraw", withdraw_amount_decimal, &wa.limits)?;
 
         // Submit
         let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(
@@ -668,7 +667,7 @@ async fn main() -> Result<(), String> {
                 api_url: bitsafe_api_url.clone(),
                 withdraw_account_contract_id: wa.contract_id.clone(),
                 withdraw_account_template_id: wa.template_id.clone(),
-                amount: withdraw_amount.clone(),
+                amount: withdraw_amount_decimal,
                 holding_contract_ids: selected,
                 credential_cids: Some(minter_credential_cids.clone()),
             },

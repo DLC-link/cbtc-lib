@@ -2,7 +2,7 @@ use crate::{active_contracts, transfer};
 
 pub struct Recipient {
     pub receiver: String,
-    pub amount: String,
+    pub amount: common::decimal::DamlDecimal,
 }
 
 pub struct Params {
@@ -120,12 +120,12 @@ mod tests {
             Recipient {
                 receiver: env::var("LIB_TEST_RECEIVER_PARTY_ID")
                     .expect("LIB_TEST_RECEIVER_PARTY_ID must be set"),
-                amount: "0.01".to_string(),
+                amount: common::decimal::DamlDecimal::parse("0.01").unwrap(),
             },
             Recipient {
                 receiver: env::var("LIB_TEST_RECEIVER_PARTY_ID")
                     .expect("LIB_TEST_RECEIVER_PARTY_ID must be set"),
-                amount: "0.01".to_string(),
+                amount: common::decimal::DamlDecimal::parse("0.01").unwrap(),
             },
         ];
 

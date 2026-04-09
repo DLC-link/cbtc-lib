@@ -1,4 +1,6 @@
 use crate::active_contracts;
+use crate::mint_redeem::models::Holding;
+use common::decimal::DamlDecimal;
 use std::collections::HashMap;
 use std::ops::Add;
 
@@ -145,23 +147,19 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
     })
     .await?;
 
-    let total_amount: f64 = contracts
+    let zero = DamlDecimal::ZERO;
+
+    let holdings: Vec<Holding> = contracts
         .iter()
         .filter(|c| input_holding_cids.contains(&c.created_event.contract_id))
-        .map(|c| crate::utils::extract_amount(c).unwrap_or(0.0))
-        .sum();
+        .map(|c| Holding::from_active_contract(c))
+        .collect::<Result<Vec<_>, _>>()?;
 
-    if total_amount == 0.0 {
+    let total_amount: DamlDecimal = holdings.iter().map(|h| h.amount).sum();
+
+    if total_amount == zero {
         return Err("Total amount to consolidate is zero".to_string());
     }
-
-    // Format amount to avoid floating point precision errors
-    // Canton uses Numeric 10 (max 10 decimal places)
-    // Format to 10 decimals, then strip trailing zeros
-    let amount_str = format!("{:.10}", total_amount)
-        .trim_end_matches('0')
-        .trim_end_matches('.')
-        .to_string();
 
     // Create metadata with the MergeSplit transaction kind
     let mut transfer_meta: HashMap<String, String> = HashMap::new();
@@ -178,7 +176,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
     let transfer = common::transfer::Transfer {
         sender: params.party.clone(),
         receiver: params.party.clone(), // Self-transfer triggers consolidation
-        amount: amount_str,
+        amount: total_amount,
         instrument_id: params.instrument_id,
         requested_at: chrono::Utc::now().to_rfc3339(),
         execute_before: chrono::Utc::now()

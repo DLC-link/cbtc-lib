@@ -40,21 +40,19 @@ pub async fn submit_from_csv(params: Params) -> Result<(), String> {
         .map_err(|e| format!("Failed to read CSV file: {}", e))?;
 
     let mut recipients = Vec::new();
-    let mut total_amount = 0.0;
+    let mut total_amount = common::decimal::DamlDecimal::ZERO;
 
     for result in reader.deserialize() {
         let record: CsvRecord = result.map_err(|e| format!("Failed to parse CSV record: {}", e))?;
 
-        // Parse amount for validation
-        let amount_value = record
-            .amount
-            .parse::<f64>()
+        // Parse amount to DamlDecimal for validation
+        let amount = common::decimal::DamlDecimal::parse(&record.amount)
             .map_err(|e| format!("Invalid amount '{}': {}", record.amount, e))?;
-        total_amount += amount_value;
+        total_amount += amount;
 
         recipients.push(distribute::Recipient {
             receiver: record.receiver,
-            amount: record.amount,
+            amount,
         });
     }
 

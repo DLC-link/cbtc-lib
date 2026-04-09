@@ -89,9 +89,9 @@ async fn main() -> Result<(), String> {
         .filter(|h| h.instrument_id == "CBTC")
         .collect();
 
-    let total_cbtc: f64 = cbtc_holdings
+    let total_cbtc: cbtc::DamlDecimal = cbtc_holdings
         .iter()
-        .map(|h| h.amount.parse::<f64>().unwrap_or(0.0))
+        .map(|h| h.amount)
         .sum();
 
     println!("✓ Found {} CBTC holding(s)", cbtc_holdings.len());
@@ -207,9 +207,9 @@ async fn main() -> Result<(), String> {
     // Step 6: Submit withdrawal (burn CBTC)
     // For this example, let's try to withdraw a small amount
     let withdraw_amount = "0.001"; // 0.001 BTC
-    let withdraw_amount_f64: f64 = withdraw_amount.parse().unwrap();
+    let withdraw_amount_decimal = cbtc::DamlDecimal::parse(withdraw_amount).unwrap();
 
-    if total_cbtc < withdraw_amount_f64 {
+    if total_cbtc < withdraw_amount_decimal {
         println!(
             "⚠ Insufficient CBTC balance. You have {} but trying to withdraw {}",
             total_cbtc, withdraw_amount
@@ -223,14 +223,13 @@ async fn main() -> Result<(), String> {
     // Select holdings to burn - for simplicity, just use the first holding with enough balance
     // or combine multiple holdings
     let mut selected_holdings = Vec::new();
-    let mut selected_total = 0.0;
+    let mut selected_total = cbtc::DamlDecimal::ZERO;
 
     for holding in &cbtc_holdings {
-        let amount = holding.amount.parse::<f64>().unwrap_or(0.0);
         selected_holdings.push(holding.contract_id.clone());
-        selected_total += amount;
+        selected_total += holding.amount;
 
-        if selected_total >= withdraw_amount_f64 {
+        if selected_total >= withdraw_amount_decimal {
             break;
         }
     }
@@ -242,7 +241,7 @@ async fn main() -> Result<(), String> {
     );
 
     // Pre-check limits before submitting
-    check_limits("Withdraw", withdraw_amount_f64, &withdraw_account.limits)?;
+    check_limits("Withdraw", withdraw_amount_decimal, &withdraw_account.limits)?;
     println!("  Limit check passed");
 
     let updated_account = cbtc::mint_redeem::redeem::submit_withdraw(SubmitWithdrawParams {
@@ -253,7 +252,7 @@ async fn main() -> Result<(), String> {
         api_url: api_url.clone(),
         withdraw_account_contract_id: withdraw_account.contract_id.clone(),
         withdraw_account_template_id: withdraw_account.template_id.clone(),
-        amount: withdraw_amount.to_string(),
+        amount: withdraw_amount_decimal,
         holding_contract_ids: selected_holdings,
         credential_cids: Some(minter_credential_cids),
     })

@@ -40,9 +40,11 @@ async fn main() -> Result<(), String> {
     let mut recipients = Vec::new();
     for result in reader.deserialize() {
         let record: CsvRecord = result.map_err(|e| format!("Failed to parse CSV record: {}", e))?;
+        let amount = cbtc::DamlDecimal::parse(&record.amount)
+            .map_err(|e| format!("Invalid amount '{}': {}", record.amount, e))?;
         recipients.push(cbtc::distribute::Recipient {
             receiver: record.receiver,
-            amount: record.amount,
+            amount,
         });
     }
 

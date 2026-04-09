@@ -1,29 +1,27 @@
 use canton_api_client::models::JsActiveContract;
+use common::decimal::DamlDecimal;
 use serde::{Deserialize, Serialize};
 
 /// Transaction limits for deposit/withdraw operations.
-/// Amounts are stored as strings to preserve decimal precision (Canton uses Numeric 10).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Limits {
     #[serde(rename = "minAmount")]
-    pub min_amount: Option<String>,
+    pub min_amount: Option<DamlDecimal>,
     #[serde(rename = "maxAmount")]
-    pub max_amount: Option<String>,
+    pub max_amount: Option<DamlDecimal>,
 }
 
 /// Check if an amount is within the account's limits.
 /// Returns Ok(()) if within limits or no limits set,
 /// Err with a descriptive message otherwise.
-pub fn check_limits(operation: &str, amount: f64, limits: &Option<Limits>) -> Result<(), String> {
-    if !amount.is_finite() {
-        return Err(format!("{} amount is not a finite number", operation));
-    }
+pub fn check_limits(
+    operation: &str,
+    amount: DamlDecimal,
+    limits: &Option<Limits>,
+) -> Result<(), String> {
     if let Some(lim) = limits {
         if let Some(min) = &lim.min_amount {
-            let min_val: f64 = min
-                .parse()
-                .map_err(|e| format!("Invalid min_amount: {}", e))?;
-            if amount < min_val {
+            if amount < *min {
                 return Err(format!(
                     "{} amount {} is below minimum {}",
                     operation, amount, min
@@ -31,10 +29,7 @@ pub fn check_limits(operation: &str, amount: f64, limits: &Option<Limits>) -> Re
             }
         }
         if let Some(max) = &lim.max_amount {
-            let max_val: f64 = max
-                .parse()
-                .map_err(|e| format!("Invalid max_amount: {}", e))?;
-            if amount > max_val {
+            if amount > *max {
                 return Err(format!(
                     "{} amount {} exceeds maximum {}",
                     operation, amount, max
@@ -184,7 +179,7 @@ pub struct WithdrawAccount {
     pub operator: String,
     pub registrar: String,
     pub destination_btc_address: String,
-    pub pending_balance: String,
+    pub pending_balance: DamlDecimal,
     pub created_event_blob: String,
     pub limits: Option<Limits>,
 }
@@ -228,11 +223,9 @@ impl WithdrawAccount {
             .ok_or("Missing 'destinationBtcAddress' field")?
             .to_string();
 
-        let pending_balance = args
-            .get("pendingBalance")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0.0")
-            .to_string();
+        let pending_balance = DamlDecimal::parse(
+            args.get("pendingBalance").and_then(|v| v.as_str()).unwrap_or("0")
+        ).map_err(|e| format!("Invalid 'pendingBalance' field: {}", e))?;
 
         let limits = match args.get("limits") {
             None => None,
@@ -266,7 +259,7 @@ pub struct WithdrawRequest {
     pub contract_id: String,
     pub owner: String,
     pub registrar: String,
-    pub amount: String,
+    pub amount: DamlDecimal,
     pub destination_btc_address: String,
     pub btc_tx_id: String,
     pub source_account_id: Option<String>,
@@ -297,11 +290,9 @@ impl WithdrawRequest {
             .ok_or("Missing 'registrar' field")?
             .to_string();
 
-        let amount = args
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'amount' field")?
-            .to_string();
+        let amount = DamlDecimal::parse(
+            args.get("amount").and_then(|v| v.as_str()).ok_or("Missing 'amount' field")?
+        ).map_err(|e| format!("Invalid 'amount' field: {}", e))?;
 
         let destination_btc_address = args
             .get("destinationBtcAddress")
@@ -337,7 +328,7 @@ impl WithdrawRequest {
 #[derive(Debug, Clone)]
 pub struct Holding {
     pub contract_id: String,
-    pub amount: String,
+    pub amount: DamlDecimal,
     pub instrument_id: String,
     pub owner: String,
 }
@@ -355,11 +346,9 @@ impl Holding {
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
-        let amount = args
-            .get("amount")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing 'amount' field")?
-            .to_string();
+        let amount = DamlDecimal::parse(
+            args.get("amount").and_then(|v| v.as_str()).ok_or("Missing 'amount' field")?
+        ).map_err(|e| format!("Invalid 'amount' field: {}", e))?;
 
         let instrument = args
             .get("instrument")
@@ -404,27 +393,31 @@ impl Holding {
 mod tests {
     use super::*;
 
+    fn d(s: &str) -> DamlDecimal {
+        DamlDecimal::parse(s).unwrap()
+    }
+
     #[test]
     fn test_check_limits_none() {
-        assert!(check_limits("Withdraw", 1.0, &None).is_ok());
+        assert!(check_limits("Withdraw", d("1"), &None).is_ok());
     }
 
     #[test]
     fn test_check_limits_within_bounds() {
         let limits = Some(Limits {
-            min_amount: Some("0.001".to_string()),
-            max_amount: Some("10.0".to_string()),
+            min_amount: Some(d("0.001")),
+            max_amount: Some(d("10")),
         });
-        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
+        assert!(check_limits("Withdraw", d("1"), &limits).is_ok());
     }
 
     #[test]
     fn test_check_limits_below_min() {
         let limits = Some(Limits {
-            min_amount: Some("0.01".to_string()),
+            min_amount: Some(d("0.01")),
             max_amount: None,
         });
-        let result = check_limits("Withdraw", 0.001, &limits);
+        let result = check_limits("Withdraw", d("0.001"), &limits);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("below minimum"));
     }
@@ -433,9 +426,9 @@ mod tests {
     fn test_check_limits_above_max() {
         let limits = Some(Limits {
             min_amount: None,
-            max_amount: Some("5.0".to_string()),
+            max_amount: Some(d("5")),
         });
-        let result = check_limits("Deposit", 10.0, &limits);
+        let result = check_limits("Deposit", d("10"), &limits);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("exceeds maximum"));
     }
@@ -443,39 +436,59 @@ mod tests {
     #[test]
     fn test_check_limits_at_boundary() {
         let limits = Some(Limits {
-            min_amount: Some("1.0".to_string()),
-            max_amount: Some("10.0".to_string()),
+            min_amount: Some(d("1")),
+            max_amount: Some(d("10")),
         });
-        assert!(check_limits("Withdraw", 1.0, &limits).is_ok());
-        assert!(check_limits("Withdraw", 10.0, &limits).is_ok());
+        assert!(check_limits("Withdraw", d("1"), &limits).is_ok());
+        assert!(check_limits("Withdraw", d("10"), &limits).is_ok());
     }
 
     #[test]
     fn test_check_limits_only_min() {
         let limits = Some(Limits {
-            min_amount: Some("0.5".to_string()),
+            min_amount: Some(d("0.5")),
             max_amount: None,
         });
-        assert!(check_limits("Withdraw", 100.0, &limits).is_ok());
+        assert!(check_limits("Withdraw", d("100"), &limits).is_ok());
     }
 
     #[test]
     fn test_check_limits_only_max() {
         let limits = Some(Limits {
             min_amount: None,
-            max_amount: Some("5.0".to_string()),
+            max_amount: Some(d("5")),
         });
-        assert!(check_limits("Withdraw", 0.0001, &limits).is_ok());
+        assert!(check_limits("Withdraw", d("0.0001"), &limits).is_ok());
     }
 
     #[test]
-    fn test_check_limits_invalid_string() {
-        let limits = Some(Limits {
-            min_amount: Some("not_a_number".to_string()),
-            max_amount: None,
-        });
-        let result = check_limits("Withdraw", 1.0, &limits);
+    fn test_limits_deserialize_rejects_invalid_string() {
+        let result: Result<Limits, _> = serde_json::from_value(serde_json::json!({
+            "minAmount": "not_a_number",
+            "maxAmount": null
+        }));
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid min_amount"));
+    }
+
+    #[test]
+    fn test_limits_deserialize_valid() {
+        let limits: Limits = serde_json::from_value(serde_json::json!({
+            "minAmount": "0.001",
+            "maxAmount": "10.0"
+        }))
+        .unwrap();
+        assert_eq!(limits.min_amount, Some(d("0.001")));
+        assert_eq!(limits.max_amount, Some(d("10.0")));
+    }
+
+    #[test]
+    fn test_limits_deserialize_null_fields() {
+        let limits: Limits = serde_json::from_value(serde_json::json!({
+            "minAmount": null,
+            "maxAmount": null
+        }))
+        .unwrap();
+        assert_eq!(limits.min_amount, None);
+        assert_eq!(limits.max_amount, None);
     }
 }

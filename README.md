@@ -1,6 +1,6 @@
 # Canton CBTC Token Library
 
-A Rust library for interacting with the Canton blockchain to manage CBTC (Canton Bitcoin) tokens using the Canton Token Standard (CIP-0056).
+A Rust library for interacting with the Canton blockchain to manage CBTC tokens using the Canton Token Standard (CIP-0056).
 
 ## Features
 
@@ -199,7 +199,7 @@ BITSAFE_API_URL=https://api.testnet.bitsafe.finance
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262
 REGISTRY_URL=https://api.utilities.digitalasset.com
-BITSAFE_API_URL=https://api.bitsafe.finance
+BITSAFE_API_URL=https://api.mainnet.bitsafe.finance
 ```
 
 ---
@@ -362,7 +362,7 @@ See [redeem_cbtc_flow.rs](examples/redeem_cbtc_flow.rs) for complete code.
 To use mint/redeem functionality, add these environment variables:
 
 ```bash
-BITSAFE_API_URL=https://api.devnet.bitsafe.finance  # or api.testnet.bitsafe.finance / api.bitsafe.finance
+BITSAFE_API_URL=https://api.devnet.bitsafe.finance  # or api.testnet.bitsafe.finance / api.mainnet.bitsafe.finance
 ```
 
 ### Understanding UTXO Management

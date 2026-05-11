@@ -336,8 +336,8 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "0.4.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.4.0#c5d32f4412b9d84626abc636a7f5578b948ef696"
+version = "0.5.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.5.0#e5b459f62715ee903d9cd8fdd0c4411252356e4e"
 dependencies = [
  "canton-api-client",
  "rust_decimal",
@@ -1175,8 +1175,8 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "0.4.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.4.0#c5d32f4412b9d84626abc636a7f5578b948ef696"
+version = "0.5.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.5.0#e5b459f62715ee903d9cd8fdd0c4411252356e4e"
 dependencies = [
  "base64",
  "reqwest",
@@ -1186,8 +1186,8 @@ dependencies = [
 
 [[package]]
 name = "ledger"
-version = "0.4.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.4.0#c5d32f4412b9d84626abc636a7f5578b948ef696"
+version = "0.5.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.5.0#e5b459f62715ee903d9cd8fdd0c4411252356e4e"
 dependencies = [
  "base64",
  "canton-api-client",
@@ -1591,8 +1591,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "registry"
-version = "0.4.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.4.0#c5d32f4412b9d84626abc636a7f5578b948ef696"
+version = "0.5.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.5.0#e5b459f62715ee903d9cd8fdd0c4411252356e4e"
 dependencies = [
  "common",
  "reqwest",

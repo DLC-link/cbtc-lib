@@ -120,7 +120,7 @@ pub async fn submit(params: Params) -> Result<(), String> {
         ..Default::default()
     };
 
-    ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
+    ledger::submit::wait_for_transaction(ledger::submit::Params {
         ledger_host: params.ledger_host,
         access_token: params.access_token,
         request: submission_request,
@@ -308,7 +308,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
             ..Default::default()
         };
 
-        match ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
+        match ledger::submit::wait_for_transaction(ledger::submit::Params {
             ledger_host: params.ledger_host.clone(),
             access_token: auth.access_token.clone(),
             request: submission_request,

@@ -207,7 +207,7 @@ async fn main() -> Result<(), String> {
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
-    let base_steps: usize = 18;
+    let base_steps: usize = 20;
     let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
 
     if sender.party_id == receiver.party_id {
@@ -303,14 +303,83 @@ async fn main() -> Result<(), String> {
         ))
     });
 
-    // Step 4: Fetch account rules from Bitsafe API
+    // Step 4: Accept free credential offer (gated by RUN_CREDENTIAL_ACCEPT)
+    // Exercises credentials.rs:411 parser path. Off by default — accepting a free
+    // credential creates a persistent on-ledger contract with no archive choice,
+    // so repeated test runs would accumulate state. Set RUN_CREDENTIAL_ACCEPT=1
+    // to opt in (same pattern as FAUCET_URL for the optional faucet steps).
+    {
+        step += 1;
+        print_step(step, total_steps, "Accept free credential offer (sender)");
+        if env::var("RUN_CREDENTIAL_ACCEPT").ok().as_deref() != Some("1") {
+            print_skip("(RUN_CREDENTIAL_ACCEPT not set)");
+            passed += 1;
+        } else {
+            let token = authenticate(&sender)
+                .await
+                .map_err(|e| format!("Auth failed: {}", e))?;
+
+            let user_service = cbtc::credentials::find_user_service(
+                cbtc::credentials::FindUserServiceParams {
+                    ledger_host: sender.ledger_host.clone(),
+                    party: sender.party_id.clone(),
+                    access_token: token.clone(),
+                },
+            )
+            .await
+            .map_err(|e| format!("Failed to find UserService: {}", e))?;
+
+            let offers = cbtc::credentials::list_credential_offers(
+                cbtc::credentials::ListCredentialOffersParams {
+                    ledger_host: sender.ledger_host.clone(),
+                    party: sender.party_id.clone(),
+                    access_token: token.clone(),
+                },
+            )
+            .await
+            .map_err(|e| format!("Failed to list credential offers: {}", e))?;
+
+            match offers.first() {
+                None => {
+                    print_skip("(no credential offers available)");
+                    passed += 1;
+                }
+                Some(offer) => {
+                    match cbtc::credentials::accept_credential_offer(
+                        cbtc::credentials::AcceptCredentialOfferParams {
+                            ledger_host: sender.ledger_host.clone(),
+                            party: sender.party_id.clone(),
+                            access_token: token,
+                            user_service_template_id: user_service.template_id.clone(),
+                            user_service_contract_id: user_service.contract_id.clone(),
+                            credential_offer_cid: offer.contract_id.clone(),
+                        },
+                    )
+                    .await
+                    {
+                        Ok(credential) => {
+                            print_ok(&format!("(credential contract_id: {})", credential.contract_id));
+                            passed += 1;
+                        }
+                        Err(e) => {
+                            print_fail(&e);
+                            print_summary(passed, total_steps, start.elapsed().as_secs_f64());
+                            return Err(format!("Failed at step {}: {}", step, e));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 5: Fetch account rules from Bitsafe API
     run_step!("Fetch account rules", async {
         account_rules =
             Some(cbtc::mint_redeem::attestor::get_account_contract_rules(&bitsafe_api_url).await?);
         Ok::<String, String>(format!("(da_rules + wa_rules)"))
     });
 
-    // Step 5: Create deposit account (sender)
+    // Step 6: Create deposit account (sender)
     run_step!("Create deposit account", async {
         let token = authenticate(&sender).await?;
         let rules = account_rules.as_ref().unwrap();
@@ -335,7 +404,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(msg)
     });
 
-    // Step 6: Get Bitcoin address for deposit account
+    // Step 7: Get Bitcoin address for deposit account
     run_step!("Get deposit BTC address", async {
         let da = deposit_account.as_ref().unwrap();
         let btc_address = cbtc::mint_redeem::mint::get_bitcoin_address(
@@ -348,7 +417,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({})", btc_address))
     });
 
-    // Step 7: Create withdraw account (sender)
+    // Step 8: Create withdraw account (sender)
     run_step!("Create withdraw account", async {
         let token = authenticate(&sender).await?;
         let rules = account_rules.as_ref().unwrap();
@@ -374,7 +443,7 @@ async fn main() -> Result<(), String> {
     // Faucet steps (conditional, only if FAUCET_URL is set)
     // Faucet API: https://github.com/DLC-link/cbtc-faucet
     if let Some(ref faucet_url) = faucet_url {
-        // Step 8: Request CBTC from faucet
+        // Step 9: Request CBTC from faucet
         run_step!("Request CBTC from faucet", async {
             // Capture baseline incoming count before faucet request
             let token = authenticate(&sender).await?;
@@ -423,7 +492,7 @@ async fn main() -> Result<(), String> {
             ))
         });
 
-        // Step 9: Poll for incoming faucet transfer
+        // Step 10: Poll for incoming faucet transfer
         run_step!("Poll for faucet transfer", async {
             let mut attempts = 0;
             let max_attempts = 10;
@@ -451,7 +520,7 @@ async fn main() -> Result<(), String> {
             Ok::<String, String>(format!("(found after {}s)", attempts * 3))
         });
 
-        // Step 10: Accept faucet transfer
+        // Step 11: Accept faucet transfer
         run_step!("Accept faucet transfer", async {
             let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
                 receiver_party: sender.party_id.clone(),
@@ -471,10 +540,10 @@ async fn main() -> Result<(), String> {
         });
     }
 
-    // Note: Step comments below use no-faucet numbering (8-18).
-    // When FAUCET_URL is set, runtime step numbers shift by +3 (becoming 11-21).
+    // Note: Step comments below use no-faucet numbering (9-20).
+    // When FAUCET_URL is set, runtime step numbers shift by +3 (becoming 12-23).
 
-    // Step 8: Send CBTC sender -> receiver
+    // Step 9: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;
         cbtc::transfer::submit(cbtc::transfer::Params {
@@ -504,7 +573,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
-    // Step 9: List outgoing offers (sender)
+    // Step 10: List outgoing offers (sender)
     run_step!("List outgoing offers (sender)", async {
         let token = authenticate(&sender).await?;
         let offers = cbtc::utils::fetch_outgoing_transfers(
@@ -519,7 +588,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} pending)", offers.len()))
     });
 
-    // Step 10: List incoming offers (receiver)
+    // Step 11: List incoming offers (receiver)
     run_step!("List incoming offers (receiver)", async {
         let token = authenticate(&receiver).await?;
         let offers = cbtc::utils::fetch_incoming_transfers(
@@ -534,7 +603,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} pending)", offers.len()))
     });
 
-    // Step 11: Accept transfers (receiver)
+    // Step 12: Accept transfers (receiver)
     run_step!("Accept transfers (receiver)", async {
         let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
             receiver_party: receiver.party_id.clone(),
@@ -554,13 +623,13 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 
-    // Step 12: Check receiver balance
+    // Step 13: Check receiver balance
     run_step!("Check receiver balance", async {
         let (balance, utxos) = check_balance(&receiver).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
-    // Step 13: Return CBTC receiver -> sender
+    // Step 14: Return CBTC receiver -> sender
     run_step!("Return CBTC to sender", async {
         let token = authenticate(&receiver).await?;
         cbtc::transfer::submit(cbtc::transfer::Params {
@@ -590,7 +659,7 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
-    // Step 14: Accept transfers (sender)
+    // Step 15: Accept transfers (sender)
     run_step!("Accept transfers (sender)", async {
         let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
             receiver_party: sender.party_id.clone(),
@@ -610,14 +679,14 @@ async fn main() -> Result<(), String> {
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 
-    // Step 15: Check sender balance (pre-withdraw)
+    // Step 16: Check sender balance (pre-withdraw)
     run_step!("Check sender balance", async {
         let (balance, utxos) = check_balance(&sender).await?;
         pre_withdraw_balance = balance;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
-    // Step 16: Submit withdrawal (sender)
+    // Step 17: Submit withdrawal (sender)
     run_step!("Submit withdrawal", async {
         let token = authenticate(&sender).await?;
         let wa = withdraw_account.as_ref().unwrap();
@@ -679,7 +748,7 @@ async fn main() -> Result<(), String> {
         ))
     });
 
-    // Step 17: Check sender balance (post-withdraw)
+    // Step 18: Check sender balance (post-withdraw)
     run_step!("Check balance (post-withdraw)", async {
         let (balance, utxos) = check_balance(&sender).await?;
         if balance >= pre_withdraw_balance {
@@ -696,7 +765,7 @@ async fn main() -> Result<(), String> {
         ))
     });
 
-    // Step 18: Consolidate UTXOs (sender)
+    // Step 19: Consolidate UTXOs (sender)
     {
         step += 1;
         print_step(step, total_steps, "Consolidate UTXOs (sender)");
@@ -731,6 +800,70 @@ async fn main() -> Result<(), String> {
                 print_fail(&e);
                 print_summary(passed, total_steps, start.elapsed().as_secs_f64());
                 return Err(format!("Failed at step {}: {}", step, e));
+            }
+        }
+    }
+
+    // Step 20: Split sender holding (exercises split.rs parser path end-to-end)
+    {
+        step += 1;
+        print_step(step, total_steps, "Split sender holding");
+        let token = authenticate(&sender)
+            .await
+            .map_err(|e| format!("Auth failed: {}", e))?;
+
+        // List current holdings; pick the first one to split. Skip if none available.
+        let holdings = cbtc::mint_redeem::redeem::list_holdings(
+            cbtc::mint_redeem::redeem::ListHoldingsParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                access_token: token.clone(),
+            },
+        )
+        .await
+        .map_err(|e| format!("Failed to list holdings for split: {}", e))?;
+
+        match holdings.first() {
+            None => {
+                print_skip("(no holdings available to split)");
+                passed += 1;
+            }
+            Some(holding) => {
+                // Split the holding into one output worth half its value; the rest becomes change.
+                let half = holding.amount.clone() / cbtc::DamlDecimal::parse("2").unwrap();
+
+                let split_params = cbtc::split::Params {
+                    party: sender.party_id.clone(),
+                    // InstrumentId is { admin, id } — Holding only carries `id` as a String,
+                    // so reconstruct using decentralized_party_id as admin (same pattern as
+                    // the existing transfer steps in this file).
+                    instrument_id: common::transfer::InstrumentId {
+                        admin: decentralized_party_id.clone(),
+                        id: "CBTC".to_string(),
+                    },
+                    input_holding_cids: vec![holding.contract_id.clone()],
+                    amounts: vec![half],
+                    ledger_host: sender.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                };
+
+                match cbtc::split::submit(split_params).await {
+                    Ok(result) => {
+                        print_ok(&format!(
+                            "({} output(s), {} change UTXO(s))",
+                            result.output_holding_cids.len(),
+                            result.change_holding_cids.len()
+                        ));
+                        passed += 1;
+                    }
+                    Err(e) => {
+                        print_fail(&e);
+                        print_summary(passed, total_steps, start.elapsed().as_secs_f64());
+                        return Err(format!("Failed at step {}: {}", step, e));
+                    }
+                }
             }
         }
     }

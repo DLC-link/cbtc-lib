@@ -109,7 +109,7 @@ async fn split_once(
         ..Default::default()
     };
 
-    let response_raw = ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
+    let response_raw = ledger::submit::wait_for_transaction(ledger::submit::Params {
         ledger_host,
         access_token,
         request: submission_request,
@@ -120,14 +120,14 @@ async fn split_once(
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {e}"))?;
 
-    // Find the ExercisedTreeEvent in eventsById
-    let events_by_id = response["transactionTree"]["eventsById"]
-        .as_object()
-        .ok_or("Failed to find eventsById")?;
+    // Find the ExercisedEvent in the flat events array
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events")?;
 
     let mut exercise_result = None;
-    for (_key, event) in events_by_id {
-        if let Some(exercised_event) = event.get("ExercisedTreeEvent") {
+    for event in events {
+        if let Some(exercised_event) = event.get("ExercisedEvent") {
             if let Some(result) = exercised_event["value"]["exerciseResult"].as_object() {
                 exercise_result = Some(result);
                 break;
@@ -135,7 +135,7 @@ async fn split_once(
         }
     }
 
-    let exercise_result = exercise_result.ok_or("Failed to find ExercisedTreeEvent")?;
+    let exercise_result = exercise_result.ok_or("Failed to find ExercisedEvent")?;
 
     // Extract receiverHoldingCids from output.value.receiverHoldingCids
     let output_cid = exercise_result["output"]["value"]["receiverHoldingCids"][0]

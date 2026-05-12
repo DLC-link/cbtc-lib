@@ -234,7 +234,7 @@ pub async fn submit(mut params: Params) -> Result<(), String> {
         ..Default::default()
     };
 
-    ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
+    ledger::submit::wait_for_transaction(ledger::submit::Params {
         ledger_host: params.ledger_host,
         access_token: params.access_token,
         request: submission_request,
@@ -475,7 +475,7 @@ pub async fn submit_sequential_chained(
         };
 
         // Submit to ledger with fresh token
-        match ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
+        match ledger::submit::wait_for_transaction(ledger::submit::Params {
             ledger_host: params.ledger_host.clone(),
             access_token: current_token,
             request: submission_request,
@@ -596,21 +596,21 @@ pub fn parse_transfer_response(
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
     // Extract update_id from the root level
-    let update_id = response["transactionTree"]["updateId"]
+    let update_id = response["transaction"]["updateId"]
         .as_str()
         .ok_or("Failed to find updateId in response")?
         .to_string();
 
-    let events_by_id = response["transactionTree"]["eventsById"]
-        .as_object()
-        .ok_or("Failed to find eventsById in response")?;
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events in response")?;
 
-    // Find the ExercisedTreeEvent with TransferFactory_Transfer choice
+    // Find the ExercisedEvent with TransferFactory_Transfer choice
     let mut sender_change_cids = None;
     let mut transfer_offer_cid = None;
 
-    for (_key, event) in events_by_id {
-        if let Some(exercised_event) = event.get("ExercisedTreeEvent") {
+    for event in events {
+        if let Some(exercised_event) = event.get("ExercisedEvent") {
             let choice = exercised_event["value"]["choice"].as_str();
             if choice == Some("TransferFactory_Transfer") {
                 // Extract senderChangeCids

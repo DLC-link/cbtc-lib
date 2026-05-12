@@ -207,7 +207,7 @@ async fn main() -> Result<(), String> {
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
-    let base_steps: usize = 19;
+    let base_steps: usize = 20;
     let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
 
     if sender.party_id == receiver.party_id {
@@ -302,6 +302,73 @@ async fn main() -> Result<(), String> {
             minter_credential_cids.len()
         ))
     });
+
+    // Step 4: Accept free credential offer (gated by RUN_CREDENTIAL_ACCEPT)
+    // Exercises credentials.rs:411 parser path. Off by default — accepting a free
+    // credential creates a persistent on-ledger contract with no archive choice,
+    // so repeated test runs would accumulate state. Set RUN_CREDENTIAL_ACCEPT=1
+    // to opt in (same pattern as FAUCET_URL for the optional faucet steps).
+    {
+        step += 1;
+        print_step(step, total_steps, "Accept free credential offer (sender)");
+        if env::var("RUN_CREDENTIAL_ACCEPT").ok().as_deref() != Some("1") {
+            print_skip("(RUN_CREDENTIAL_ACCEPT not set)");
+        } else {
+            let token = authenticate(&sender)
+                .await
+                .map_err(|e| format!("Auth failed: {}", e))?;
+
+            let user_service = cbtc::credentials::find_user_service(
+                cbtc::credentials::FindUserServiceParams {
+                    ledger_host: sender.ledger_host.clone(),
+                    party: sender.party_id.clone(),
+                    access_token: token.clone(),
+                },
+            )
+            .await
+            .map_err(|e| format!("Failed to find UserService: {}", e))?;
+
+            let offers = cbtc::credentials::list_credential_offers(
+                cbtc::credentials::ListCredentialOffersParams {
+                    ledger_host: sender.ledger_host.clone(),
+                    party: sender.party_id.clone(),
+                    access_token: token.clone(),
+                },
+            )
+            .await
+            .map_err(|e| format!("Failed to list credential offers: {}", e))?;
+
+            match offers.first() {
+                None => {
+                    print_skip("(no credential offers available)");
+                }
+                Some(offer) => {
+                    match cbtc::credentials::accept_credential_offer(
+                        cbtc::credentials::AcceptCredentialOfferParams {
+                            ledger_host: sender.ledger_host.clone(),
+                            party: sender.party_id.clone(),
+                            access_token: token,
+                            user_service_template_id: user_service.template_id.clone(),
+                            user_service_contract_id: user_service.contract_id.clone(),
+                            credential_offer_cid: offer.contract_id.clone(),
+                        },
+                    )
+                    .await
+                    {
+                        Ok(credential) => {
+                            print_ok(&format!("(credential contract_id: {})", credential.contract_id));
+                            passed += 1;
+                        }
+                        Err(e) => {
+                            print_fail(&e);
+                            print_summary(passed, total_steps, start.elapsed().as_secs_f64());
+                            return Err(format!("Failed at step {}: {}", step, e));
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Step 4: Fetch account rules from Bitsafe API
     run_step!("Fetch account rules", async {

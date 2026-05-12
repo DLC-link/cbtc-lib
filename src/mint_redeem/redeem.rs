@@ -220,8 +220,9 @@ pub async fn create_withdraw_account(
     let contract_id =
         created_contract_id.ok_or("No WithdrawAccount was created in the transaction")?;
 
-    // Re-fetch from active contracts to get the createdEventBlob
-    // (the JSON Ledger API submit response doesn't include createdEventBlob; we re-fetch from active contracts)
+    // Re-fetch from active contracts for the canonical WithdrawAccount shape.
+    // (The flat submit response does include createArgument and createdEventBlob, so
+    // this round-trip could be optimized away in a follow-up; see credentials.rs.)
     let accounts = list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: params.ledger_host,
         party: params.party,

@@ -568,26 +568,35 @@ curl -X POST $REGISTRY_URL/api/token-standard/v0/registrars/$DECENTRALIZED_PARTY
   -d '{"meta":{}}' | jq
 
 # Submit acceptance (use disclosed contracts from above)
-curl -X POST $LEDGER_HOST/v2/commands/submit-and-wait-for-transaction-tree \
+curl -X POST $LEDGER_HOST/v2/commands/submit-and-wait-for-transaction \
   -H "Authorization: Bearer $RECEIVER_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "commands": [{
-      "ExerciseCommand": {
-        "templateId": "#splice-api-token-transfer-instruction-v1:Splice.Api.Token.TransferInstructionV1:TransferInstruction",
-        "contractId": "'$TRANSFER_OFFER_CID'",
-        "choice": "TransferInstruction_Accept",
-        "choiceArgument": {
-          "extraArgs": {
-            "context": {"values": '$CHOICE_CONTEXT_VALUES'},
-            "meta": {"values": {}}
+    "commands": {
+      "commands": [{
+        "ExerciseCommand": {
+          "templateId": "#splice-api-token-transfer-instruction-v1:Splice.Api.Token.TransferInstructionV1:TransferInstruction",
+          "contractId": "'$TRANSFER_OFFER_CID'",
+          "choice": "TransferInstruction_Accept",
+          "choiceArgument": {
+            "extraArgs": {
+              "context": {"values": '$CHOICE_CONTEXT_VALUES'},
+              "meta": {"values": {}}
+            }
           }
         }
+      }],
+      "commandId": "'$(uuidgen)'",
+      "actAs": ["'$RECEIVER_PARTY'"],
+      "disclosedContracts": '$DISCLOSED_CONTRACTS'
+    },
+    "transactionFormat": {
+      "transactionShape": "TRANSACTION_SHAPE_LEDGER_EFFECTS",
+      "eventFormat": {
+        "filtersByParty": {"'$RECEIVER_PARTY'": {}},
+        "verbose": true
       }
-    }],
-    "commandId": "'$(uuidgen)'",
-    "actAs": ["'$RECEIVER_PARTY'"],
-    "disclosedContracts": '$DISCLOSED_CONTRACTS'
+    }
   }' | jq
 ```
 

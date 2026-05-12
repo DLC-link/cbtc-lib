@@ -243,7 +243,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
         ..Default::default()
     };
 
-    let response_raw = ledger::submit::wait_for_transaction_tree(ledger::submit::Params {
+    let response_raw = ledger::submit::wait_for_transaction(ledger::submit::Params {
         ledger_host: params.ledger_host,
         access_token: params.access_token,
         request: submission_request,
@@ -254,14 +254,14 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {e}"))?;
 
-    // Find the ExercisedTreeEvent in eventsById
-    let events_by_id = response["transactionTree"]["eventsById"]
-        .as_object()
-        .ok_or("Failed to find eventsById")?;
+    // Find the ExercisedEvent in the flat events array
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events")?;
 
     let mut result_cids = Vec::new();
-    for (_key, event) in events_by_id {
-        if let Some(exercised_event) = event.get("ExercisedTreeEvent") {
+    for event in events {
+        if let Some(exercised_event) = event.get("ExercisedEvent") {
             if let Some(result) = exercised_event["value"]["exerciseResult"].as_object() {
                 // Extract receiverHoldingCids
                 if let Some(receiver_cids) =

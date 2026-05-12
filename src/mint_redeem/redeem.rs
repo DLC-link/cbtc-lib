@@ -221,7 +221,7 @@ pub async fn create_withdraw_account(
         created_contract_id.ok_or("No WithdrawAccount was created in the transaction")?;
 
     // Re-fetch from active contracts to get the createdEventBlob
-    // (the deprecated submit-and-wait-for-transaction-tree endpoint doesn't return it)
+    // (the JSON Ledger API submit response doesn't include createdEventBlob; we re-fetch from active contracts)
     let accounts = list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: params.ledger_host,
         party: params.party,

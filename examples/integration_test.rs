@@ -207,7 +207,7 @@ async fn main() -> Result<(), String> {
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
-    let base_steps: usize = 18;
+    let base_steps: usize = 19;
     let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
 
     if sender.party_id == receiver.party_id {
@@ -731,6 +731,69 @@ async fn main() -> Result<(), String> {
                 print_fail(&e);
                 print_summary(passed, total_steps, start.elapsed().as_secs_f64());
                 return Err(format!("Failed at step {}: {}", step, e));
+            }
+        }
+    }
+
+    // Step 19: Split sender holding (exercises split.rs parser path end-to-end)
+    {
+        step += 1;
+        print_step(step, total_steps, "Split sender holding");
+        let token = authenticate(&sender)
+            .await
+            .map_err(|e| format!("Auth failed: {}", e))?;
+
+        // List current holdings; pick the first one to split. Skip if none available.
+        let holdings = cbtc::mint_redeem::redeem::list_holdings(
+            cbtc::mint_redeem::redeem::ListHoldingsParams {
+                ledger_host: sender.ledger_host.clone(),
+                party: sender.party_id.clone(),
+                access_token: token.clone(),
+            },
+        )
+        .await
+        .map_err(|e| format!("Failed to list holdings for split: {}", e))?;
+
+        match holdings.first() {
+            None => {
+                print_skip("(no holdings available to split)");
+            }
+            Some(holding) => {
+                // Split the holding into one output worth half its value; the rest becomes change.
+                let half = holding.amount.clone() / cbtc::DamlDecimal::parse("2").unwrap();
+
+                let split_params = cbtc::split::Params {
+                    party: sender.party_id.clone(),
+                    // InstrumentId is { admin, id } — Holding only carries `id` as a String,
+                    // so reconstruct using decentralized_party_id as admin (same as the existing
+                    // transfer steps at integration_test.rs:485-488).
+                    instrument_id: common::transfer::InstrumentId {
+                        admin: decentralized_party_id.clone(),
+                        id: "CBTC".to_string(),
+                    },
+                    input_holding_cids: vec![holding.contract_id.clone()],
+                    amounts: vec![half],
+                    ledger_host: sender.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                };
+
+                match cbtc::split::submit(split_params).await {
+                    Ok(result) => {
+                        print_ok(&format!(
+                            "({} output(s), {} change UTXO(s))",
+                            result.output_holding_cids.len(),
+                            result.change_holding_cids.len()
+                        ));
+                        passed += 1;
+                    }
+                    Err(e) => {
+                        print_fail(&e);
+                        print_summary(passed, total_steps, start.elapsed().as_secs_f64());
+                        return Err(format!("Failed at step {}: {}", step, e));
+                    }
+                }
             }
         }
     }

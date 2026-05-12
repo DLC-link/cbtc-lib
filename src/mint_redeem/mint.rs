@@ -157,7 +157,7 @@ pub async fn create_deposit_account(
     };
 
     // Submit the transaction
-    let response_raw = submit::wait_for_transaction_tree(submit::Params {
+    let response_raw = submit::wait_for_transaction(submit::Params {
         ledger_host: params.ledger_host.clone(),
         access_token: params.access_token.clone(),
         request: submission_request,
@@ -168,13 +168,13 @@ pub async fn create_deposit_account(
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    let events_by_id = response["transactionTree"]["eventsById"]
-        .as_object()
-        .ok_or("Failed to find eventsById in transaction")?;
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events in transaction")?;
 
     let mut created_contract_id: Option<String> = None;
-    for (_key, event) in events_by_id {
-        if let Some(created_event) = event.get("CreatedTreeEvent") {
+    for event in events {
+        if let Some(created_event) = event.get("CreatedEvent") {
             let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
             if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
                 created_contract_id = Some(
@@ -192,7 +192,7 @@ pub async fn create_deposit_account(
         created_contract_id.ok_or("No DepositAccount was created in the transaction")?;
 
     // Re-fetch from active contracts to get the createdEventBlob
-    // (the deprecated submit-and-wait-for-transaction-tree endpoint doesn't return it)
+    // (the JSON Ledger API submit response doesn't include createdEventBlob; we re-fetch from active contracts)
     let accounts = list_deposit_accounts(ListDepositAccountsParams {
         ledger_host: params.ledger_host,
         party: params.party,

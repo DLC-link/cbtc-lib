@@ -262,7 +262,7 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
     let mut result_cids = Vec::new();
     for event in events {
         if let Some(exercised_event) = event.get("ExercisedEvent") {
-            if let Some(result) = exercised_event["value"]["exerciseResult"].as_object() {
+            if let Some(result) = exercised_event["exerciseResult"].as_object() {
                 // Extract receiverHoldingCids
                 if let Some(receiver_cids) =
                     result["output"]["value"]["receiverHoldingCids"].as_array()

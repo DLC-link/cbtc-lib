@@ -424,10 +424,10 @@ pub async fn accept_credential_offer(
 
     for event in events {
         if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
 
             if template_id.ends_with(":Utility.Credential.V0.Credential:Credential") {
-                let created_event_value = &created_event["value"];
+                let created_event_value = &created_event;
                 let active_contract = JsActiveContract {
                     created_event: Box::new(ledger::models::CreatedEvent {
                         contract_id: created_event_value["contractId"]

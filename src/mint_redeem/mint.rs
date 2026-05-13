@@ -175,10 +175,10 @@ pub async fn create_deposit_account(
     let mut created_contract_id: Option<String> = None;
     for event in events {
         if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
             if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
                 created_contract_id = Some(
-                    created_event["value"]["contractId"]
+                    created_event["contractId"]
                         .as_str()
                         .unwrap_or("")
                         .to_string(),

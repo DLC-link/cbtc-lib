@@ -611,11 +611,11 @@ pub fn parse_transfer_response(
 
     for event in events {
         if let Some(exercised_event) = event.get("ExercisedEvent") {
-            let choice = exercised_event["value"]["choice"].as_str();
+            let choice = exercised_event["choice"].as_str();
             if choice == Some("TransferFactory_Transfer") {
                 // Extract senderChangeCids
                 if let Some(change_array) =
-                    exercised_event["value"]["exerciseResult"]["senderChangeCids"].as_array()
+                    exercised_event["exerciseResult"]["senderChangeCids"].as_array()
                 {
                     sender_change_cids = Some(
                         change_array
@@ -626,7 +626,7 @@ pub fn parse_transfer_response(
                 }
 
                 // Extract transfer offer CID from the output
-                if let Some(output) = exercised_event["value"]["exerciseResult"]["output"]["value"]
+                if let Some(output) = exercised_event["exerciseResult"]["output"]["value"]
                     ["transferInstructionCid"]
                     .as_str()
                 {

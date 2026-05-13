@@ -128,7 +128,7 @@ async fn split_once(
     let mut exercise_result = None;
     for event in events {
         if let Some(exercised_event) = event.get("ExercisedEvent") {
-            if let Some(result) = exercised_event["value"]["exerciseResult"].as_object() {
+            if let Some(result) = exercised_event["exerciseResult"].as_object() {
                 exercise_result = Some(result);
                 break;
             }

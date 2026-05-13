@@ -204,10 +204,10 @@ pub async fn create_withdraw_account(
     let mut created_contract_id: Option<String> = None;
     for event in events {
         if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
             if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
                 created_contract_id = Some(
-                    created_event["value"]["contractId"]
+                    created_event["contractId"]
                         .as_str()
                         .unwrap_or("")
                         .to_string(),
@@ -474,12 +474,12 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
 
     for event in events {
         if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["value"]["templateId"].as_str().unwrap_or("");
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
 
             // Match by suffix since template ID can be in different formats
             if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
                 // Parse the created event as a JsActiveContract
-                let created_event_value = &created_event["value"];
+                let created_event_value = &created_event;
                 let active_contract = JsActiveContract {
                     created_event: Box::new(ledger::models::CreatedEvent {
                         contract_id: created_event_value["contractId"]

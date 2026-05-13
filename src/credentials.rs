@@ -2,7 +2,7 @@ use common::submission;
 use ledger::active_contracts;
 use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilter};
 use ledger::ledger_end;
-use ledger::models::JsActiveContract;
+use ledger::models::{Event, JsActiveContract, JsSubmitAndWaitForTransactionResponse};
 use ledger::submit;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -415,7 +415,7 @@ pub async fn accept_credential_offer(
     })
     .await?;
 
-    let response: serde_json::Value = serde_json::from_str(&response_raw)
+    let response: JsSubmitAndWaitForTransactionResponse = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
     parse_accept_credential_offer_response(&response)
@@ -429,31 +429,23 @@ pub async fn accept_credential_offer(
 /// reconstructs a `JsActiveContract` from its fields and delegates to
 /// `UserCredential::from_active_contract`.
 fn parse_accept_credential_offer_response(
-    response: &serde_json::Value,
+    response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<UserCredential, String> {
-    let events = response["transaction"]["events"]
-        .as_array()
+    let events = response
+        .transaction
+        .events
+        .as_ref()
         .ok_or("Failed to find events in transaction")?;
 
     for event in events {
-        if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["templateId"].as_str().unwrap_or("");
-
-            if template_id.ends_with(":Utility.Credential.V0.Credential:Credential") {
+        if let Event::EventOneOf1(wrapper) = event {
+            let created = &wrapper.created_event;
+            if created
+                .template_id
+                .ends_with(":Utility.Credential.V0.Credential:Credential")
+            {
                 let active_contract = JsActiveContract {
-                    created_event: Box::new(ledger::models::CreatedEvent {
-                        contract_id: created_event["contractId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        template_id: template_id.to_string(),
-                        create_argument: Some(Some(created_event["createArgument"].clone())),
-                        created_event_blob: created_event["createdEventBlob"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        ..Default::default()
-                    }),
+                    created_event: created.clone(),
                     reassignment_counter: 0,
                     synchronizer_id: String::new(),
                 };
@@ -567,6 +559,10 @@ mod parser_tests {
     //! `accept_credential_offer` (`parse_accept_credential_offer_response`).
 
     use super::*;
+    use crate::utils::test_fixtures::{
+        created_event_value, created_event_value_with_blob, exercised_event_value,
+        transaction_response,
+    };
     use serde_json::json;
 
     const CRED_TID: &str =
@@ -590,27 +586,22 @@ mod parser_tests {
 
     #[test]
     fn happy_path_builds_user_credential() {
-        let response = json!({
-            "transaction": {
-                "updateId": "tx-1",
-                "events": [
-                    {
-                        "ExercisedEvent": {
-                            "templateId": "pkg:Utility.Credential.App.V0.Service.User:UserService",
-                            "choice": "UserService_AcceptFreeCredentialOffer"
-                        }
-                    },
-                    {
-                        "CreatedEvent": {
-                            "templateId": CRED_TID,
-                            "contractId": "00cred-cid",
-                            "createArgument": credential_create_argument(),
-                            "createdEventBlob": "blob-base64"
-                        }
-                    }
-                ]
-            }
-        });
+        let response = transaction_response(
+            "tx-1",
+            json!([
+                exercised_event_value(
+                    "pkg:Utility.Credential.App.V0.Service.User:UserService",
+                    "UserService_AcceptFreeCredentialOffer",
+                    json!(null),
+                ),
+                created_event_value_with_blob(
+                    CRED_TID,
+                    "00cred-cid",
+                    credential_create_argument(),
+                    "blob-base64",
+                ),
+            ]),
+        );
 
         let cred = parse_accept_credential_offer_response(&response).unwrap();
         assert_eq!(cred.contract_id, "00cred-cid");
@@ -627,20 +618,14 @@ mod parser_tests {
     #[test]
     fn missing_match_returns_err() {
         // CreatedEvent present but for a different template.
-        let response = json!({
-            "transaction": {
-                "events": [
-                    {
-                        "CreatedEvent": {
-                            "templateId": "pkg:Some.Other:Template",
-                            "contractId": "00other",
-                            "createArgument": {},
-                            "createdEventBlob": ""
-                        }
-                    }
-                ]
-            }
-        });
+        let response = transaction_response(
+            "tx-x",
+            json!([created_event_value(
+                "pkg:Some.Other:Template",
+                "00other",
+                json!({}),
+            )]),
+        );
 
         let err = parse_accept_credential_offer_response(&response).unwrap_err();
         assert!(
@@ -651,7 +636,7 @@ mod parser_tests {
 
     #[test]
     fn missing_events_returns_err() {
-        let response = json!({ "transaction": {} });
+        let response = transaction_response("tx-x", json!(null));
         let err = parse_accept_credential_offer_response(&response).unwrap_err();
         assert!(
             err.contains("Failed to find events"),

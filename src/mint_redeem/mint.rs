@@ -8,6 +8,7 @@ use common::transfer::DisclosedContract;
 use ledger::active_contracts;
 use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilter};
 use ledger::ledger_end;
+use ledger::models::{Event, JsSubmitAndWaitForTransactionResponse};
 use ledger::submit;
 use serde_json::json;
 
@@ -99,19 +100,26 @@ pub async fn list_deposit_accounts(
 /// Walks `transaction.events`, finds the first `CreatedEvent` whose
 /// `templateId` ends with `:CBTC.DepositAccount:CBTCDepositAccount` and
 /// returns its `contractId`.
-fn parse_created_deposit_account_cid(response: &serde_json::Value) -> Result<String, String> {
-    let events = response["transaction"]["events"]
-        .as_array()
+///
+/// Accepts a typed `JsSubmitAndWaitForTransactionResponse` so that field-name
+/// typos (e.g., `templateID` vs `templateId`) are caught at compile time.
+fn parse_created_deposit_account_cid(
+    response: &JsSubmitAndWaitForTransactionResponse,
+) -> Result<String, String> {
+    let events = response
+        .transaction
+        .events
+        .as_ref()
         .ok_or("Failed to find events in transaction")?;
 
     for event in events {
-        if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["templateId"].as_str().unwrap_or("");
-            if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
-                return Ok(created_event["contractId"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string());
+        if let Event::EventOneOf1(wrapper) = event {
+            let created = &wrapper.created_event;
+            if created
+                .template_id
+                .ends_with(":CBTC.DepositAccount:CBTCDepositAccount")
+            {
+                return Ok(created.contract_id.clone());
             }
         }
     }
@@ -191,7 +199,7 @@ pub async fn create_deposit_account(
     .await?;
 
     // Parse the response to extract the contract ID of the created DepositAccount
-    let response: serde_json::Value = serde_json::from_str(&response_raw)
+    let response: JsSubmitAndWaitForTransactionResponse = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
     let contract_id = parse_created_deposit_account_cid(&response)?;
@@ -389,33 +397,32 @@ mod tests {
 mod parser_tests {
     //! Pure-data fixture tests for the flat-event parser used by
     //! `create_deposit_account`. These tests do not touch the network and
-    //! exercise only the JSON-walking logic that lives in
+    //! exercise only the typed-event matching logic in
     //! `parse_created_deposit_account_cid`.
 
     use super::*;
+    use crate::utils::test_fixtures::{
+        created_event_value, exercised_event_value, transaction_response,
+    };
     use serde_json::json;
 
     #[test]
     fn parses_contract_id_from_created_deposit_account_event() {
-        let response = json!({
-            "transaction": {
-                "updateId": "tx-1",
-                "events": [
-                    {
-                        "ExercisedEvent": {
-                            "templateId": "pkg:CBTC.DepositAccount:CBTCDepositAccountRules",
-                            "choice": "CBTCDepositAccountRules_CreateDepositAccount"
-                        }
-                    },
-                    {
-                        "CreatedEvent": {
-                            "templateId": "f240dd5d1a98079f37c0f93272cf5b28d4523027c42d0003c4c7a530eed6c313:CBTC.DepositAccount:CBTCDepositAccount",
-                            "contractId": "000b5aff71065dc7f8be2b72991574e8ec5382ec0672eaa52bf0022ed97bdd94f5"
-                        }
-                    }
-                ]
-            }
-        });
+        let response = transaction_response(
+            "tx-1",
+            json!([
+                exercised_event_value(
+                    "pkg:CBTC.DepositAccount:CBTCDepositAccountRules",
+                    "CBTCDepositAccountRules_CreateDepositAccount",
+                    json!(null),
+                ),
+                created_event_value(
+                    "f240dd5d1a98079f37c0f93272cf5b28d4523027c42d0003c4c7a530eed6c313:CBTC.DepositAccount:CBTCDepositAccount",
+                    "000b5aff71065dc7f8be2b72991574e8ec5382ec0672eaa52bf0022ed97bdd94f5",
+                    json!(null),
+                ),
+            ]),
+        );
 
         let result = parse_created_deposit_account_cid(&response);
         assert_eq!(
@@ -428,25 +435,17 @@ mod parser_tests {
     fn returns_err_when_no_matching_template() {
         // Events present but template suffix doesn't match — e.g., only the
         // rules-side ExercisedEvent and an unrelated CreatedEvent.
-        let response = json!({
-            "transaction": {
-                "updateId": "tx-2",
-                "events": [
-                    {
-                        "ExercisedEvent": {
-                            "templateId": "pkg:CBTC.DepositAccount:CBTCDepositAccountRules",
-                            "choice": "CBTCDepositAccountRules_CreateDepositAccount"
-                        }
-                    },
-                    {
-                        "CreatedEvent": {
-                            "templateId": "pkg:Some.Other:Template",
-                            "contractId": "00other"
-                        }
-                    }
-                ]
-            }
-        });
+        let response = transaction_response(
+            "tx-2",
+            json!([
+                exercised_event_value(
+                    "pkg:CBTC.DepositAccount:CBTCDepositAccountRules",
+                    "CBTCDepositAccountRules_CreateDepositAccount",
+                    json!(null),
+                ),
+                created_event_value("pkg:Some.Other:Template", "00other", json!(null)),
+            ]),
+        );
 
         let err = parse_created_deposit_account_cid(&response).unwrap_err();
         assert!(
@@ -458,11 +457,7 @@ mod parser_tests {
     #[test]
     fn returns_err_when_events_missing() {
         // Envelope is missing `transaction.events` entirely.
-        let response = json!({
-            "transaction": {
-                "updateId": "tx-3"
-            }
-        });
+        let response = transaction_response("tx-3", json!(null));
 
         let err = parse_created_deposit_account_cid(&response).unwrap_err();
         assert!(

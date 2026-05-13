@@ -1,3 +1,4 @@
+use ledger::models::{Event, JsSubmitAndWaitForTransactionResponse};
 use std::collections::HashMap;
 use std::ops::Add;
 
@@ -117,7 +118,7 @@ async fn split_once(
     .await?;
 
     // Parse the response to extract the output and change holding CIDs
-    let response: serde_json::Value = serde_json::from_str(&response_raw)
+    let response: JsSubmitAndWaitForTransactionResponse = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {e}"))?;
 
     parse_split_response(&response)
@@ -127,22 +128,28 @@ async fn split_once(
 /// a split (MergeSplit self-transfer).
 ///
 /// Walks `transaction.events`, finds the first `ExercisedEvent` whose
-/// `exerciseResult` is an object, then pulls the first
+/// `exercise_result` is an object, then pulls the first
 /// `output.value.receiverHoldingCids[0]` as the output and
-/// `senderChangeCids` as the change list.
+/// `senderChangeCids` as the change list. The `exercise_result` payload is a
+/// raw `serde_json::Value` because the Daml-encoded variant shape isn't part
+/// of the Ledger API schema.
 fn parse_split_response(
-    response: &serde_json::Value,
+    response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<(String, Vec<String>), String> {
-    let events = response["transaction"]["events"]
-        .as_array()
+    let events = response
+        .transaction
+        .events
+        .as_ref()
         .ok_or("Failed to find events")?;
 
     let mut exercise_result = None;
     for event in events {
-        if let Some(exercised_event) = event.get("ExercisedEvent") {
-            if let Some(result) = exercised_event["exerciseResult"].as_object() {
-                exercise_result = Some(result);
-                break;
+        if let Event::EventOneOf2(wrapper) = event {
+            if let Some(result) = wrapper.exercised_event.exercise_result.as_ref() {
+                if result.is_object() {
+                    exercise_result = Some(result);
+                    break;
+                }
             }
         }
     }
@@ -276,37 +283,35 @@ mod parser_tests {
     //! `split_once` (`parse_split_response`).
 
     use super::*;
+    use crate::utils::test_fixtures::{
+        created_event_value, exercised_event_value, transaction_response,
+    };
     use serde_json::json;
 
     #[test]
     fn happy_path_extracts_output_and_change_cids() {
-        let response = json!({
-            "transaction": {
-                "updateId": "tx-1",
-                "events": [
-                    {
-                        "ExercisedEvent": {
-                            "choice": "TransferFactory_Transfer",
-                            "exerciseResult": {
-                                "senderChangeCids": [
-                                    "00change-1",
-                                    "00change-2"
-                                ],
-                                "output": {
-                                    "tag": "TransferInstructionResult_Completed",
-                                    "value": {
-                                        "receiverHoldingCids": [
-                                            "00output-cid",
-                                            "00ignored-cid"
-                                        ]
-                                    }
-                                }
-                            }
+        let response = transaction_response(
+            "tx-1",
+            json!([exercised_event_value(
+                "pkg:Splice.Api.Token.TransferInstructionV1:TransferFactory",
+                "TransferFactory_Transfer",
+                json!({
+                    "senderChangeCids": [
+                        "00change-1",
+                        "00change-2"
+                    ],
+                    "output": {
+                        "tag": "TransferInstructionResult_Completed",
+                        "value": {
+                            "receiverHoldingCids": [
+                                "00output-cid",
+                                "00ignored-cid"
+                            ]
                         }
                     }
-                ]
-            }
-        });
+                }),
+            )]),
+        );
 
         let (output_cid, change_cids) = parse_split_response(&response).unwrap();
         assert_eq!(output_cid, "00output-cid");
@@ -316,18 +321,14 @@ mod parser_tests {
     #[test]
     fn missing_exercised_event_returns_err() {
         // Only a CreatedEvent — parser cannot find an ExercisedEvent.
-        let response = json!({
-            "transaction": {
-                "events": [
-                    {
-                        "CreatedEvent": {
-                            "templateId": "pkg:Some:Template",
-                            "contractId": "00x"
-                        }
-                    }
-                ]
-            }
-        });
+        let response = transaction_response(
+            "tx-x",
+            json!([created_event_value(
+                "pkg:Some:Template",
+                "00x",
+                json!(null),
+            )]),
+        );
 
         let err = parse_split_response(&response).unwrap_err();
         assert!(
@@ -338,7 +339,7 @@ mod parser_tests {
 
     #[test]
     fn missing_events_returns_err() {
-        let response = json!({ "transaction": {} });
+        let response = transaction_response("tx-x", json!(null));
         let err = parse_split_response(&response).unwrap_err();
         assert!(
             err.contains("Failed to find events"),

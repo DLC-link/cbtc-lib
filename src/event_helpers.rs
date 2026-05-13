@@ -14,6 +14,9 @@
 //   - `Event::EventOneOf`  wraps `EventOneOf`  -> `archived_event`
 //   - `Event::EventOneOf1` wraps `EventOneOf1` -> `created_event`
 //   - `Event::EventOneOf2` wraps `EventOneOf2` -> `exercised_event`
+//
+// Reported upstream:
+// https://github.com/scolear/canton-api-rust-client/issues/3
 
 use ledger::models::{ArchivedEvent, CreatedEvent, Event, ExercisedEvent};
 

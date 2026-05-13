@@ -251,10 +251,14 @@ pub(crate) mod test_fixtures {
         serde_json::from_value(envelope).expect("test fixture is not a valid response")
     }
 
-    /// Variant of `transaction_response` that omits `transaction.updateId`,
-    /// for tests that need to exercise the "missing updateId" path. We still
-    /// pass through typed deserialization, so the response is structurally
-    /// valid — only the field whose absence the test cares about is missing.
+    /// Variant of `transaction_response` whose `transaction.update_id` is
+    /// set to the empty string, for tests that exercise the "missing
+    /// updateId" parser branch.
+    ///
+    /// `JsTransaction.update_id` is a required `String` in the typed model,
+    /// so we can't literally omit it on the wire and still deserialize.
+    /// Empty-string is the closest in-band equivalent and is what the
+    /// parser's emptiness check is meant to catch.
     pub fn transaction_response_without_update_id(
         events: Value,
     ) -> JsSubmitAndWaitForTransactionResponse {

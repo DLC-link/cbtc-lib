@@ -426,8 +426,8 @@ pub async fn accept_credential_offer(
 ///
 /// Walks `transaction.events`, finds the first `CreatedEvent` whose
 /// `templateId` ends with `:Utility.Credential.V0.Credential:Credential`,
-/// reconstructs a `JsActiveContract` from its fields and delegates to
-/// `UserCredential::from_active_contract`.
+/// wraps the typed `CreatedEvent` in a `JsActiveContract` (via
+/// `Box::new(c.clone())`) and delegates to `UserCredential::from_active_contract`.
 fn parse_accept_credential_offer_response(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<UserCredential, String> {

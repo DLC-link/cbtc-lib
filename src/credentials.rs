@@ -2,7 +2,7 @@ use common::submission;
 use ledger::active_contracts;
 use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilter};
 use ledger::ledger_end;
-use ledger::models::{Event, JsActiveContract, JsSubmitAndWaitForTransactionResponse};
+use ledger::models::{JsActiveContract, JsSubmitAndWaitForTransactionResponse};
 use ledger::submit;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -438,14 +438,13 @@ fn parse_accept_credential_offer_response(
         .ok_or("Failed to find events in transaction")?;
 
     for event in events {
-        if let Event::EventOneOf1(wrapper) = event {
-            let created = &wrapper.created_event;
+        if let Some(created) = crate::event_helpers::as_created_event(event) {
             if created
                 .template_id
                 .ends_with(":Utility.Credential.V0.Credential:Credential")
             {
                 let active_contract = JsActiveContract {
-                    created_event: created.clone(),
+                    created_event: Box::new(created.clone()),
                     reassignment_counter: 0,
                     synchronizer_id: String::new(),
                 };

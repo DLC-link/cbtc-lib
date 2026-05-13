@@ -1,4 +1,4 @@
-use ledger::models::{Event, JsSubmitAndWaitForTransactionResponse};
+use ledger::models::JsSubmitAndWaitForTransactionResponse;
 use std::collections::HashMap;
 use std::ops::Add;
 
@@ -144,8 +144,8 @@ fn parse_split_response(
 
     let mut exercise_result = None;
     for event in events {
-        if let Event::EventOneOf2(wrapper) = event {
-            if let Some(result) = wrapper.exercised_event.exercise_result.as_ref() {
+        if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
+            if let Some(result) = exercised.exercise_result.as_ref() {
                 if result.is_object() {
                     exercise_result = Some(result);
                     break;

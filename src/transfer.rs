@@ -1,5 +1,5 @@
 use crate::active_contracts;
-use ledger::models::{Event, JsSubmitAndWaitForTransactionResponse};
+use ledger::models::JsSubmitAndWaitForTransactionResponse;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -626,8 +626,7 @@ fn parse_transfer_response_value(
     let mut transfer_offer_cid = None;
 
     for event in events {
-        if let Event::EventOneOf2(wrapper) = event {
-            let exercised = &wrapper.exercised_event;
+        if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
             if exercised.choice == "TransferFactory_Transfer" {
                 if let Some(result) = exercised.exercise_result.as_ref() {
                     // Extract senderChangeCids

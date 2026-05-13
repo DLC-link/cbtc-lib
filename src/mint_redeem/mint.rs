@@ -8,7 +8,7 @@ use common::transfer::DisclosedContract;
 use ledger::active_contracts;
 use ledger::common::{TemplateFilter, TemplateFilterValue, TemplateIdentifierFilter};
 use ledger::ledger_end;
-use ledger::models::{Event, JsSubmitAndWaitForTransactionResponse};
+use ledger::models::JsSubmitAndWaitForTransactionResponse;
 use ledger::submit;
 use serde_json::json;
 
@@ -113,8 +113,7 @@ fn parse_created_deposit_account_cid(
         .ok_or("Failed to find events in transaction")?;
 
     for event in events {
-        if let Event::EventOneOf1(wrapper) = event {
-            let created = &wrapper.created_event;
+        if let Some(created) = crate::event_helpers::as_created_event(event) {
             if created
                 .template_id
                 .ends_with(":CBTC.DepositAccount:CBTCDepositAccount")

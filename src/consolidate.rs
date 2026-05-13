@@ -1,7 +1,7 @@
 use crate::active_contracts;
 use crate::mint_redeem::models::Holding;
 use common::decimal::DamlDecimal;
-use ledger::models::{Event, JsSubmitAndWaitForTransactionResponse};
+use ledger::models::JsSubmitAndWaitForTransactionResponse;
 use std::collections::HashMap;
 use std::ops::Add;
 
@@ -276,8 +276,8 @@ fn parse_consolidate_response(
 
     let mut result_cids = Vec::new();
     for event in events {
-        if let Event::EventOneOf2(wrapper) = event {
-            if let Some(result) = wrapper.exercised_event.exercise_result.as_ref() {
+        if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
+            if let Some(result) = exercised.exercise_result.as_ref() {
                 // Extract receiverHoldingCids from the Daml-encoded payload
                 if let Some(receiver_cids) =
                     result["output"]["value"]["receiverHoldingCids"].as_array()

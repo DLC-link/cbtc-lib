@@ -254,7 +254,15 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {e}"))?;
 
-    // Find the ExercisedEvent in the flat events array
+    parse_consolidate_response(&response)
+}
+
+/// Extract the resulting `receiverHoldingCids` from a flat-shaped submit
+/// response for a UTXO consolidation (self-transfer) operation.
+///
+/// Walks `transaction.events`, finds the first `ExercisedEvent`, and pulls
+/// `exerciseResult.output.value.receiverHoldingCids`.
+fn parse_consolidate_response(response: &serde_json::Value) -> Result<Vec<String>, String> {
     let events = response["transaction"]["events"]
         .as_array()
         .ok_or("Failed to find events")?;
@@ -423,5 +431,78 @@ mod tests {
 
         let result = check_and_consolidate(consolidate_params).await.unwrap();
         assert!(result.utxos_before < 10000); // Sanity check
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    //! Pure-data fixture tests for the flat-event parser used by
+    //! `consolidate_utxos` (`parse_consolidate_response`).
+
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn happy_path_extracts_receiver_holding_cids() {
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-1",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "choice": "TransferFactory_Transfer",
+                            "exerciseResult": {
+                                "senderChangeCids": [],
+                                "output": {
+                                    "tag": "TransferInstructionResult_Completed",
+                                    "value": {
+                                        "receiverHoldingCids": [
+                                            "00recv-1",
+                                            "00recv-2"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        });
+
+        let cids = parse_consolidate_response(&response).unwrap();
+        assert_eq!(cids, vec!["00recv-1", "00recv-2"]);
+    }
+
+    #[test]
+    fn missing_exercised_event_returns_err() {
+        // Only a CreatedEvent present — no ExercisedEvent at all.
+        let response = json!({
+            "transaction": {
+                "events": [
+                    {
+                        "CreatedEvent": {
+                            "templateId": "pkg:Some:Template",
+                            "contractId": "00x"
+                        }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_consolidate_response(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to extract result holding CIDs"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn missing_events_returns_err() {
+        let response = json!({ "transaction": {} });
+        let err = parse_consolidate_response(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error: {err}"
+        );
     }
 }

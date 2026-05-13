@@ -120,7 +120,19 @@ async fn split_once(
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {e}"))?;
 
-    // Find the ExercisedEvent in the flat events array
+    parse_split_response(&response)
+}
+
+/// Extract `(output_cid, change_cids)` from a flat-shaped submit response for
+/// a split (MergeSplit self-transfer).
+///
+/// Walks `transaction.events`, finds the first `ExercisedEvent` whose
+/// `exerciseResult` is an object, then pulls the first
+/// `output.value.receiverHoldingCids[0]` as the output and
+/// `senderChangeCids` as the change list.
+fn parse_split_response(
+    response: &serde_json::Value,
+) -> Result<(String, Vec<String>), String> {
     let events = response["transaction"]["events"]
         .as_array()
         .ok_or("Failed to find events")?;
@@ -255,5 +267,82 @@ mod tests {
 
         assert!(!result.output_holding_cids.is_empty());
         assert!(!result.change_holding_cids.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    //! Pure-data fixture tests for the flat-event parser used by
+    //! `split_once` (`parse_split_response`).
+
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn happy_path_extracts_output_and_change_cids() {
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-1",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "choice": "TransferFactory_Transfer",
+                            "exerciseResult": {
+                                "senderChangeCids": [
+                                    "00change-1",
+                                    "00change-2"
+                                ],
+                                "output": {
+                                    "tag": "TransferInstructionResult_Completed",
+                                    "value": {
+                                        "receiverHoldingCids": [
+                                            "00output-cid",
+                                            "00ignored-cid"
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        });
+
+        let (output_cid, change_cids) = parse_split_response(&response).unwrap();
+        assert_eq!(output_cid, "00output-cid");
+        assert_eq!(change_cids, vec!["00change-1", "00change-2"]);
+    }
+
+    #[test]
+    fn missing_exercised_event_returns_err() {
+        // Only a CreatedEvent — parser cannot find an ExercisedEvent.
+        let response = json!({
+            "transaction": {
+                "events": [
+                    {
+                        "CreatedEvent": {
+                            "templateId": "pkg:Some:Template",
+                            "contractId": "00x"
+                        }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_split_response(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find ExercisedEvent"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn missing_events_returns_err() {
+        let response = json!({ "transaction": {} });
+        let err = parse_split_response(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error: {err}"
+        );
     }
 }

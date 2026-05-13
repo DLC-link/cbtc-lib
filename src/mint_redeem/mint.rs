@@ -93,6 +93,32 @@ pub async fn list_deposit_accounts(
     deposit_accounts
 }
 
+/// Extract the contract ID of the newly created CBTCDepositAccount from a
+/// flat-shaped submit response.
+///
+/// Walks `transaction.events`, finds the first `CreatedEvent` whose
+/// `templateId` ends with `:CBTC.DepositAccount:CBTCDepositAccount` and
+/// returns its `contractId`.
+fn parse_created_deposit_account_cid(response: &serde_json::Value) -> Result<String, String> {
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events in transaction")?;
+
+    for event in events {
+        if let Some(created_event) = event.get("CreatedEvent") {
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
+            if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
+                return Ok(created_event["contractId"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string());
+            }
+        }
+    }
+
+    Err("No DepositAccount was created in the transaction".to_string())
+}
+
 /// Create a new deposit account
 ///
 /// This creates a DepositAccount contract on Canton that can receive BTC deposits.
@@ -168,28 +194,7 @@ pub async fn create_deposit_account(
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    let events = response["transaction"]["events"]
-        .as_array()
-        .ok_or("Failed to find events in transaction")?;
-
-    let mut created_contract_id: Option<String> = None;
-    for event in events {
-        if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["templateId"].as_str().unwrap_or("");
-            if template_id.ends_with(":CBTC.DepositAccount:CBTCDepositAccount") {
-                created_contract_id = Some(
-                    created_event["contractId"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string(),
-                );
-                break;
-            }
-        }
-    }
-
-    let contract_id =
-        created_contract_id.ok_or("No DepositAccount was created in the transaction")?;
+    let contract_id = parse_created_deposit_account_cid(&response)?;
 
     // Re-fetch from active contracts for the canonical DepositAccount shape.
     // (The flat submit response does include createArgument and createdEventBlob, so
@@ -377,5 +382,92 @@ mod tests {
         .expect("Failed to list deposit accounts");
 
         assert!(!accounts.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    //! Pure-data fixture tests for the flat-event parser used by
+    //! `create_deposit_account`. These tests do not touch the network and
+    //! exercise only the JSON-walking logic that lives in
+    //! `parse_created_deposit_account_cid`.
+
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parses_contract_id_from_created_deposit_account_event() {
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-1",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "templateId": "pkg:CBTC.DepositAccount:CBTCDepositAccountRules",
+                            "choice": "CBTCDepositAccountRules_CreateDepositAccount"
+                        }
+                    },
+                    {
+                        "CreatedEvent": {
+                            "templateId": "f240dd5d1a98079f37c0f93272cf5b28d4523027c42d0003c4c7a530eed6c313:CBTC.DepositAccount:CBTCDepositAccount",
+                            "contractId": "000b5aff71065dc7f8be2b72991574e8ec5382ec0672eaa52bf0022ed97bdd94f5"
+                        }
+                    }
+                ]
+            }
+        });
+
+        let result = parse_created_deposit_account_cid(&response);
+        assert_eq!(
+            result.unwrap(),
+            "000b5aff71065dc7f8be2b72991574e8ec5382ec0672eaa52bf0022ed97bdd94f5"
+        );
+    }
+
+    #[test]
+    fn returns_err_when_no_matching_template() {
+        // Events present but template suffix doesn't match — e.g., only the
+        // rules-side ExercisedEvent and an unrelated CreatedEvent.
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-2",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "templateId": "pkg:CBTC.DepositAccount:CBTCDepositAccountRules",
+                            "choice": "CBTCDepositAccountRules_CreateDepositAccount"
+                        }
+                    },
+                    {
+                        "CreatedEvent": {
+                            "templateId": "pkg:Some.Other:Template",
+                            "contractId": "00other"
+                        }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_created_deposit_account_cid(&response).unwrap_err();
+        assert!(
+            err.contains("No DepositAccount was created"),
+            "unexpected error message: {err}"
+        );
+    }
+
+    #[test]
+    fn returns_err_when_events_missing() {
+        // Envelope is missing `transaction.events` entirely.
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-3"
+            }
+        });
+
+        let err = parse_created_deposit_account_cid(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error message: {err}"
+        );
     }
 }

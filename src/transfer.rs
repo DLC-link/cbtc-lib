@@ -595,6 +595,18 @@ pub fn parse_transfer_response(
     let response: serde_json::Value = serde_json::from_str(response_raw)
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
+    parse_transfer_response_value(&response)
+}
+
+/// Inner helper that operates on an already-parsed `serde_json::Value`.
+///
+/// Walks `transaction.events`, finds the `ExercisedEvent` whose `choice`
+/// is `TransferFactory_Transfer`, and pulls `senderChangeCids` plus
+/// `output.value.transferInstructionCid` out of its `exerciseResult`.
+/// Also extracts `transaction.updateId`.
+fn parse_transfer_response_value(
+    response: &serde_json::Value,
+) -> Result<(Vec<String>, String, String), String> {
     // Extract update_id from the root level
     let update_id = response["transaction"]["updateId"]
         .as_str()
@@ -704,5 +716,136 @@ mod tests {
         };
 
         submit(params).await.unwrap();
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    //! Pure-data fixture tests for the flat-event parser used by
+    //! `parse_transfer_response` / `parse_transfer_response_value`.
+
+    use super::*;
+    use serde_json::json;
+
+    fn happy_response() -> serde_json::Value {
+        json!({
+            "transaction": {
+                "updateId": "1220abcdef1234567890",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "templateId": "pkg:Splice.Api.Token.TransferInstructionV1:TransferFactory",
+                            "choice": "TransferFactory_Transfer",
+                            "exerciseResult": {
+                                "senderChangeCids": [
+                                    "00change-cid-1",
+                                    "00change-cid-2"
+                                ],
+                                "output": {
+                                    "tag": "TransferInstructionResult_Pending",
+                                    "value": {
+                                        "transferInstructionCid": "00transfer-instruction-cid"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        })
+    }
+
+    #[test]
+    fn happy_path_extracts_all_fields() {
+        let response = happy_response();
+        let (change_cids, offer_cid, update_id) =
+            parse_transfer_response_value(&response).unwrap();
+
+        assert_eq!(change_cids, vec!["00change-cid-1", "00change-cid-2"]);
+        assert_eq!(offer_cid, "00transfer-instruction-cid");
+        assert_eq!(update_id, "1220abcdef1234567890");
+    }
+
+    #[test]
+    fn extracts_update_id_correctly() {
+        // Distinct test asserting only the updateId is pulled from the right
+        // location (transaction.updateId on the flat envelope).
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-update-xyz",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "choice": "TransferFactory_Transfer",
+                            "exerciseResult": {
+                                "senderChangeCids": ["00c"],
+                                "output": {
+                                    "value": {
+                                        "transferInstructionCid": "00t"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        });
+
+        let (_, _, update_id) = parse_transfer_response_value(&response).unwrap();
+        assert_eq!(update_id, "tx-update-xyz");
+    }
+
+    #[test]
+    fn missing_match_returns_err() {
+        // ExercisedEvent present, but choice is something else.
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-1",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "choice": "SomeOther_Choice",
+                            "exerciseResult": {}
+                        }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_transfer_response_value(&response).unwrap_err();
+        assert!(
+            err.contains("senderChangeCids") || err.contains("transferInstructionCid"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_envelope_missing_events() {
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-1"
+            }
+        });
+
+        let err = parse_transfer_response_value(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_envelope_missing_update_id() {
+        let response = json!({
+            "transaction": {
+                "events": []
+            }
+        });
+
+        let err = parse_transfer_response_value(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find updateId"),
+            "unexpected error: {err}"
+        );
     }
 }

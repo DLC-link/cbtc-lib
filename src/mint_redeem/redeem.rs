@@ -117,6 +117,74 @@ pub async fn list_withdraw_accounts(
     withdraw_accounts
 }
 
+/// Extract the contract ID of the newly created CBTCWithdrawAccount from a
+/// flat-shaped submit response.
+///
+/// Walks `transaction.events`, finds the first `CreatedEvent` whose
+/// `templateId` ends with `:CBTC.WithdrawAccount:CBTCWithdrawAccount` and
+/// returns its `contractId`.
+fn parse_created_withdraw_account_cid(response: &serde_json::Value) -> Result<String, String> {
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events in transaction")?;
+
+    for event in events {
+        if let Some(created_event) = event.get("CreatedEvent") {
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
+            if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
+                return Ok(created_event["contractId"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string());
+            }
+        }
+    }
+
+    Err("No WithdrawAccount was created in the transaction".to_string())
+}
+
+/// Extract the updated WithdrawAccount from a flat-shaped submit response for
+/// the Withdraw choice. The Withdraw choice consumes the old account and
+/// creates a new one with an updated `pendingBalance`.
+fn parse_submit_withdraw_response(
+    response: &serde_json::Value,
+) -> Result<WithdrawAccount, String> {
+    let events = response["transaction"]["events"]
+        .as_array()
+        .ok_or("Failed to find events in transaction")?;
+
+    for event in events {
+        if let Some(created_event) = event.get("CreatedEvent") {
+            let template_id = created_event["templateId"].as_str().unwrap_or("");
+
+            // Match by suffix since template ID can be in different formats
+            if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
+                // Parse the created event as a JsActiveContract
+                let active_contract = JsActiveContract {
+                    created_event: Box::new(ledger::models::CreatedEvent {
+                        contract_id: created_event["contractId"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        template_id: template_id.to_string(),
+                        create_argument: Some(Some(created_event["createArgument"].clone())),
+                        created_event_blob: created_event["createdEventBlob"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        ..Default::default()
+                    }),
+                    reassignment_counter: 0,
+                    synchronizer_id: String::new(),
+                };
+                return WithdrawAccount::from_active_contract(&active_contract);
+            }
+        }
+    }
+
+    Err("No updated WithdrawAccount was found in the transaction".to_string())
+}
+
 /// Create a new withdraw account
 ///
 /// This creates a WithdrawAccount contract on Canton that can be used to burn CBTC
@@ -197,28 +265,7 @@ pub async fn create_withdraw_account(
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    let events = response["transaction"]["events"]
-        .as_array()
-        .ok_or("Failed to find events in transaction")?;
-
-    let mut created_contract_id: Option<String> = None;
-    for event in events {
-        if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["templateId"].as_str().unwrap_or("");
-            if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
-                created_contract_id = Some(
-                    created_event["contractId"]
-                        .as_str()
-                        .unwrap_or("")
-                        .to_string(),
-                );
-                break;
-            }
-        }
-    }
-
-    let contract_id =
-        created_contract_id.ok_or("No WithdrawAccount was created in the transaction")?;
+    let contract_id = parse_created_withdraw_account_cid(&response)?;
 
     // Re-fetch from active contracts for the canonical WithdrawAccount shape.
     // (The flat submit response does include createArgument and createdEventBlob, so
@@ -466,43 +513,7 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     let response: serde_json::Value = serde_json::from_str(&response_raw)
         .map_err(|e| format!("Failed to parse submit response: {}", e))?;
 
-    // Extract the created WithdrawAccount from the flat events array
-    // The Withdraw choice consumes the old account and creates a new one with updated pending_balance
-    let events = response["transaction"]["events"]
-        .as_array()
-        .ok_or("Failed to find events in transaction")?;
-
-    for event in events {
-        if let Some(created_event) = event.get("CreatedEvent") {
-            let template_id = created_event["templateId"].as_str().unwrap_or("");
-
-            // Match by suffix since template ID can be in different formats
-            if template_id.ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount") {
-                // Parse the created event as a JsActiveContract
-                let created_event_value = &created_event;
-                let active_contract = JsActiveContract {
-                    created_event: Box::new(ledger::models::CreatedEvent {
-                        contract_id: created_event_value["contractId"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        template_id: template_id.to_string(),
-                        create_argument: Some(Some(created_event_value["createArgument"].clone())),
-                        created_event_blob: created_event_value["createdEventBlob"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        ..Default::default()
-                    }),
-                    reassignment_counter: 0,
-                    synchronizer_id: String::new(),
-                };
-                return WithdrawAccount::from_active_contract(&active_contract);
-            }
-        }
-    }
-
-    Err("No updated WithdrawAccount was found in the transaction".to_string())
+    parse_submit_withdraw_response(&response)
 }
 
 /// List all withdraw requests for a party
@@ -675,5 +686,168 @@ mod tests {
         .expect("Failed to list withdraw accounts");
 
         assert!(!accounts.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    //! Pure-data fixture tests for the flat-event parsers used by
+    //! `create_withdraw_account` and `submit_withdraw`. These tests do not
+    //! touch the network and exercise only the JSON-walking logic that lives
+    //! in `parse_created_withdraw_account_cid` and
+    //! `parse_submit_withdraw_response`.
+
+    use super::*;
+    use serde_json::json;
+
+    const WITHDRAW_ACCOUNT_TID: &str =
+        "pkg-hash:CBTC.WithdrawAccount:CBTCWithdrawAccount";
+
+    fn withdraw_account_create_argument() -> serde_json::Value {
+        // Mirrors the shape of `createArgument` produced by the JSON ledger
+        // API for a CBTCWithdrawAccount contract — the fields used by
+        // `WithdrawAccount::from_active_contract`.
+        json!({
+            "owner": "alice::1220deadbeef",
+            "operator": "operator::1220ababab",
+            "registrar": "registrar::1220cdcdcd",
+            "destinationBtcAddress": "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080",
+            "pendingBalance": "0.0",
+            "limits": null
+        })
+    }
+
+    // ---------- parse_created_withdraw_account_cid ----------
+
+    #[test]
+    fn parse_created_withdraw_account_cid_happy_path() {
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-1",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "templateId": "pkg:CBTC.WithdrawAccount:CBTCWithdrawAccountRules",
+                            "choice": "CBTCWithdrawAccountRules_CreateWithdrawAccount"
+                        }
+                    },
+                    {
+                        "CreatedEvent": {
+                            "templateId": WITHDRAW_ACCOUNT_TID,
+                            "contractId": "00wac1"
+                        }
+                    }
+                ]
+            }
+        });
+
+        assert_eq!(
+            parse_created_withdraw_account_cid(&response).unwrap(),
+            "00wac1"
+        );
+    }
+
+    #[test]
+    fn parse_created_withdraw_account_cid_missing_match() {
+        let response = json!({
+            "transaction": {
+                "events": [
+                    {
+                        "CreatedEvent": {
+                            "templateId": "pkg:Some.Other:Template",
+                            "contractId": "00other"
+                        }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_created_withdraw_account_cid(&response).unwrap_err();
+        assert!(
+            err.contains("No WithdrawAccount was created"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_created_withdraw_account_cid_missing_events() {
+        let response = json!({ "transaction": { "updateId": "tx-x" } });
+        let err = parse_created_withdraw_account_cid(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error: {err}"
+        );
+    }
+
+    // ---------- parse_submit_withdraw_response ----------
+
+    #[test]
+    fn parse_submit_withdraw_response_happy_path() {
+        let response = json!({
+            "transaction": {
+                "updateId": "tx-w1",
+                "events": [
+                    {
+                        "ExercisedEvent": {
+                            "templateId": WITHDRAW_ACCOUNT_TID,
+                            "choice": "CBTCWithdrawAccount_Withdraw"
+                        }
+                    },
+                    {
+                        "CreatedEvent": {
+                            "templateId": WITHDRAW_ACCOUNT_TID,
+                            "contractId": "00new-withdraw-account",
+                            "createArgument": withdraw_account_create_argument(),
+                            "createdEventBlob": "blob-base64"
+                        }
+                    }
+                ]
+            }
+        });
+
+        let account = parse_submit_withdraw_response(&response).unwrap();
+        assert_eq!(account.contract_id, "00new-withdraw-account");
+        assert_eq!(account.owner, "alice::1220deadbeef");
+        assert_eq!(account.template_id, WITHDRAW_ACCOUNT_TID);
+        assert_eq!(account.created_event_blob, "blob-base64");
+        assert_eq!(
+            account.destination_btc_address,
+            "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080"
+        );
+    }
+
+    #[test]
+    fn parse_submit_withdraw_response_missing_match() {
+        // Only an unrelated CreatedEvent — no CBTCWithdrawAccount.
+        let response = json!({
+            "transaction": {
+                "events": [
+                    {
+                        "CreatedEvent": {
+                            "templateId": "pkg:Some.Other:Template",
+                            "contractId": "00other",
+                            "createArgument": {},
+                            "createdEventBlob": ""
+                        }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_submit_withdraw_response(&response).unwrap_err();
+        assert!(
+            err.contains("No updated WithdrawAccount was found"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_submit_withdraw_response_missing_events() {
+        let response = json!({ "transaction": {} });
+        let err = parse_submit_withdraw_response(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error: {err}"
+        );
     }
 }

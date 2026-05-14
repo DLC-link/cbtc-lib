@@ -1,4 +1,5 @@
 use crate::active_contracts;
+use ledger::models::JsSubmitAndWaitForTransactionResponse;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
@@ -592,17 +593,32 @@ pub async fn submit_sequential_chained(
 pub fn parse_transfer_response(
     response_raw: &str,
 ) -> Result<(Vec<String>, String, String), String> {
-    let response: serde_json::Value = serde_json::from_str(response_raw)
+    let response: JsSubmitAndWaitForTransactionResponse = serde_json::from_str(response_raw)
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
-    // Extract update_id from the root level
-    let update_id = response["transaction"]["updateId"]
-        .as_str()
-        .ok_or("Failed to find updateId in response")?
-        .to_string();
+    parse_transfer_response_value(&response)
+}
 
-    let events = response["transaction"]["events"]
-        .as_array()
+/// Inner helper that operates on an already-deserialized typed response.
+///
+/// Walks `transaction.events`, finds the `ExercisedEvent` whose `choice`
+/// is `TransferFactory_Transfer`, and pulls `senderChangeCids` plus
+/// `output.value.transferInstructionCid` out of its `exercise_result`
+/// (which remains a `serde_json::Value` because the Daml-encoded payload
+/// shape isn't part of the Ledger API schema).
+/// Also extracts `transaction.update_id`.
+fn parse_transfer_response_value(
+    response: &JsSubmitAndWaitForTransactionResponse,
+) -> Result<(Vec<String>, String, String), String> {
+    let update_id = response.transaction.update_id.clone();
+    if update_id.is_empty() {
+        return Err("Failed to find updateId in response".to_string());
+    }
+
+    let events = response
+        .transaction
+        .events
+        .as_ref()
         .ok_or("Failed to find events in response")?;
 
     // Find the ExercisedEvent with TransferFactory_Transfer choice
@@ -610,27 +626,25 @@ pub fn parse_transfer_response(
     let mut transfer_offer_cid = None;
 
     for event in events {
-        if let Some(exercised_event) = event.get("ExercisedEvent") {
-            let choice = exercised_event["value"]["choice"].as_str();
-            if choice == Some("TransferFactory_Transfer") {
-                // Extract senderChangeCids
-                if let Some(change_array) =
-                    exercised_event["value"]["exerciseResult"]["senderChangeCids"].as_array()
-                {
-                    sender_change_cids = Some(
-                        change_array
-                            .iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect::<Vec<String>>(),
-                    );
-                }
+        if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
+            if exercised.choice == "TransferFactory_Transfer" {
+                if let Some(result) = exercised.exercise_result.as_ref() {
+                    // Extract senderChangeCids
+                    if let Some(change_array) = result["senderChangeCids"].as_array() {
+                        sender_change_cids = Some(
+                            change_array
+                                .iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect::<Vec<String>>(),
+                        );
+                    }
 
-                // Extract transfer offer CID from the output
-                if let Some(output) = exercised_event["value"]["exerciseResult"]["output"]["value"]
-                    ["transferInstructionCid"]
-                    .as_str()
-                {
-                    transfer_offer_cid = Some(output.to_string());
+                    // Extract transfer offer CID from the output (Daml-encoded payload)
+                    if let Some(output) =
+                        result["output"]["value"]["transferInstructionCid"].as_str()
+                    {
+                        transfer_offer_cid = Some(output.to_string());
+                    }
                 }
             }
         }
@@ -704,5 +718,115 @@ mod tests {
         };
 
         submit(params).await.unwrap();
+    }
+}
+
+#[cfg(test)]
+mod parser_tests {
+    //! Pure-data fixture tests for the flat-event parser used by
+    //! `parse_transfer_response` / `parse_transfer_response_value`.
+
+    use super::*;
+    use crate::utils::test_fixtures::{
+        exercised_event_value, transaction_response, transaction_response_without_update_id,
+    };
+    use serde_json::json;
+
+    fn happy_response() -> JsSubmitAndWaitForTransactionResponse {
+        transaction_response(
+            "1220abcdef1234567890",
+            json!([exercised_event_value(
+                "pkg:Splice.Api.Token.TransferInstructionV1:TransferFactory",
+                "TransferFactory_Transfer",
+                json!({
+                    "senderChangeCids": [
+                        "00change-cid-1",
+                        "00change-cid-2"
+                    ],
+                    "output": {
+                        "tag": "TransferInstructionResult_Pending",
+                        "value": {
+                            "transferInstructionCid": "00transfer-instruction-cid"
+                        }
+                    }
+                }),
+            )]),
+        )
+    }
+
+    #[test]
+    fn happy_path_extracts_all_fields() {
+        let response = happy_response();
+        let (change_cids, offer_cid, update_id) =
+            parse_transfer_response_value(&response).unwrap();
+
+        assert_eq!(change_cids, vec!["00change-cid-1", "00change-cid-2"]);
+        assert_eq!(offer_cid, "00transfer-instruction-cid");
+        assert_eq!(update_id, "1220abcdef1234567890");
+    }
+
+    #[test]
+    fn extracts_update_id_correctly() {
+        // Distinct test asserting only the updateId is pulled from the right
+        // location (transaction.updateId on the flat envelope).
+        let response = transaction_response(
+            "tx-update-xyz",
+            json!([exercised_event_value(
+                "pkg:Splice.Api.Token.TransferInstructionV1:TransferFactory",
+                "TransferFactory_Transfer",
+                json!({
+                    "senderChangeCids": ["00c"],
+                    "output": {
+                        "value": {
+                            "transferInstructionCid": "00t"
+                        }
+                    }
+                }),
+            )]),
+        );
+
+        let (_, _, update_id) = parse_transfer_response_value(&response).unwrap();
+        assert_eq!(update_id, "tx-update-xyz");
+    }
+
+    #[test]
+    fn missing_match_returns_err() {
+        // ExercisedEvent present, but choice is something else.
+        let response = transaction_response(
+            "tx-1",
+            json!([exercised_event_value(
+                "pkg:Some:Template",
+                "SomeOther_Choice",
+                json!({}),
+            )]),
+        );
+
+        let err = parse_transfer_response_value(&response).unwrap_err();
+        assert!(
+            err.contains("senderChangeCids") || err.contains("transferInstructionCid"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_envelope_missing_events() {
+        let response = transaction_response("tx-1", json!(null));
+
+        let err = parse_transfer_response_value(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find events"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_envelope_missing_update_id() {
+        let response = transaction_response_without_update_id(json!([]));
+
+        let err = parse_transfer_response_value(&response).unwrap_err();
+        assert!(
+            err.contains("Failed to find updateId"),
+            "unexpected error: {err}"
+        );
     }
 }

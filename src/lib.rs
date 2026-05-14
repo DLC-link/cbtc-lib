@@ -8,6 +8,7 @@ pub mod consolidate;
 pub mod credentials;
 pub mod dar_check;
 pub mod distribute;
+mod event_helpers;
 pub mod mint_redeem;
 pub mod split;
 pub mod transfer;

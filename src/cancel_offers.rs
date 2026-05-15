@@ -248,7 +248,7 @@ pub async fn withdraw_all(params: WithdrawAllParams) -> Result<WithdrawAllResult
             let mut amount = None;
             let mut receiver = None;
 
-            if let Some(Some(create_arg)) = &transfer.created_event.create_argument {
+            if let Some(create_arg) = &transfer.created_event.create_argument {
                 if let Some(transfer_data) = create_arg.get("transfer") {
                     if let Some(amt) = transfer_data.get("amount") {
                         amount = amt.as_str().map(|s| s.to_string());

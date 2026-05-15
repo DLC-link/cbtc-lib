@@ -615,11 +615,7 @@ fn parse_transfer_response_value(
         return Err("Failed to find updateId in response".to_string());
     }
 
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events in response")?;
+    let events = &response.transaction.events;
 
     // Find the ExercisedEvent with TransferFactory_Transfer choice
     let mut sender_change_cids = None;
@@ -628,7 +624,7 @@ fn parse_transfer_response_value(
     for event in events {
         if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
             if exercised.choice == "TransferFactory_Transfer" {
-                if let Some(result) = exercised.exercise_result.as_ref() {
+                if let Some(Some(result)) = exercised.exercise_result.as_ref() {
                     // Extract senderChangeCids
                     if let Some(change_array) = result["senderChangeCids"].as_array() {
                         sender_change_cids = Some(
@@ -810,11 +806,13 @@ mod parser_tests {
 
     #[test]
     fn malformed_envelope_missing_events() {
+        // `events` is required on the wire now; pass an empty list and verify
+        // the parser falls through to its post-loop check.
         let response = transaction_response("tx-1", json!(null));
 
         let err = parse_transfer_response_value(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("Failed to find senderChangeCids"),
             "unexpected error: {err}"
         );
     }

@@ -106,11 +106,7 @@ pub async fn list_deposit_accounts(
 fn parse_created_deposit_account_cid(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<String, String> {
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events in transaction")?;
+    let events = &response.transaction.events;
 
     for event in events {
         if let Some(created) = crate::event_helpers::as_created_event(event) {
@@ -455,12 +451,13 @@ mod parser_tests {
 
     #[test]
     fn returns_err_when_events_missing() {
-        // Envelope is missing `transaction.events` entirely.
+        // `events` is required on the wire now; pass an empty list and verify
+        // the parser falls through to its post-loop check.
         let response = transaction_response("tx-3", json!(null));
 
         let err = parse_created_deposit_account_cid(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("No DepositAccount was created"),
             "unexpected error message: {err}"
         );
     }

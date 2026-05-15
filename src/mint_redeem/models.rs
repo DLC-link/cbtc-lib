@@ -96,7 +96,6 @@ impl DepositAccount {
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
@@ -189,13 +188,16 @@ impl WithdrawAccount {
     pub fn from_active_contract(contract: &JsActiveContract) -> Result<Self, String> {
         let contract_id = contract.created_event.contract_id.clone();
         let template_id = contract.created_event.template_id.clone();
-        let created_event_blob = contract.created_event.created_event_blob.clone();
+        let created_event_blob = contract
+            .created_event
+            .created_event_blob
+            .clone()
+            .unwrap_or_default();
 
         let args = contract
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
@@ -274,7 +276,6 @@ impl WithdrawRequest {
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
@@ -342,7 +343,6 @@ impl Holding {
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
@@ -382,7 +382,6 @@ impl Holding {
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .and_then(|args| args.get("lock"))
             .is_some_and(|lock| !lock.is_null())

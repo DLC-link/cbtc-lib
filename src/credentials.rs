@@ -41,13 +41,16 @@ impl CredentialOffer {
     pub fn from_active_contract(contract: &JsActiveContract) -> Result<Self, String> {
         let contract_id = contract.created_event.contract_id.clone();
         let template_id = contract.created_event.template_id.clone();
-        let created_event_blob = contract.created_event.created_event_blob.clone();
+        let created_event_blob = contract
+            .created_event
+            .created_event_blob
+            .clone()
+            .unwrap_or_default();
 
         let args = contract
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
@@ -116,7 +119,6 @@ impl UserCredential {
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
             .ok_or("createArgument is not an object")?;
 
@@ -240,7 +242,6 @@ pub async fn list_credential_offers(
                 .created_event
                 .create_argument
                 .as_ref()
-                .and_then(|opt| opt.as_ref())
                 .and_then(|v| v.as_object())
                 .and_then(|args| args.get("holder"))
                 .and_then(|v| v.as_str())
@@ -290,7 +291,6 @@ pub async fn list_credentials(
                 .created_event
                 .create_argument
                 .as_ref()
-                .and_then(|opt| opt.as_ref())
                 .and_then(|v| v.as_object())
                 .and_then(|args| args.get("holder"))
                 .and_then(|v| v.as_str())
@@ -339,7 +339,6 @@ pub async fn find_user_service(params: FindUserServiceParams) -> Result<UserServ
             .created_event
             .create_argument
             .as_ref()
-            .and_then(|opt| opt.as_ref())
             .and_then(|v| v.as_object())
         {
             Some(a) => a,
@@ -431,11 +430,7 @@ pub async fn accept_credential_offer(
 fn parse_accept_credential_offer_response(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<UserCredential, String> {
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events in transaction")?;
+    let events = &response.transaction.events;
 
     for event in events {
         if let Some(created) = crate::event_helpers::as_created_event(event) {
@@ -635,10 +630,12 @@ mod parser_tests {
 
     #[test]
     fn missing_events_returns_err() {
+        // `events` is required on the wire now, so an empty list stands in for
+        // "missing events"; the parser falls through to its post-loop check.
         let response = transaction_response("tx-x", json!(null));
         let err = parse_accept_credential_offer_response(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("No Credential contract was created"),
             "unexpected error: {err}"
         );
     }

@@ -268,16 +268,12 @@ pub async fn consolidate_utxos(params: ConsolidateParams) -> Result<Vec<String>,
 fn parse_consolidate_response(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<Vec<String>, String> {
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events")?;
+    let events = &response.transaction.events;
 
     let mut result_cids = Vec::new();
     for event in events {
         if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
-            if let Some(result) = exercised.exercise_result.as_ref() {
+            if let Some(Some(result)) = exercised.exercise_result.as_ref() {
                 // Extract receiverHoldingCids from the Daml-encoded payload
                 if let Some(receiver_cids) =
                     result["output"]["value"]["receiverHoldingCids"].as_array()
@@ -499,10 +495,12 @@ mod parser_tests {
 
     #[test]
     fn missing_events_returns_err() {
+        // `events` is required on the wire now, so an empty list stands in for
+        // "missing events"; the parser falls through to its post-loop check.
         let response = transaction_response("tx-x", json!(null));
         let err = parse_consolidate_response(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("Failed to extract result holding CIDs"),
             "unexpected error: {err}"
         );
     }

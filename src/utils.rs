@@ -96,7 +96,7 @@ async fn fetch_transfers(
     let filtered: Vec<ledger::models::JsActiveContract> = result
         .into_iter()
         .filter(|ac| {
-            if let Some(Some(create_arg)) = &ac.created_event.create_argument {
+            if let Some(create_arg) = &ac.created_event.create_argument {
                 if let Some(transfer) = create_arg.get("transfer") {
                     // Check if instrumentId is CBTC
                     let is_cbtc = if let Some(instrument_id) = transfer.get("instrumentId") {
@@ -183,6 +183,8 @@ pub(crate) mod test_fixtures {
                 "observers": [],
                 "createdAt": "1970-01-01T00:00:00Z",
                 "packageName": "test-pkg",
+                "representativePackageId": "test-pkg",
+                "acsDelta": true,
             }
         })
     }
@@ -223,30 +225,32 @@ pub(crate) mod test_fixtures {
                 "lastDescendantNodeId": 0_i32,
                 "exerciseResult": exercise_result,
                 "packageName": "test-pkg",
+                "acsDelta": true,
             }
         })
     }
 
     /// Build a `JsSubmitAndWaitForTransactionResponse` from an updateId and
-    /// an `events` value (use `json!(null)` to omit events entirely).
+    /// an `events` value. Pass `json!(null)` to construct a response with an
+    /// empty events list (the typed model now treats `events` as required, so
+    /// "no events" is represented as `[]` rather than an absent field).
     /// Deserializes through the typed model so fixtures fail loudly when the
     /// shape diverges from canton-api-client's schema.
     pub fn transaction_response(
         update_id: &str,
         events: Value,
     ) -> JsSubmitAndWaitForTransactionResponse {
-        let mut transaction = json!({
+        let events = if events.is_null() { json!([]) } else { events };
+        let transaction = json!({
             "updateId": update_id,
             "commandId": "",
             "workflowId": "",
             "effectiveAt": "1970-01-01T00:00:00Z",
+            "events": events,
             "offset": 1_i64,
             "synchronizerId": "test-synchronizer",
             "recordTime": "1970-01-01T00:00:00Z",
         });
-        if !events.is_null() {
-            transaction["events"] = events;
-        }
         let envelope = json!({ "transaction": transaction });
         serde_json::from_value(envelope).expect("test fixture is not a valid response")
     }

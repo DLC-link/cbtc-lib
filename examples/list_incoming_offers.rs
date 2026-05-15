@@ -72,7 +72,7 @@ async fn main() -> Result<(), String> {
         println!("   Full ID: {}", contract_id);
 
         // Extract transfer details
-        if let Some(Some(create_arg)) = &transfer.created_event.create_argument {
+        if let Some(create_arg) = &transfer.created_event.create_argument {
             if let Some(transfer_data) = create_arg.get("transfer") {
                 if let Some(sender) = transfer_data.get("sender") {
                     println!("   From: {}", sender.as_str().unwrap_or("unknown"));

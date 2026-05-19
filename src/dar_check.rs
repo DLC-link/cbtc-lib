@@ -53,14 +53,7 @@ pub async fn check(params: Params) -> Result<DarCheckResult, String> {
         .await
         .map_err(|e| format!("Failed to fetch packages from participant: {}", e))?;
 
-    let participant_packages: HashSet<String> = response
-        .package_ids
-        .ok_or_else(|| {
-            "Failed to fetch packages from participant: response missing 'package_ids' field"
-                .to_string()
-        })?
-        .into_iter()
-        .collect();
+    let participant_packages: HashSet<String> = response.package_ids.into_iter().collect();
 
     info!(
         "Fetched {} packages from participant",

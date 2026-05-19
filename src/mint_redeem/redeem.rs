@@ -129,11 +129,7 @@ pub async fn list_withdraw_accounts(
 fn parse_created_withdraw_account_cid(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<String, String> {
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events in transaction")?;
+    let events = &response.transaction.events;
 
     for event in events {
         if let Some(created) = crate::event_helpers::as_created_event(event) {
@@ -155,11 +151,7 @@ fn parse_created_withdraw_account_cid(
 fn parse_submit_withdraw_response(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<WithdrawAccount, String> {
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events in transaction")?;
+    let events = &response.transaction.events;
 
     for event in events {
         if let Some(created) = crate::event_helpers::as_created_event(event) {
@@ -757,10 +749,12 @@ mod parser_tests {
 
     #[test]
     fn parse_created_withdraw_account_cid_missing_events() {
+        // `events` is required on the wire now; pass an empty list and verify
+        // the parser falls through to its post-loop check.
         let response = transaction_response("tx-x", json!(null));
         let err = parse_created_withdraw_account_cid(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("No WithdrawAccount was created"),
             "unexpected error: {err}"
         );
     }
@@ -816,10 +810,12 @@ mod parser_tests {
 
     #[test]
     fn parse_submit_withdraw_response_missing_events() {
+        // `events` is required on the wire now; pass an empty list and verify
+        // the parser falls through to its post-loop check.
         let response = transaction_response("tx-x", json!(null));
         let err = parse_submit_withdraw_response(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("No updated WithdrawAccount was found"),
             "unexpected error: {err}"
         );
     }

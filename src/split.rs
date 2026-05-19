@@ -136,16 +136,12 @@ async fn split_once(
 fn parse_split_response(
     response: &JsSubmitAndWaitForTransactionResponse,
 ) -> Result<(String, Vec<String>), String> {
-    let events = response
-        .transaction
-        .events
-        .as_ref()
-        .ok_or("Failed to find events")?;
+    let events = &response.transaction.events;
 
     let mut exercise_result = None;
     for event in events {
         if let Some(exercised) = crate::event_helpers::as_exercised_event(event) {
-            if let Some(result) = exercised.exercise_result.as_ref() {
+            if let Some(Some(result)) = exercised.exercise_result.as_ref() {
                 if result.is_object() {
                     exercise_result = Some(result);
                     break;
@@ -339,10 +335,12 @@ mod parser_tests {
 
     #[test]
     fn missing_events_returns_err() {
+        // `events` is required on the wire now; pass an empty list and verify
+        // the parser falls through to its post-loop check.
         let response = transaction_response("tx-x", json!(null));
         let err = parse_split_response(&response).unwrap_err();
         assert!(
-            err.contains("Failed to find events"),
+            err.contains("Failed to find ExercisedEvent"),
             "unexpected error: {err}"
         );
     }

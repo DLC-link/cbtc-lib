@@ -812,7 +812,7 @@ async fn main() -> Result<(), String> {
             .await
             .map_err(|e| format!("Auth failed: {}", e))?;
 
-        // List current holdings; pick the first one to split. Skip if none available.
+        // List current holdings; pick the first CBTC one to split. Skip if none available.
         let holdings = cbtc::mint_redeem::redeem::list_holdings(
             cbtc::mint_redeem::redeem::ListHoldingsParams {
                 ledger_host: sender.ledger_host.clone(),

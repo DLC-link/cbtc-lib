@@ -823,9 +823,14 @@ async fn main() -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to list holdings for split: {}", e))?;
 
-        match holdings.first() {
+        // Pick a CBTC holding. list_holdings returns every Holding-template contract the
+        // sender owns, which on devnet includes legacy `CBTCV0RC8` instruments alongside
+        // `CBTC`. Splitting a non-CBTC holding while asserting `instrument_id = "CBTC"`
+        // below would make the registry reject the request with 400 "Given holdings are
+        // invalid".
+        match holdings.iter().find(|h| h.instrument_id == "CBTC") {
             None => {
-                print_skip("(no holdings available to split)");
+                print_skip("(no CBTC holdings available to split)");
                 passed += 1;
             }
             Some(holding) => {

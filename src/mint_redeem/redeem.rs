@@ -54,7 +54,6 @@ pub struct SubmitWithdrawParams {
     pub access_token: String,
     pub api_url: String,
     pub withdraw_account_contract_id: String,
-    pub withdraw_account_template_id: String,
     pub amount: common::decimal::DamlDecimal,
     pub holding_contract_ids: Vec<String>,
     pub credential_cids: Option<Vec<String>>,
@@ -365,7 +364,6 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     access_token: access_token.clone(),
 ///     api_url: "https://api.mainnet.bitsafe.finance".to_string(),
 ///     withdraw_account_contract_id: withdraw_account.contract_id,
-///     withdraw_account_template_id: withdraw_account.template_id,
 ///     amount: common::decimal::DamlDecimal::parse("0.001").unwrap(),
 ///     holding_contract_ids: holding_ids,
 /// }).await?;
@@ -468,11 +466,18 @@ pub async fn submit_withdraw(params: SubmitWithdrawParams) -> Result<WithdrawAcc
     let choice_argument: serde_json::Value = serde_json::from_str(&choice_argument_str)
         .map_err(|e| format!("Failed to construct choice argument: {}", e))?;
 
-    // Build the exercise command
-    // Use the actual template_id from the contract, not the #cbtc shorthand
+    // Build the exercise command.
+    // Reference the template by package-name (`#cbtc:...`) rather than the
+    // contract's concrete package-id. Pinning the concrete package-id bypasses
+    // Daml smart-contract upgrades and forces Canton to use exactly the package
+    // that created the contract. Accounts created on an older CBTC version (e.g.
+    // 1.1.1) would then reject choice arguments added in a later version
+    // ("Unexpected fields: credentialCids"). The package-name form lets Canton
+    // resolve the highest commonly-vetted version while still targeting this
+    // contract by its contract_id.
     let exercise_command = submission::ExerciseCommand {
         exercise_command: submission::ExerciseCommandData {
-            template_id: params.withdraw_account_template_id.clone(),
+            template_id: WITHDRAW_ACCOUNT_TEMPLATE_ID.to_string(),
             contract_id: params.withdraw_account_contract_id.clone(),
             choice: WITHDRAW_CHOICE.to_string(),
             choice_argument: submission::ChoiceArgumentsVariations::Generic(choice_argument),

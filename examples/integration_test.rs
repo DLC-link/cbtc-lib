@@ -735,7 +735,6 @@ async fn main() -> Result<(), String> {
                 access_token: token,
                 api_url: bitsafe_api_url.clone(),
                 withdraw_account_contract_id: wa.contract_id.clone(),
-                withdraw_account_template_id: wa.template_id.clone(),
                 amount: withdraw_amount_decimal,
                 holding_contract_ids: selected,
                 credential_cids: Some(minter_credential_cids.clone()),

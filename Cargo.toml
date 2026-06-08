@@ -1,6 +1,6 @@
 [package]
 name = "cbtc"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2024"
 autoexamples = false
 
@@ -89,6 +89,10 @@ path = "examples/check_withdraw_requests.rs"
 [[example]]
 name = "list_deposit_addresses"
 path = "examples/list_deposit_addresses.rs"
+
+[[example]]
+name = "list_withdraw_accounts"
+path = "examples/list_withdraw_accounts.rs"
 
 [[example]]
 name = "credentials"

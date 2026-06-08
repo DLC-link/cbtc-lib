@@ -91,6 +91,10 @@ name = "list_deposit_addresses"
 path = "examples/list_deposit_addresses.rs"
 
 [[example]]
+name = "list_withdraw_accounts"
+path = "examples/list_withdraw_accounts.rs"
+
+[[example]]
 name = "credentials"
 path = "examples/credentials.rs"
 

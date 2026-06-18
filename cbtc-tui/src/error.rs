@@ -3,9 +3,10 @@ use thiserror::Error;
 /// Result alias for the TUI's typed errors.
 pub type Result<T> = std::result::Result<T, AppError>;
 
-/// Typed errors for cbtc-tui. `cbtc`'s `String` errors are converted into
-/// these at the `ops`/`session` boundary so the rest of the app never handles
-/// bare strings.
+/// Typed errors for cbtc-tui. `cbtc`'s `String` errors are converted into these
+/// typed variants at the `ops`/`session` boundary. Note the async task layer
+/// (`event`) then flattens them back to `String` for the `app::Event` payloads
+/// and `App.error`, since those are display-only on the UI side.
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("config error: {0}")]

@@ -105,6 +105,11 @@ impl Config {
         }
         let text =
             toml::to_string_pretty(self).map_err(|e| AppError::Config(format!("serialize: {e}")))?;
+        // Write to a sibling temp file, then atomically rename into place. This
+        // avoids leaving a partially-written/corrupt config on a crash, and —
+        // because the temp is freshly created 0600 and replaces the target — it
+        // enforces 0600 even when an existing config had looser permissions.
+        let tmp = path.with_extension("toml.tmp");
         #[cfg(unix)]
         {
             use std::io::Write as _;
@@ -114,34 +119,42 @@ impl Config {
                 .create(true)
                 .truncate(true)
                 .mode(0o600)
-                .open(path)?;
+                .open(&tmp)?;
             f.write_all(text.as_bytes())?;
+            f.sync_all()?;
         }
         #[cfg(not(unix))]
         {
-            std::fs::write(path, text)?;
+            std::fs::write(&tmp, text.as_bytes())?;
         }
+        std::fs::rename(&tmp, path)?;
         Ok(())
     }
 }
 
 /// Config file location: `$CBTC_TUI_CONFIG`, else `$XDG_CONFIG_HOME/cbtc-tui/config.toml`,
-/// else `~/.config/cbtc-tui/config.toml`.
+/// else `~/.config/cbtc-tui/config.toml`, falling back to the system temp dir when
+/// no home directory can be determined (e.g. restricted containers/CI).
 pub fn config_path() -> PathBuf {
     if let Ok(p) = std::env::var("CBTC_TUI_CONFIG") {
         return PathBuf::from(p);
     }
     let base = std::env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| dirs::home_dir().expect("cannot determine home directory").join(".config"));
+        .ok()
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+        .unwrap_or_else(std::env::temp_dir);
     base.join("cbtc-tui").join("config.toml")
 }
 
-/// Directory for the rotating log file: `~/.local/state/cbtc-tui`.
+/// Directory for the rotating log file: `~/.local/state/cbtc-tui`, falling back to
+/// the system temp dir when no home directory can be determined.
 pub fn log_dir() -> PathBuf {
     let base = std::env::var("XDG_STATE_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| dirs::home_dir().expect("cannot determine home directory").join(".local/state"));
+        .ok()
+        .or_else(|| dirs::home_dir().map(|h| h.join(".local/state")))
+        .unwrap_or_else(std::env::temp_dir);
     base.join("cbtc-tui")
 }
 
@@ -204,6 +217,22 @@ mod tests {
         cfg.save(&path).unwrap();
         let mode = std::fs::metadata(&path).unwrap().permissions().mode();
         // Assert
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_tightens_existing_loose_file() {
+        use std::os::unix::fs::PermissionsExt;
+        // Arrange: a pre-existing, world-readable config at the target path.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        std::fs::write(&path, "stale = true").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        // Act
+        Config::default().save(&path).unwrap();
+        // Assert: the atomic rename replaced it with a 0600 file.
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode();
         assert_eq!(mode & 0o777, 0o600);
     }
 

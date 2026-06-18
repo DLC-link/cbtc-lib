@@ -2,8 +2,11 @@ use std::collections::BTreeMap;
 
 use crate::config::{Environment, Profile};
 
-/// Parse `.env` content into a key→value map. Ignores blank lines and `#`
-/// comments; strips surrounding single or double quotes from values.
+/// Parse `.env` content into a key→value map. Ignores blank lines and whole-line
+/// `#` comments (lines whose first non-whitespace character is `#`). Inline `#`
+/// after a value is intentionally NOT stripped, since `.env` values such as
+/// passwords may legitimately contain `#`. Strips surrounding single or double
+/// quotes from values.
 pub fn parse_env(content: &str) -> BTreeMap<String, String> {
     let mut map = BTreeMap::new();
     for line in content.lines() {

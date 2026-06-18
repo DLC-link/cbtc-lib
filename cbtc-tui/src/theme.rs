@@ -26,7 +26,10 @@ impl Theme {
     /// Detect truecolor support from `$COLORTERM`.
     pub fn detect() -> Theme {
         let truecolor = std::env::var("COLORTERM")
-            .map(|v| v.contains("truecolor") || v.contains("24bit"))
+            .map(|v| {
+                let v = v.to_ascii_lowercase();
+                v.contains("truecolor") || v.contains("24bit")
+            })
             .unwrap_or(false);
         Theme { truecolor }
     }

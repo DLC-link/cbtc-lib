@@ -1,5 +1,9 @@
+use std::sync::Arc;
+
 use serde_json::Value;
 use strum::{Display, EnumIter};
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 use crate::error::{AppError, Result};
 
@@ -190,18 +194,38 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
             )
             .await
             .map_err(AppError::Op)?;
-            let mut rows = Vec::new();
-            for a in &accounts {
-                let addr = cbtc::mint_redeem::mint::get_bitcoin_address(
-                    cbtc::mint_redeem::mint::GetBitcoinAddressParams {
-                        api_url: ctx.bitsafe_api_url.clone(),
-                        account_id: a.account_id().to_string(),
-                    },
-                )
-                .await
-                .unwrap_or_else(|e| format!("<error: {e}>"));
-                rows.push(vec![a.account_id().to_string(), addr, short(&a.contract_id)]);
+            // Fetch each account's BTC address concurrently (bounded), preserving
+            // order — a user with many deposit accounts shouldn't wait on N serial
+            // round-trips.
+            let semaphore = Arc::new(Semaphore::new(8));
+            let mut set = JoinSet::new();
+            for (i, a) in accounts.iter().enumerate() {
+                let api_url = ctx.bitsafe_api_url.clone();
+                let account_id = a.account_id().to_string();
+                let semaphore = semaphore.clone();
+                set.spawn(async move {
+                    let _permit = semaphore.acquire().await.ok();
+                    let addr = cbtc::mint_redeem::mint::get_bitcoin_address(
+                        cbtc::mint_redeem::mint::GetBitcoinAddressParams { api_url, account_id },
+                    )
+                    .await
+                    .unwrap_or_else(|e| format!("<error: {e}>"));
+                    (i, addr)
+                });
             }
+            let mut addresses = vec![String::from("<error: task failed>"); accounts.len()];
+            while let Some(joined) = set.join_next().await {
+                if let Ok((i, addr)) = joined {
+                    addresses[i] = addr;
+                }
+            }
+            let rows = accounts
+                .iter()
+                .enumerate()
+                .map(|(i, a)| {
+                    vec![a.account_id().to_string(), addresses[i].clone(), short(&a.contract_id)]
+                })
+                .collect();
             Ok(OpResult::Table {
                 title: format!("Deposit Accounts ({})", accounts.len()),
                 columns: vec!["Account".into(), "BTC Address".into(), "Contract".into()],
@@ -278,6 +302,15 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
             })
         }
         Operation::DarVersions => {
+            if ctx.dar_dirs.is_empty() {
+                return Ok(OpResult::Text {
+                    title: "DAR Versions".to_string(),
+                    body: "No DAR directories are configured, so there is nothing to validate.\n\
+                           Configure local DAR paths to compare installed packages against the \
+                           participant."
+                        .to_string(),
+                });
+            }
             let result = cbtc::dar_check::check(cbtc::dar_check::Params {
                 ledger_host: ctx.ledger_host.clone(),
                 access_token: ctx.access_token.clone(),

@@ -296,12 +296,15 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                         .map(|p| vec!["MISSING".into(), p.name.clone(), p.version.clone()]),
                 )
                 .collect();
+            let status = match result.status {
+                cbtc::dar_check::DarCheckStatus::Pass => "Pass",
+                cbtc::dar_check::DarCheckStatus::Fail => "Fail",
+            };
             Ok(OpResult::Table {
                 title: format!(
-                    "DARs {}/{} ({:?})",
+                    "DARs {}/{} ({status})",
                     result.found.len(),
                     result.total_expected,
-                    result.status
                 ),
                 columns: vec!["Status".into(), "Package".into(), "Version".into()],
                 rows,

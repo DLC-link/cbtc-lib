@@ -40,17 +40,26 @@ pub fn spawn_input_reader(tx: UnboundedSender<Event>) {
     });
 }
 
-/// Spawn an async task that runs `op` and sends the result back.
+/// Spawn an async task that runs `op` and sends the result back. A panic in the
+/// task is converted into an `Event::OpResult(Err(..))` so the UI never hangs.
 pub fn spawn_op(tx: UnboundedSender<Event>, op: Operation, ctx: OpContext) {
-    tokio::spawn(async move {
+    let panic_tx = tx.clone();
+    let handle = tokio::spawn(async move {
         let result = ops::run(op, &ctx).await.map_err(|e| e.to_string());
         let _ = tx.send(Event::OpResult(result));
     });
+    tokio::spawn(async move {
+        if let Err(join_err) = handle.await {
+            let _ = panic_tx.send(Event::OpResult(Err(format!("operation panicked: {join_err}"))));
+        }
+    });
 }
 
-/// Spawn an async task that logs in and fetches parties.
+/// Spawn an async task that logs in and fetches parties. A panic in the task is
+/// converted into an `Event::LoginResult(Err(..))` so the UI never hangs.
 pub fn spawn_login(tx: UnboundedSender<Event>, profile: Profile) {
-    tokio::spawn(async move {
+    let panic_tx = tx.clone();
+    let handle = tokio::spawn(async move {
         let result = async {
             let s = session::login(&profile).await.map_err(|e| e.to_string())?;
             let parties = session::fetch_parties(&s, &s.access_token)
@@ -60,6 +69,11 @@ pub fn spawn_login(tx: UnboundedSender<Event>, profile: Profile) {
         }
         .await;
         let _ = tx.send(Event::LoginResult(result));
+    });
+    tokio::spawn(async move {
+        if let Err(join_err) = handle.await {
+            let _ = panic_tx.send(Event::LoginResult(Err(format!("login panicked: {join_err}"))));
+        }
     });
 }
 

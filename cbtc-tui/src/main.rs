@@ -49,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut terminal = ratatui::init();
-    let result = run(&mut terminal, App::new(config), config_path).await;
+    let result = run(&mut terminal, App::new(config), &config_path).await;
     ratatui::restore();
     result
 }
@@ -73,7 +73,7 @@ fn init_logging(level: &str) -> anyhow::Result<tracing_appender::non_blocking::W
 async fn run(
     terminal: &mut ratatui::DefaultTerminal,
     mut app: App,
-    config_path: PathBuf,
+    config_path: &Path,
 ) -> anyhow::Result<()> {
     let theme = Theme::detect();
     let (tx, mut rx) = mpsc::unbounded_channel::<Event>();
@@ -114,7 +114,7 @@ async fn run(
             }
         }
         // Persist last-selected party as it changes.
-        persist_selection(&mut app, &config_path);
+        persist_selection(&mut app, config_path);
         terminal.draw(|f| ui::draw(f, &app, &theme, spinner))?;
     }
     tracing::debug!("event channel closed; exiting run loop");

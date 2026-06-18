@@ -40,3 +40,11 @@ keycloak_password  = "..."
 
 Rotating logs at `~/.local/state/cbtc-tui/cbtc-tui.log` (the TUI owns the terminal,
 so nothing prints to stdout). Set `RUST_LOG=cbtc_tui=debug` for more detail.
+
+## Session
+
+The Keycloak access token is acquired at login and is **not auto-refreshed**;
+it typically expires after a few minutes. If queries start failing after the
+TUI has been open a while, the session has likely expired — re-authenticate
+by pressing `P` then `Enter` (re-activate the profile), or `r` in the party
+overlay. Automatic token refresh is a planned follow-up.

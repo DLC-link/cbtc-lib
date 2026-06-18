@@ -57,7 +57,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(config: Config) -> App {
+    pub fn new(config: Config) -> Self {
         App {
             config,
             screen: Screen::Launcher,

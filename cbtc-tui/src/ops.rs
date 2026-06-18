@@ -28,6 +28,20 @@ pub enum Operation {
     Credentials,
 }
 
+/// One row of a table result: display `cells` plus an optional `detail` payload
+/// (pretty-printed `create_argument` / struct fields) shown in the detail view.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResultRow {
+    pub cells: Vec<String>,
+    pub detail: Option<String>,
+}
+
+impl ResultRow {
+    pub fn new(cells: Vec<String>, detail: Option<String>) -> Self {
+        Self { cells, detail }
+    }
+}
+
 /// Normalized result shape the UI renders generically.
 // Text variant is rendered by ui.rs and constructed in tests; ops currently only
 // produce Table results, so rustc flags it as dead — allow for extensibility.
@@ -37,7 +51,7 @@ pub enum OpResult {
     Table {
         title: String,
         columns: Vec<String>,
-        rows: Vec<Vec<String>>,
+        rows: Vec<ResultRow>,
     },
     Text {
         title: String,
@@ -77,16 +91,29 @@ fn short(id: &str) -> String {
     }
 }
 
-/// Build a balance table from pre-extracted (contract_id, amount) rows.
-pub fn balance_to_result(rows: &[(String, cbtc::DamlDecimal)]) -> OpResult {
+/// Pretty-print a contract's `create_argument` JSON for the detail view.
+fn arg_detail(c: &ledger::models::JsActiveContract) -> Option<String> {
+    c.created_event
+        .create_argument
+        .as_ref()
+        .map(|v| serde_json::to_string_pretty(v).unwrap_or_else(|_| v.to_string()))
+}
+
+/// Build a balance table from pre-extracted (contract_id, amount, detail) rows.
+pub fn balance_to_result(rows: &[(String, cbtc::DamlDecimal, Option<String>)]) -> OpResult {
     let total: cbtc::DamlDecimal = rows
         .iter()
-        .map(|(_, a)| *a)
+        .map(|(_, a, _)| *a)
         .fold(cbtc::DamlDecimal::ZERO, |acc, a| acc + a);
     let table_rows = rows
         .iter()
         .enumerate()
-        .map(|(i, (id, amount))| vec![(i + 1).to_string(), amount.to_string(), short(id)])
+        .map(|(i, (id, amount, detail))| {
+            ResultRow::new(
+                vec![(i + 1).to_string(), amount.to_string(), short(id)],
+                detail.clone(),
+            )
+        })
         .collect();
     OpResult::Table {
         title: format!("Total CBTC: {total}  ({} UTXOs)", rows.len()),
@@ -119,12 +146,15 @@ fn transfers_to_result(
         .filter_map(|c| {
             let arg = c.created_event.create_argument.as_ref()?;
             let r = parse_transfer_row(arg, counterparty_key)?;
-            Some(vec![
-                r.counterparty,
-                r.amount,
-                r.execute_before,
-                short(&c.created_event.contract_id),
-            ])
+            Some(ResultRow::new(
+                vec![
+                    r.counterparty,
+                    r.amount,
+                    r.execute_before,
+                    short(&c.created_event.contract_id),
+                ],
+                arg_detail(c),
+            ))
         })
         .collect();
     OpResult::Table {
@@ -153,12 +183,13 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
             })
             .await
             .map_err(AppError::Op)?;
-            let rows: Vec<(String, cbtc::DamlDecimal)> = holdings
+            let rows: Vec<(String, cbtc::DamlDecimal, Option<String>)> = holdings
                 .iter()
                 .map(|c| {
                     (
                         c.created_event.contract_id.clone(),
                         cbtc::utils::extract_amount(c).unwrap_or(cbtc::DamlDecimal::ZERO),
+                        arg_detail(c),
                     )
                 })
                 .collect();
@@ -223,7 +254,10 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                 .iter()
                 .enumerate()
                 .map(|(i, a)| {
-                    vec![a.account_id().to_string(), addresses[i].clone(), short(&a.contract_id)]
+                    ResultRow::new(
+                        vec![a.account_id().to_string(), addresses[i].clone(), short(&a.contract_id)],
+                        Some(format!("{a:#?}\n\nbitcoin_address: {}", addresses[i])),
+                    )
                 })
                 .collect();
             Ok(OpResult::Table {
@@ -250,12 +284,15 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                     } else {
                         "ready"
                     };
-                    vec![
-                        a.destination_btc_address.clone(),
-                        a.pending_balance.to_string(),
-                        status.to_string(),
-                        short(&a.contract_id),
-                    ]
+                    ResultRow::new(
+                        vec![
+                            a.destination_btc_address.clone(),
+                            a.pending_balance.to_string(),
+                            status.to_string(),
+                            short(&a.contract_id),
+                        ],
+                        Some(format!("{a:#?}")),
+                    )
                 })
                 .collect();
             Ok(OpResult::Table {
@@ -282,12 +319,15 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
             let rows = reqs
                 .iter()
                 .map(|r| {
-                    vec![
-                        r.amount.to_string(),
-                        r.destination_btc_address.clone(),
-                        r.btc_tx_id.clone(),
-                        short(&r.contract_id),
-                    ]
+                    ResultRow::new(
+                        vec![
+                            r.amount.to_string(),
+                            r.destination_btc_address.clone(),
+                            r.btc_tx_id.clone(),
+                            short(&r.contract_id),
+                        ],
+                        Some(format!("{r:#?}")),
+                    )
                 })
                 .collect();
             Ok(OpResult::Table {
@@ -321,13 +361,18 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
             let rows = result
                 .found
                 .iter()
-                .map(|p| vec!["found".into(), p.name.clone(), p.version.clone()])
-                .chain(
-                    result
-                        .missing
-                        .iter()
-                        .map(|p| vec!["MISSING".into(), p.name.clone(), p.version.clone()]),
-                )
+                .map(|p| {
+                    ResultRow::new(
+                        vec!["found".into(), p.name.clone(), p.version.clone()],
+                        Some(format!("{p:#?}")),
+                    )
+                })
+                .chain(result.missing.iter().map(|p| {
+                    ResultRow::new(
+                        vec!["MISSING".into(), p.name.clone(), p.version.clone()],
+                        Some(format!("{p:#?}")),
+                    )
+                }))
                 .collect();
             let status = match result.status {
                 cbtc::dar_check::DarCheckStatus::Pass => "Pass",
@@ -362,7 +407,10 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                         .map(|cl| format!("{}={}", cl.property, cl.value))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    vec![c.id.clone(), c.description.clone(), claims]
+                    ResultRow::new(
+                        vec![c.id.clone(), c.description.clone(), claims],
+                        Some(format!("{c:#?}")),
+                    )
                 })
                 .collect();
             Ok(OpResult::Table {
@@ -395,8 +443,8 @@ mod tests {
     fn balance_formats_total_and_rows() {
         // Arrange
         let rows = vec![
-            ("00aabbccddeeff".to_string(), DamlDecimal::parse("0.5").unwrap()),
-            ("00112233445566".to_string(), DamlDecimal::parse("0.25").unwrap()),
+            ("00aabbccddeeff".to_string(), DamlDecimal::parse("0.5").unwrap(), None),
+            ("00112233445566".to_string(), DamlDecimal::parse("0.25").unwrap(), None),
         ];
         // Act
         let result = balance_to_result(&rows);
@@ -406,7 +454,26 @@ mod tests {
                 assert!(title.contains("0.75"));
                 assert_eq!(columns, vec!["#", "Amount", "Contract"]);
                 assert_eq!(rows.len(), 2);
-                assert_eq!(rows[0][1], "0.5");
+                assert_eq!(rows[0].cells[1], "0.5");
+            }
+            _ => panic!("expected table"),
+        }
+    }
+
+    #[test]
+    fn balance_row_carries_detail() {
+        // Arrange
+        let rows = vec![(
+            "00aabb".to_string(),
+            DamlDecimal::parse("1").unwrap(),
+            Some("{\"amount\":\"1\"}".to_string()),
+        )];
+        // Act
+        let result = balance_to_result(&rows);
+        // Assert
+        match result {
+            OpResult::Table { rows, .. } => {
+                assert_eq!(rows[0].detail.as_deref(), Some("{\"amount\":\"1\"}"));
             }
             _ => panic!("expected table"),
         }

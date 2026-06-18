@@ -158,7 +158,7 @@ fn draw_results(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usiz
                 .map(|_| Constraint::Percentage(100 / columns.len().max(1) as u16))
                 .collect();
             let table = Table::new(
-                rows.iter().map(|r| Row::new(r.iter().map(|c| Cell::from(c.clone())))),
+                rows.iter().map(|r| Row::new(r.cells.iter().map(|c| Cell::from(c.clone())))),
                 widths,
             )
             .header(header)

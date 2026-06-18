@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 mod config;
+mod env_import;
 mod error;
 
 fn main() {

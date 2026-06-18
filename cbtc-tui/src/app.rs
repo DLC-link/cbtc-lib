@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::time::Instant;
+
 use strum::IntoEnumIterator;
 
 use crate::config::Config;
@@ -9,6 +12,14 @@ pub enum Screen {
     Launcher,
     Main,
     PartyOverlay,
+    Detail,
+}
+
+/// Which pane on the main screen has keyboard focus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    Queries,
+    Results,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,6 +27,9 @@ pub enum KeyKind {
     Up,
     Down,
     Enter,
+    Tab,
+    PageUp,
+    PageDown,
     OpenParties,
     OpenProfiles,
     Refresh,
@@ -38,10 +52,18 @@ pub enum Effect {
     FetchParties,
 }
 
+/// A cached operation result with the instant it was fetched.
+#[derive(Debug, Clone)]
+pub struct CachedResult {
+    pub result: OpResult,
+    pub at: Instant,
+}
+
 /// Mutable UI state plus the pure transition function.
 pub struct App {
     pub config: Config,
     pub screen: Screen,
+    pub focus: Focus,
     pub selected_profile: usize,
     pub active_profile: Option<usize>,
     pub access_token: Option<String>,
@@ -51,6 +73,13 @@ pub struct App {
     pub operations: Vec<Operation>,
     pub selected_op: usize,
     pub result: Option<OpResult>,
+    pub result_selected: usize,
+    pub result_at: Option<Instant>,
+    pub cache: HashMap<(String, Operation), CachedResult>,
+    /// (party, operation) currently being fetched, used to key the cache on completion.
+    pub running: Option<(String, Operation)>,
+    pub detail_lines: Vec<String>,
+    pub detail_scroll: usize,
     pub loading: bool,
     pub error: Option<String>,
     pub status: String,
@@ -61,6 +90,7 @@ impl App {
         App {
             config,
             screen: Screen::Launcher,
+            focus: Focus::Queries,
             selected_profile: 0,
             active_profile: None,
             access_token: None,
@@ -70,6 +100,12 @@ impl App {
             operations: Operation::iter().collect(),
             selected_op: 0,
             result: None,
+            result_selected: 0,
+            result_at: None,
+            cache: HashMap::new(),
+            running: None,
+            detail_lines: Vec::new(),
+            detail_scroll: 0,
             loading: false,
             error: None,
             status: String::new(),
@@ -97,8 +133,10 @@ impl App {
                 self.active_party = parties.get(idx).map(|p| p.party.clone());
                 self.parties = parties;
                 self.screen = Screen::Main;
+                self.focus = Focus::Queries;
                 self.error = None;
                 self.status = "Logged in".to_string();
+                self.show_cached_for_selected();
                 Vec::new()
             }
             Event::LoginResult(Err(e)) => {
@@ -108,12 +146,20 @@ impl App {
             }
             Event::OpResult(Ok(result)) => {
                 self.loading = false;
-                self.result = Some(result);
                 self.error = None;
+                let at = Instant::now();
+                if let Some(key) = self.running.take() {
+                    self.cache
+                        .insert(key, CachedResult { result: result.clone(), at });
+                }
+                self.result = Some(result);
+                self.result_at = Some(at);
+                self.result_selected = 0;
                 Vec::new()
             }
             Event::OpResult(Err(e)) => {
                 self.loading = false;
+                self.running = None;
                 self.error = Some(e);
                 Vec::new()
             }
@@ -128,6 +174,7 @@ impl App {
             Screen::Launcher => self.on_key_launcher(key),
             Screen::Main => self.on_key_main(key),
             Screen::PartyOverlay => self.on_key_party(key),
+            Screen::Detail => self.on_key_detail(key),
         }
     }
 
@@ -152,18 +199,69 @@ impl App {
     }
 
     fn on_key_main(&mut self, key: KeyKind) -> Vec<Effect> {
+        // Keys that work regardless of which pane is focused.
+        match key {
+            KeyKind::Tab => {
+                self.focus = match self.focus {
+                    Focus::Queries => Focus::Results,
+                    Focus::Results => Focus::Queries,
+                };
+                return Vec::new();
+            }
+            KeyKind::OpenParties => {
+                self.screen = Screen::PartyOverlay;
+                return Vec::new();
+            }
+            KeyKind::OpenProfiles => {
+                self.screen = Screen::Launcher;
+                return Vec::new();
+            }
+            KeyKind::Refresh => return self.run_selected_op(),
+            _ => {}
+        }
+        match self.focus {
+            Focus::Queries => self.on_key_queries(key),
+            Focus::Results => self.on_key_results(key),
+        }
+    }
+
+    fn on_key_queries(&mut self, key: KeyKind) -> Vec<Effect> {
         let n = self.operations.len();
         match key {
-            KeyKind::Up if n > 0 => self.selected_op = (self.selected_op + n - 1) % n,
-            KeyKind::Down if n > 0 => self.selected_op = (self.selected_op + 1) % n,
-            KeyKind::Enter if n > 0 => {
-                self.loading = true;
-                self.error = None;
-                self.status = format!("Running {}…", self.operations[self.selected_op]);
-                return vec![Effect::RunOp(self.operations[self.selected_op])];
+            KeyKind::Up if n > 0 => {
+                self.selected_op = (self.selected_op + n - 1) % n;
+                self.show_cached_for_selected();
             }
-            KeyKind::OpenParties => self.screen = Screen::PartyOverlay,
-            KeyKind::OpenProfiles => self.screen = Screen::Launcher,
+            KeyKind::Down if n > 0 => {
+                self.selected_op = (self.selected_op + 1) % n;
+                self.show_cached_for_selected();
+            }
+            KeyKind::Enter if n > 0 => return self.run_selected_op(),
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn on_key_results(&mut self, key: KeyKind) -> Vec<Effect> {
+        let n = self.rows_len();
+        match key {
+            KeyKind::Up if n > 0 => self.result_selected = (self.result_selected + n - 1) % n,
+            KeyKind::Down if n > 0 => self.result_selected = (self.result_selected + 1) % n,
+            KeyKind::Enter if n > 0 => self.open_detail(),
+            KeyKind::Esc => self.focus = Focus::Queries,
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn on_key_detail(&mut self, key: KeyKind) -> Vec<Effect> {
+        let max = self.detail_lines.len().saturating_sub(1);
+        match key {
+            KeyKind::Up => self.detail_scroll = self.detail_scroll.saturating_sub(1),
+            KeyKind::Down => self.detail_scroll = (self.detail_scroll + 1).min(max),
+            KeyKind::PageUp => self.detail_scroll = self.detail_scroll.saturating_sub(10),
+            KeyKind::PageDown => self.detail_scroll = (self.detail_scroll + 10).min(max),
+            KeyKind::Esc => self.screen = Screen::Main,
             _ => {}
         }
         Vec::new()
@@ -177,12 +275,74 @@ impl App {
             KeyKind::Enter if n > 0 => {
                 self.active_party = Some(self.parties[self.selected_party].party.clone());
                 self.screen = Screen::Main;
+                self.focus = Focus::Queries;
+                self.show_cached_for_selected();
             }
             KeyKind::Refresh => return vec![Effect::FetchParties],
             KeyKind::Esc => self.screen = Screen::Main,
             _ => {}
         }
         Vec::new()
+    }
+
+    /// Mark the selected op as running and request it. Used by Enter and refresh.
+    fn run_selected_op(&mut self) -> Vec<Effect> {
+        if self.operations.is_empty() {
+            return Vec::new();
+        }
+        let op = self.operations[self.selected_op];
+        self.loading = true;
+        self.error = None;
+        self.status = format!("Running {op}…");
+        if let Some(party) = self.active_party.clone() {
+            self.running = Some((party, op));
+        }
+        vec![Effect::RunOp(op)]
+    }
+
+    /// Number of rows in the currently displayed table result (0 otherwise).
+    fn rows_len(&self) -> usize {
+        match &self.result {
+            Some(OpResult::Table { rows, .. }) => rows.len(),
+            _ => 0,
+        }
+    }
+
+    /// Show the cached result for the active party + selected op, or clear it.
+    fn show_cached_for_selected(&mut self) {
+        self.result_selected = 0;
+        if self.operations.is_empty() {
+            return;
+        }
+        let key = self
+            .active_party
+            .clone()
+            .map(|p| (p, self.operations[self.selected_op]));
+        match key.and_then(|k| self.cache.get(&k)) {
+            Some(c) => {
+                self.result = Some(c.result.clone());
+                self.result_at = Some(c.at);
+            }
+            None => {
+                self.result = None;
+                self.result_at = None;
+            }
+        }
+    }
+
+    /// Open the detail view for the selected results row, if it has a payload.
+    fn open_detail(&mut self) {
+        let detail = match &self.result {
+            Some(OpResult::Table { rows, .. }) => {
+                rows.get(self.result_selected).and_then(|r| r.detail.clone())
+            }
+            _ => None,
+        };
+        if let Some(text) = detail {
+            self.detail_lines = text.lines().map(str::to_string).collect();
+            self.detail_scroll = 0;
+            self.screen = Screen::Detail;
+        }
     }
 }
 
@@ -333,5 +493,70 @@ mod tests {
         // Assert: still on the chosen party, not reset to the first.
         assert_eq!(app.active_party.as_deref(), Some("funded::1220"));
         assert_eq!(app.selected_party, 1);
+    }
+
+    fn sample_table() -> OpResult {
+        OpResult::Table {
+            title: "t".into(),
+            columns: vec!["c".into()],
+            rows: vec![crate::ops::ResultRow::new(
+                vec!["v".into()],
+                Some("line1\nline2\nline3".into()),
+            )],
+        }
+    }
+
+    fn logged_in() -> App {
+        let mut app = app_with_one_profile();
+        app.update(Event::Key(KeyKind::Enter));
+        app.update(Event::LoginResult(Ok((
+            "t".into(),
+            vec![PartyRight { party: "alice::1220".into(), can_act_as: true, can_read_as: true }],
+        ))));
+        app
+    }
+
+    #[test]
+    fn tab_toggles_focus() {
+        let mut app = logged_in();
+        assert_eq!(app.focus, Focus::Queries);
+        app.update(Event::Key(KeyKind::Tab));
+        assert_eq!(app.focus, Focus::Results);
+        app.update(Event::Key(KeyKind::Tab));
+        assert_eq!(app.focus, Focus::Queries);
+    }
+
+    #[test]
+    fn navigating_ops_shows_and_clears_cached_result() {
+        let mut app = logged_in();
+        // Run op 0 and cache its result.
+        app.update(Event::Key(KeyKind::Enter));
+        app.update(Event::OpResult(Ok(sample_table())));
+        assert!(app.result.is_some());
+        // Move to op 1 — no cache yet.
+        app.update(Event::Key(KeyKind::Down));
+        assert!(app.result.is_none());
+        // Back to op 0 — served from cache, no re-query.
+        app.update(Event::Key(KeyKind::Up));
+        assert!(app.result.is_some());
+        assert!(app.result_at.is_some());
+    }
+
+    #[test]
+    fn results_focus_enter_opens_detail_then_esc_returns() {
+        let mut app = logged_in();
+        app.update(Event::Key(KeyKind::Enter));
+        app.update(Event::OpResult(Ok(sample_table())));
+        // Focus the results pane, open the selected row's detail.
+        app.update(Event::Key(KeyKind::Tab));
+        assert_eq!(app.focus, Focus::Results);
+        app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(app.screen, Screen::Detail);
+        assert_eq!(app.detail_lines.len(), 3);
+        // Scroll, then escape back to main.
+        app.update(Event::Key(KeyKind::Down));
+        assert_eq!(app.detail_scroll, 1);
+        app.update(Event::Key(KeyKind::Esc));
+        assert_eq!(app.screen, Screen::Main);
     }
 }

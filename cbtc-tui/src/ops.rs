@@ -8,7 +8,7 @@ use tokio::task::JoinSet;
 use crate::error::{AppError, Result};
 
 /// The read-only query operations. `EnumIter` builds the menu; `Display` labels it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter, Display)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Display)]
 pub enum Operation {
     #[strum(serialize = "Check Balance")]
     CheckBalance,

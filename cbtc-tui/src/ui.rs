@@ -1,10 +1,14 @@
+use std::time::Instant;
+
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{
+    Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table, TableState,
+};
 
-use crate::app::{App, Screen};
+use crate::app::{App, Focus, Screen};
 use crate::ops::OpResult;
 use crate::theme::{Role, Theme, glyph};
 
@@ -17,6 +21,7 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) {
             draw_main(frame, app, theme, spinner_frame);
             draw_party_overlay(frame, app, theme);
         }
+        Screen::Detail => draw_detail(frame, app, theme),
     }
 }
 
@@ -103,31 +108,60 @@ fn draw_main(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) 
             ListItem::new(op.to_string()).style(style)
         })
         .collect();
+    let queries_border = if app.focus == Focus::Queries {
+        Role::Accent
+    } else {
+        Role::FgDim
+    };
     frame.render_widget(
         List::new(items).block(
             Block::default()
-                .title("QUERIES")
+                .title(Span::styled(
+                    "QUERIES",
+                    Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+                ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.color(Role::FgDim))),
+                .border_style(Style::default().fg(theme.color(queries_border))),
         ),
         body[0],
     );
 
-    draw_results(frame, app, theme, spinner_frame, body[1]);
+    draw_results(frame, app, theme, spinner_frame, body[1], app.focus == Focus::Results);
 
     // Footer.
     frame.render_widget(
-        Paragraph::new("↑/↓ select · Enter run · p party · P profiles · r refresh · q quit")
-            .style(Style::default().fg(theme.color(Role::FgDim))),
+        Paragraph::new(
+            "Tab pane · ↑↓ · Enter run/detail · p party · P profiles · r refresh · q quit",
+        )
+        .style(Style::default().fg(theme.color(Role::FgDim))),
         rows[2],
     );
 }
 
-fn draw_results(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize, area: Rect) {
+fn draw_results(
+    frame: &mut Frame,
+    app: &App,
+    theme: &Theme,
+    spinner_frame: usize,
+    area: Rect,
+    focused: bool,
+) {
+    let border_role = if focused { Role::Accent } else { Role::FgDim };
+    let title = if app.loading {
+        "Working…".to_string()
+    } else if app.error.is_some() {
+        "Error".to_string()
+    } else {
+        result_title(app)
+    };
     let block = Block::default()
-        .title("RESULTS")
+        .title(Span::styled(
+            title,
+            Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+        ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.color(Role::FgDim)));
+        .border_style(Style::default().fg(theme.color(border_role)));
+
     if app.loading {
         let frames = glyph::SPINNER;
         let s = frames[spinner_frame % frames.len()];
@@ -150,34 +184,98 @@ fn draw_results(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usiz
         return;
     }
     match &app.result {
-        Some(OpResult::Table { title, columns, rows }) => {
+        Some(OpResult::Table { columns, rows, .. }) => {
             let header = Row::new(columns.iter().map(|c| Cell::from(c.clone())))
                 .style(Style::default().fg(theme.color(Role::FgDim)));
             let widths: Vec<Constraint> = columns
                 .iter()
                 .map(|_| Constraint::Percentage(100 / columns.len().max(1) as u16))
                 .collect();
-            let table = Table::new(
+            let mut table = Table::new(
                 rows.iter().map(|r| Row::new(r.cells.iter().map(|c| Cell::from(c.clone())))),
                 widths,
             )
             .header(header)
-            .block(block.title(title.clone()));
-            frame.render_widget(table, area);
+            .block(block);
+            let mut state = TableState::default();
+            if focused {
+                table = table
+                    .row_highlight_style(
+                        Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+                    )
+                    .highlight_symbol("> ");
+                if !rows.is_empty() {
+                    state.select(Some(app.result_selected.min(rows.len() - 1)));
+                }
+            }
+            frame.render_stateful_widget(table, area, &mut state);
         }
-        Some(OpResult::Text { title, body }) => {
-            frame.render_widget(
-                Paragraph::new(body.clone()).block(block.title(title.clone())),
-                area,
-            );
+        Some(OpResult::Text { body, .. }) => {
+            frame.render_widget(Paragraph::new(body.clone()).block(block), area);
         }
         None => {
             frame.render_widget(
-                Paragraph::new("Select a query and press Enter.").block(block),
+                Paragraph::new("Select a query and press Enter to run.").block(block),
                 area,
             );
         }
     }
+}
+
+/// Title for the results pane: the result's own title plus a cache-age suffix.
+fn result_title(app: &App) -> String {
+    let base = match &app.result {
+        Some(OpResult::Table { title, .. }) | Some(OpResult::Text { title, .. }) => title.clone(),
+        None => app
+            .operations
+            .get(app.selected_op)
+            .map(|o| o.to_string())
+            .unwrap_or_else(|| "Results".to_string()),
+    };
+    match app.result_at {
+        Some(at) => format!("{base} — {}", age(at)),
+        None => base,
+    }
+}
+
+/// Human-readable age of the currently displayed (possibly cached) result.
+fn age(at: Instant) -> String {
+    let secs = at.elapsed().as_secs();
+    if secs < 5 {
+        "just now".to_string()
+    } else if secs < 60 {
+        format!("cached {secs}s ago")
+    } else if secs < 3600 {
+        format!("cached {}m ago", secs / 60)
+    } else {
+        format!("cached {}h ago", secs / 3600)
+    }
+}
+
+fn draw_detail(frame: &mut Frame, app: &App, theme: &Theme) {
+    let area = frame.area();
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Length(1)])
+        .split(area);
+    let text = app.detail_lines.join("\n");
+    let para = Paragraph::new(text)
+        .block(
+            Block::default()
+                .title(Span::styled(
+                    "Detail",
+                    Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.color(Role::Accent))),
+        )
+        .scroll((app.detail_scroll as u16, 0));
+    frame.render_widget(para, rows[0]);
+    frame.render_widget(
+        Paragraph::new("↑/↓ · PgUp/PgDn scroll · Esc back")
+            .style(Style::default().fg(theme.color(Role::FgDim))),
+        rows[1],
+    );
 }
 
 fn draw_party_overlay(frame: &mut Frame, app: &App, theme: &Theme) {
@@ -336,5 +434,23 @@ mod tests {
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("party-37"), "selected party should be visible");
         assert!(!text.contains("party-00"), "top party should have scrolled off");
+    }
+
+    #[test]
+    fn detail_screen_renders_payload() {
+        // Arrange
+        let mut app = App::new(Config::default());
+        app.screen = Screen::Detail;
+        app.detail_lines = vec!["\"owner\": \"alice::1220ab\"".into(), "\"id\": \"acct-7\"".into()];
+        let theme = Theme { truecolor: true };
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        // Act
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        // Assert
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("acct-7"));
+        assert!(text.contains("Detail"));
     }
 }

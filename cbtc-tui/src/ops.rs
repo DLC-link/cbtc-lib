@@ -25,7 +25,7 @@ pub enum Operation {
 }
 
 /// Normalized result shape the UI renders generically.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OpResult {
     Table {
         title: String,

@@ -3,6 +3,7 @@
 // final wiring task once every item has a consumer.
 #![allow(dead_code)]
 
+mod app;
 mod config;
 mod env_import;
 mod error;

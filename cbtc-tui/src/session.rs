@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use canton_api_client::apis::configuration::Configuration;
 use canton_api_client::apis::default_api::get_v2_users_user_id_rights;
 use canton_api_client::models::{Kind, ListUserRightsResponse};
-use keycloak::login::{password, password_url, PasswordParams};
+use keycloak::login::{password, token_url, PasswordParams};
 
 use crate::config::Profile;
 use crate::error::{AppError, Result};
@@ -55,7 +55,10 @@ pub fn parse_party_rights(resp: &ListUserRightsResponse) -> Vec<PartyRight> {
 /// # Errors
 /// Returns `AppError::Auth` on login or token-decode failure.
 pub async fn login(profile: &Profile) -> Result<Session> {
-    let url = password_url(&profile.keycloak_host, &profile.keycloak_realm);
+    let url = token_url(
+        &format!("{}/auth", profile.keycloak_host.trim_end_matches('/')),
+        &profile.keycloak_realm,
+    );
     let resp = password(PasswordParams {
         client_id: profile.keycloak_client_id.clone(),
         username: profile.keycloak_username.clone(),

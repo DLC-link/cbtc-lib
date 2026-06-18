@@ -29,7 +29,7 @@ impl Theme {
         Theme { truecolor }
     }
 
-    /// Resolve a role to a concrete `ratatui` color.
+    /// Resolve a semantic [`Role`] to a concrete `ratatui::style::Color`.
     pub fn color(&self, role: Role) -> Color {
         if self.truecolor {
             match role {
@@ -58,11 +58,17 @@ impl Theme {
 
 /// Mono glyphs (no emoji, ever).
 pub mod glyph {
+    /// Success check mark.
     pub const CHECK: &str = "✓";
+    /// Error cross.
     pub const CROSS: &str = "✗";
+    /// Warning triangle.
     pub const WARN: &str = "▲";
+    /// Decorative diamond.
     pub const DIAMOND: &str = "◆";
+    /// Bitcoin symbol.
     pub const BTC: &str = "₿";
+    /// Braille spinner frames for loading state.
     pub const SPINNER: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 }
 

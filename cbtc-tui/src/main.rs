@@ -61,7 +61,7 @@ fn init_logging(level: &str) -> anyhow::Result<tracing_appender::non_blocking::W
     let file = tracing_appender::rolling::daily(&dir, "cbtc-tui.log");
     let (writer, guard) = tracing_appender::non_blocking(file);
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(format!("cbtc_tui={level},info")));
+        .unwrap_or_else(|_| EnvFilter::new(format!("cbtc_tui={level}")));
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_writer(writer)
@@ -97,7 +97,11 @@ async fn run(
                     if let Some(ctx) = build_context(&app) {
                         event::spawn_op(tx.clone(), op, ctx);
                     } else {
-                        app.update(Event::OpResult(Err("no active party/session".to_string())));
+                        let err_effects =
+                            app.update(Event::OpResult(Err("no active party/session".to_string())));
+                        if !err_effects.is_empty() {
+                            tracing::warn!("unexpected effects from synthetic error: {err_effects:?}");
+                        }
                     }
                 }
                 Effect::FetchParties => {
@@ -113,6 +117,7 @@ async fn run(
         persist_selection(&mut app, &config_path);
         terminal.draw(|f| ui::draw(f, &app, &theme, spinner))?;
     }
+    tracing::debug!("event channel closed; exiting run loop");
     Ok(())
 }
 

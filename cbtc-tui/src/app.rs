@@ -92,6 +92,7 @@ impl App {
             }
             Event::LoginResult(Err(e)) => {
                 self.error = Some(e);
+                self.status = "Login failed".to_string();
                 Vec::new()
             }
             Event::OpResult(Ok(result)) => {
@@ -130,6 +131,8 @@ impl App {
             }
             KeyKind::Enter if n > 0 => {
                 self.active_profile = Some(self.selected_profile);
+                self.error = None;
+                self.status = "Logging in…".to_string();
                 return vec![Effect::Login(self.selected_profile)];
             }
             _ => {}
@@ -256,5 +259,30 @@ mod tests {
         // Assert
         assert!(!app.loading);
         assert_eq!(app.error.as_deref(), Some("boom"));
+    }
+
+    #[test]
+    fn enter_on_launcher_sets_logging_in_status() {
+        // Arrange
+        let mut app = app_with_one_profile();
+        // Act
+        let effects = app.update(Event::Key(KeyKind::Enter));
+        // Assert
+        assert_eq!(effects, vec![Effect::Login(0)]);
+        assert_eq!(app.status, "Logging in…");
+        assert!(app.error.is_none());
+    }
+
+    #[test]
+    fn login_error_sets_error_and_stays_on_launcher() {
+        // Arrange
+        let mut app = app_with_one_profile();
+        app.update(Event::Key(KeyKind::Enter));
+        // Act
+        app.update(Event::LoginResult(Err("Invalid user credentials".into())));
+        // Assert
+        assert_eq!(app.screen, Screen::Launcher);
+        assert_eq!(app.error.as_deref(), Some("Invalid user credentials"));
+        assert_eq!(app.status, "Login failed");
     }
 }

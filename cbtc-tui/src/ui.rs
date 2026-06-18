@@ -45,13 +45,22 @@ fn draw_launcher(frame: &mut Frame, app: &App, theme: &Theme) {
     );
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(1)])
+        .constraints([Constraint::Min(3), Constraint::Length(1), Constraint::Length(1)])
         .split(area);
     frame.render_widget(list, chunks[0]);
+    // Status / error line: login progress, or the last error in red.
+    let (msg, role) = match &app.error {
+        Some(err) => (format!("{} {err}", glyph::CROSS), Role::Danger),
+        None => (app.status.clone(), Role::FgDim),
+    };
+    frame.render_widget(
+        Paragraph::new(msg).style(Style::default().fg(theme.color(role))),
+        chunks[1],
+    );
     frame.render_widget(
         Paragraph::new("↑/↓ select · Enter activate · q quit")
             .style(Style::default().fg(theme.color(Role::FgDim))),
-        chunks[1],
+        chunks[2],
     );
 }
 
@@ -251,5 +260,31 @@ mod tests {
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("Check Balance"));
         assert!(text.contains("quit"));
+    }
+
+    #[test]
+    fn launcher_renders_login_error() {
+        // Arrange
+        let cfg = Config {
+            default_profile: None,
+            environments: Default::default(),
+            profiles: vec![Profile {
+                name: "p1".into(),
+                environment: "devnet".into(),
+                ..Default::default()
+            }],
+        };
+        let mut app = App::new(cfg);
+        app.screen = Screen::Launcher;
+        app.error = Some("Invalid user credentials".into());
+        let theme = Theme { truecolor: true };
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        // Act
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        // Assert
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("Invalid user credentials"));
     }
 }

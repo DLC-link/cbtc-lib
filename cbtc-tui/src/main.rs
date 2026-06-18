@@ -6,6 +6,7 @@
 mod config;
 mod env_import;
 mod error;
+mod theme;
 
 fn main() {
     println!("cbtc-tui scaffold");

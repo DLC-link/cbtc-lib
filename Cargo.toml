@@ -105,3 +105,6 @@ path = "examples/integration_test.rs"
 [[example]]
 name = "check_dars"
 path = "examples/check_dars.rs"
+
+[workspace]
+members = ["cbtc-tui"]

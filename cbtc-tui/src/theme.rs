@@ -1,6 +1,8 @@
 use ratatui::style::Color;
 
 /// Semantic color roles (BitSafe brand). Call sites reference roles, never hex.
+// Full brand palette; not every role is exercised by the current screen set.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
     Accent,
@@ -57,6 +59,8 @@ impl Theme {
 }
 
 /// Mono glyphs (no emoji, ever).
+// Brand glyph palette; not every glyph is referenced by the current screens.
+#[allow(dead_code)]
 pub mod glyph {
     /// Success check mark.
     pub const CHECK: &str = "✓";

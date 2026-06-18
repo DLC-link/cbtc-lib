@@ -25,6 +25,9 @@ pub enum Operation {
 }
 
 /// Normalized result shape the UI renders generically.
+// Text variant is rendered by ui.rs and constructed in tests; ops currently only
+// produce Table results, so rustc flags it as dead — allow for extensibility.
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum OpResult {
     Table {

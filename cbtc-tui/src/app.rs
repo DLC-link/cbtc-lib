@@ -140,9 +140,9 @@ impl App {
     fn on_key_main(&mut self, key: KeyKind) -> Vec<Effect> {
         let n = self.operations.len();
         match key {
-            KeyKind::Up => self.selected_op = (self.selected_op + n - 1) % n,
-            KeyKind::Down => self.selected_op = (self.selected_op + 1) % n,
-            KeyKind::Enter => {
+            KeyKind::Up if n > 0 => self.selected_op = (self.selected_op + n - 1) % n,
+            KeyKind::Down if n > 0 => self.selected_op = (self.selected_op + 1) % n,
+            KeyKind::Enter if n > 0 => {
                 self.loading = true;
                 self.error = None;
                 return vec![Effect::RunOp(self.operations[self.selected_op])];

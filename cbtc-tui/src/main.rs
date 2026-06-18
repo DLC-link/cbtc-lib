@@ -3,6 +3,8 @@
 // final wiring task once every item has a consumer.
 #![allow(dead_code)]
 
+mod error;
+
 fn main() {
     println!("cbtc-tui scaffold");
 }

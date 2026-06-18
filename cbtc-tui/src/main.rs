@@ -7,6 +7,7 @@ mod app;
 mod config;
 mod env_import;
 mod error;
+mod event;
 mod ops;
 mod session;
 mod theme;

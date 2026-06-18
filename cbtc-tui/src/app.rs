@@ -82,8 +82,19 @@ impl App {
             Event::Key(key) => self.on_key(key),
             Event::LoginResult(Ok((token, parties))) => {
                 self.access_token = Some(token);
-                self.active_party = parties.first().map(|p| p.party.clone());
-                self.selected_party = 0;
+                // Preserve the party the user was on (or their last saved choice)
+                // across re-login; only fall back to the first party if it's gone.
+                let preferred = self.active_party.clone().or_else(|| {
+                    self.active_profile
+                        .and_then(|i| self.config.profiles.get(i))
+                        .and_then(|p| p.last_selected_party.clone())
+                });
+                let idx = preferred
+                    .as_deref()
+                    .and_then(|want| parties.iter().position(|p| p.party == want))
+                    .unwrap_or(0);
+                self.selected_party = idx;
+                self.active_party = parties.get(idx).map(|p| p.party.clone());
                 self.parties = parties;
                 self.screen = Screen::Main;
                 self.error = None;
@@ -301,5 +312,26 @@ mod tests {
         // Assert
         assert!(app.loading);
         assert_eq!(app.status, "Running Check Balance…");
+    }
+
+    #[test]
+    fn relogin_preserves_active_party() {
+        // Arrange: log in, then switch to the second party.
+        let mut app = app_with_one_profile();
+        let parties = vec![
+            PartyRight { party: "first::1220".into(), can_act_as: true, can_read_as: true },
+            PartyRight { party: "funded::1220".into(), can_act_as: true, can_read_as: true },
+        ];
+        app.update(Event::Key(KeyKind::Enter));
+        app.update(Event::LoginResult(Ok(("t1".into(), parties.clone()))));
+        app.update(Event::Key(KeyKind::OpenParties));
+        app.update(Event::Key(KeyKind::Down));
+        app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(app.active_party.as_deref(), Some("funded::1220"));
+        // Act: token expires; user re-logs in (same party list).
+        app.update(Event::LoginResult(Ok(("t2".into(), parties.clone()))));
+        // Assert: still on the chosen party, not reset to the first.
+        assert_eq!(app.active_party.as_deref(), Some("funded::1220"));
+        assert_eq!(app.selected_party, 1);
     }
 }

@@ -10,6 +10,7 @@ mod error;
 mod ops;
 mod session;
 mod theme;
+mod ui;
 
 fn main() {
     println!("cbtc-tui scaffold");

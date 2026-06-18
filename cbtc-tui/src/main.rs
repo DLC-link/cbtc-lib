@@ -3,6 +3,7 @@
 // final wiring task once every item has a consumer.
 #![allow(dead_code)]
 
+mod config;
 mod error;
 
 fn main() {

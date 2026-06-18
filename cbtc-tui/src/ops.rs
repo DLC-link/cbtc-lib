@@ -58,10 +58,13 @@ pub struct TransferRow {
     pub execute_before: String,
 }
 
-/// Short-id helper: `00aabb…eeff`.
+/// Short-id helper: `00aabb…eeff`. Truncate to `head…tail` only when longer than 14 chars; char-safe.
 fn short(id: &str) -> String {
-    if id.len() > 14 {
-        format!("{}…{}", &id[..6], &id[id.len() - 6..])
+    let count = id.chars().count();
+    if count > 14 {
+        let head: String = id.chars().take(6).collect();
+        let tail: String = id.chars().skip(count - 6).collect();
+        format!("{head}…{tail}")
     } else {
         id.to_string()
     }

@@ -80,10 +80,24 @@ async fn run(
     event::spawn_input_reader(tx.clone());
 
     let mut spinner: usize = 0;
+    let mut ticker = tokio::time::interval(std::time::Duration::from_millis(120));
     terminal.draw(|f| ui::draw(f, &app, &theme, spinner))?;
 
-    while let Some(ev) = rx.recv().await {
-        spinner = spinner.wrapping_add(1);
+    loop {
+        let ev = tokio::select! {
+            maybe_ev = rx.recv() => match maybe_ev {
+                Some(ev) => ev,
+                None => break,
+            },
+            _ = ticker.tick() => {
+                // Animate the spinner only while an operation is in flight.
+                if app.loading {
+                    spinner = spinner.wrapping_add(1);
+                    terminal.draw(|f| ui::draw(f, &app, &theme, spinner))?;
+                }
+                continue;
+            }
+        };
         let effects = app.update(ev);
         for effect in effects {
             match effect {

@@ -148,6 +148,7 @@ impl App {
             KeyKind::Enter if n > 0 => {
                 self.loading = true;
                 self.error = None;
+                self.status = format!("Running {}…", self.operations[self.selected_op]);
                 return vec![Effect::RunOp(self.operations[self.selected_op])];
             }
             KeyKind::OpenParties => self.screen = Screen::PartyOverlay,
@@ -284,5 +285,21 @@ mod tests {
         assert_eq!(app.screen, Screen::Launcher);
         assert_eq!(app.error.as_deref(), Some("Invalid user credentials"));
         assert_eq!(app.status, "Login failed");
+    }
+
+    #[test]
+    fn enter_on_main_sets_running_status() {
+        // Arrange: log in to reach the Main screen.
+        let mut app = app_with_one_profile();
+        app.update(Event::Key(KeyKind::Enter));
+        app.update(Event::LoginResult(Ok((
+            "t".into(),
+            vec![PartyRight { party: "alice::1220".into(), can_act_as: true, can_read_as: true }],
+        ))));
+        // Act: run the first (default-selected) operation.
+        app.update(Event::Key(KeyKind::Enter));
+        // Assert
+        assert!(app.loading);
+        assert_eq!(app.status, "Running Check Balance…");
     }
 }

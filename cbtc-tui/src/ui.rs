@@ -2,7 +2,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table};
+use ratatui::widgets::{Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table};
 
 use crate::app::{App, Screen};
 use crate::ops::OpResult;
@@ -131,7 +131,13 @@ fn draw_results(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usiz
     if app.loading {
         let frames = glyph::SPINNER;
         let s = frames[spinner_frame % frames.len()];
-        frame.render_widget(Paragraph::new(format!("{s} Running…")).block(block), area);
+        let label = if app.status.is_empty() { "Running…" } else { app.status.as_str() };
+        frame.render_widget(
+            Paragraph::new(format!("{s} {label}"))
+                .style(Style::default().fg(theme.color(Role::Accent)))
+                .block(block),
+            area,
+        );
         return;
     }
     if let Some(err) = &app.error {
@@ -179,32 +185,41 @@ fn draw_party_overlay(frame: &mut Frame, app: &App, theme: &Theme) {
     let items: Vec<ListItem> = app
         .parties
         .iter()
-        .enumerate()
-        .map(|(i, p)| {
+        .map(|p| {
             let rights = match (p.can_act_as, p.can_read_as) {
                 (true, true) => "[act + read]",
                 (true, false) => "[act]",
                 (false, true) => "[read]",
                 _ => "[none]",
             };
-            let style = if i == app.selected_party {
-                Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            };
-            ListItem::new(format!("{}   {rights}", p.party)).style(style)
+            ListItem::new(format!("{}   {rights}", p.party))
         })
         .collect();
+    let count = app.parties.len();
     frame.render_widget(Clear, area);
-    frame.render_widget(
-        List::new(items).block(
+    let list = List::new(items)
+        .block(
             Block::default()
-                .title("Switch party · Enter select · r refresh · Esc")
+                .title(format!(
+                    "Switch party ({}/{count}) · Enter · r refresh · Esc",
+                    if count == 0 { 0 } else { app.selected_party + 1 }
+                ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.color(Role::Accent))),
-        ),
-        area,
-    );
+        )
+        .highlight_style(
+            Style::default()
+                .fg(theme.color(Role::Accent))
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ");
+    // A fresh ListState each frame, selecting the active row, lets ratatui
+    // auto-scroll the viewport so the cursor stays visible with long lists.
+    let mut state = ListState::default();
+    if count > 0 {
+        state.select(Some(app.selected_party));
+    }
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
@@ -286,5 +301,40 @@ mod tests {
         let buffer = terminal.backend().buffer().clone();
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("Invalid user credentials"));
+    }
+
+    #[test]
+    fn party_overlay_scrolls_to_selected() {
+        use crate::session::PartyRight;
+        // Arrange: many parties, cursor near the bottom.
+        let cfg = Config {
+            default_profile: None,
+            environments: Default::default(),
+            profiles: vec![Profile {
+                name: "p1".into(),
+                environment: "devnet".into(),
+                ..Default::default()
+            }],
+        };
+        let mut app = App::new(cfg);
+        app.screen = Screen::PartyOverlay;
+        app.parties = (0..40)
+            .map(|i| PartyRight {
+                party: format!("party-{i:02}::1220"),
+                can_act_as: true,
+                can_read_as: true,
+            })
+            .collect();
+        app.selected_party = 37;
+        let theme = Theme { truecolor: true };
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        // Act
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        // Assert: the selected row scrolled into view; the top row is off-screen.
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("party-37"), "selected party should be visible");
+        assert!(!text.contains("party-00"), "top party should have scrolled off");
     }
 }

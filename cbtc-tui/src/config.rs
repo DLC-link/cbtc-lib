@@ -105,11 +105,21 @@ impl Config {
         }
         let text =
             toml::to_string_pretty(self).map_err(|e| AppError::Config(format!("serialize: {e}")))?;
-        std::fs::write(path, text)?;
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+            use std::io::Write as _;
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(path)?;
+            f.write_all(text.as_bytes())?;
+        }
+        #[cfg(not(unix))]
+        {
+            std::fs::write(path, text)?;
         }
         Ok(())
     }
@@ -123,7 +133,7 @@ pub fn config_path() -> PathBuf {
     }
     let base = std::env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".config"));
+        .unwrap_or_else(|_| dirs::home_dir().expect("cannot determine home directory").join(".config"));
     base.join("cbtc-tui").join("config.toml")
 }
 
@@ -131,7 +141,7 @@ pub fn config_path() -> PathBuf {
 pub fn log_dir() -> PathBuf {
     let base = std::env::var("XDG_STATE_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".local/state"));
+        .unwrap_or_else(|_| dirs::home_dir().expect("cannot determine home directory").join(".local/state"));
     base.join("cbtc-tui")
 }
 

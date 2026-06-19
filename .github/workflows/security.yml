@@ -1,0 +1,40 @@
+name: Security
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cargo-audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  cargo-deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Capture github.com host keys
+        id: keyscan
+        run: |
+          {
+            echo 'known-hosts<<KNOWN_HOSTS_EOF'
+            ssh-keyscan github.com
+            echo KNOWN_HOSTS_EOF
+          } >> "$GITHUB_OUTPUT"
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories
+          ssh-key: ${{ secrets.BOT_SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ${{ steps.keyscan.outputs.known-hosts }}
+          use-git-cli: true

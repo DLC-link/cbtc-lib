@@ -91,12 +91,15 @@ fn short(id: &str) -> String {
     }
 }
 
-/// Pretty-print a contract's `create_argument` JSON for the detail view.
-fn arg_detail(c: &ledger::models::JsActiveContract) -> Option<String> {
-    c.created_event
-        .create_argument
-        .as_ref()
-        .map(|v| serde_json::to_string_pretty(v).unwrap_or_else(|_| v.to_string()))
+/// Detail payload for a ledger contract: the full created event (offset,
+/// `createdAt`, `templateId`, signatories, `createArgument`, …) minus the bulky
+/// `createdEventBlob`.
+fn contract_detail(c: &ledger::models::JsActiveContract) -> Option<String> {
+    let mut v = serde_json::to_value(&c.created_event).ok()?;
+    if let Some(obj) = v.as_object_mut() {
+        obj.remove("createdEventBlob");
+    }
+    serde_json::to_string_pretty(&v).ok()
 }
 
 /// Build a balance table from pre-extracted (contract_id, amount, detail) rows.
@@ -153,7 +156,7 @@ fn transfers_to_result(
                     r.execute_before,
                     short(&c.created_event.contract_id),
                 ],
-                arg_detail(c),
+                contract_detail(c),
             ))
         })
         .collect();
@@ -189,7 +192,7 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                     (
                         c.created_event.contract_id.clone(),
                         cbtc::utils::extract_amount(c).unwrap_or(cbtc::DamlDecimal::ZERO),
-                        arg_detail(c),
+                        contract_detail(c),
                     )
                 })
                 .collect();

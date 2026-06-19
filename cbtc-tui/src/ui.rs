@@ -21,7 +21,10 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) {
             draw_main(frame, app, theme, spinner_frame);
             draw_party_overlay(frame, app, theme);
         }
-        Screen::Detail => draw_detail(frame, app, theme),
+        Screen::Detail => {
+            draw_main(frame, app, theme, spinner_frame);
+            draw_detail(frame, app, theme);
+        }
     }
 }
 
@@ -253,29 +256,22 @@ fn age(at: Instant) -> String {
 }
 
 fn draw_detail(frame: &mut Frame, app: &App, theme: &Theme) {
-    let area = frame.area();
-    let rows = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(1)])
-        .split(area);
+    // Centered popup over the (still-visible) main screen.
+    let area = centered_rect(70, 70, frame.area());
+    frame.render_widget(Clear, area);
     let text = app.detail_lines.join("\n");
     let para = Paragraph::new(text)
         .block(
             Block::default()
                 .title(Span::styled(
-                    "Detail",
+                    "Detail · ↑↓ PgUp/PgDn scroll · Esc close",
                     Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
                 ))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.color(Role::Accent))),
         )
         .scroll((app.detail_scroll as u16, 0));
-    frame.render_widget(para, rows[0]);
-    frame.render_widget(
-        Paragraph::new("↑/↓ · PgUp/PgDn scroll · Esc back")
-            .style(Style::default().fg(theme.color(Role::FgDim))),
-        rows[1],
-    );
+    frame.render_widget(para, area);
 }
 
 fn draw_party_overlay(frame: &mut Frame, app: &App, theme: &Theme) {

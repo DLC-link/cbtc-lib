@@ -14,6 +14,7 @@ pub enum Screen {
     PartyOverlay,
     Detail,
     ActionMenu,
+    Form,
     Confirm,
 }
 
@@ -24,6 +25,8 @@ pub enum Focus {
     Results,
 }
 
+/// A normalized key. Raw chars are interpreted mode-aware in `App`: as shortcuts
+/// on most screens, or as text input on the `Form` screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyKind {
     Up,
@@ -32,12 +35,9 @@ pub enum KeyKind {
     Tab,
     PageUp,
     PageDown,
-    OpenParties,
-    OpenProfiles,
-    Refresh,
-    Action,
-    Quit,
+    Backspace,
     Esc,
+    Char(char),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +58,12 @@ pub enum Command {
     CancelExpired { cids: Vec<String> },
     /// Merge (consolidate) all of the party's CBTC holdings into one.
     MergeHoldings,
+    /// Create a new CBTC deposit account (no user input).
+    CreateDepositAccount,
+    /// Create a new withdraw account to the given destination BTC address.
+    CreateWithdrawAccount { btc_address: String },
+    /// Submit a withdraw of `amount` CBTC from the given withdraw account.
+    SubmitWithdraw { account_cid: String, amount: String },
 }
 
 impl Command {
@@ -66,7 +72,10 @@ impl Command {
         match self {
             Command::Accept { cid } | Command::Reject { cid } | Command::Cancel { cid } => cid,
             Command::CancelExpired { cids } => cids.first().map(String::as_str).unwrap_or(""),
-            Command::MergeHoldings => "",
+            Command::SubmitWithdraw { account_cid, .. } => account_cid,
+            Command::MergeHoldings
+            | Command::CreateDepositAccount
+            | Command::CreateWithdrawAccount { .. } => "",
         }
     }
 
@@ -78,7 +87,45 @@ impl Command {
             Command::Cancel { .. } => "Cancel",
             Command::CancelExpired { .. } => "Cancel expired",
             Command::MergeHoldings => "Merge holdings",
+            Command::CreateDepositAccount => "Create deposit account",
+            Command::CreateWithdrawAccount { .. } => "Create withdraw account",
+            Command::SubmitWithdraw { .. } => "Submit withdraw",
         }
+    }
+}
+
+/// A menu entry's effect: a ready-to-confirm command, or a form to collect input first.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PendingAction {
+    Command(Command),
+    Form(FormKind),
+}
+
+/// Which single-field form to show, and any context it carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormKind {
+    /// Collect a destination BTC address for a new withdraw account.
+    CreateWithdrawAccount,
+    /// Collect an amount to withdraw from the given account.
+    SubmitWithdraw { account_cid: String },
+}
+
+/// State of the active single-field input form.
+#[derive(Debug, Clone)]
+pub struct FormState {
+    pub kind: FormKind,
+    pub label: String,
+    pub input: String,
+    pub error: Option<String>,
+}
+
+impl FormState {
+    fn new(kind: FormKind) -> Self {
+        let label = match kind {
+            FormKind::CreateWithdrawAccount => "Destination BTC address".to_string(),
+            FormKind::SubmitWithdraw { .. } => "Amount (CBTC)".to_string(),
+        };
+        FormState { kind, label, input: String::new(), error: None }
     }
 }
 
@@ -119,9 +166,11 @@ pub struct App {
     pub running: Option<(String, Operation)>,
     pub detail_lines: Vec<String>,
     pub detail_scroll: usize,
-    /// Context actions (label, command) shown in the actions menu.
-    pub action_items: Vec<(String, Command)>,
+    /// Context actions (label, action) shown in the actions menu.
+    pub action_items: Vec<(String, PendingAction)>,
     pub action_selected: usize,
+    /// The active single-field input form, if any.
+    pub form: Option<FormState>,
     /// The command awaiting confirmation, with a human-readable summary.
     pub pending: Option<(Command, String)>,
     pub loading: bool,
@@ -152,6 +201,7 @@ impl App {
             detail_scroll: 0,
             action_items: Vec::new(),
             action_selected: 0,
+            form: None,
             pending: None,
             loading: false,
             error: None,
@@ -233,7 +283,13 @@ impl App {
     }
 
     fn on_key(&mut self, key: KeyKind) -> Vec<Effect> {
-        if key == KeyKind::Quit {
+        // The form captures raw text; handle it before shortcut interpretation
+        // (so e.g. typing 'q' in a BTC address doesn't quit).
+        if self.screen == Screen::Form {
+            return self.on_key_form(key);
+        }
+        // Global quit shortcut (non-form screens only).
+        if key == KeyKind::Char('q') {
             return vec![Effect::Quit];
         }
         match self.screen {
@@ -243,6 +299,7 @@ impl App {
             Screen::Detail => self.on_key_detail(key),
             Screen::ActionMenu => self.on_key_action_menu(key),
             Screen::Confirm => self.on_key_confirm(key),
+            Screen::Form => Vec::new(),
         }
     }
 
@@ -276,15 +333,15 @@ impl App {
                 };
                 return Vec::new();
             }
-            KeyKind::OpenParties => {
+            KeyKind::Char('p') => {
                 self.screen = Screen::PartyOverlay;
                 return Vec::new();
             }
-            KeyKind::OpenProfiles => {
+            KeyKind::Char('P') => {
                 self.screen = Screen::Launcher;
                 return Vec::new();
             }
-            KeyKind::Refresh => return self.run_selected_op(),
+            KeyKind::Char('r') => return self.run_selected_op(),
             _ => {}
         }
         match self.focus {
@@ -316,7 +373,9 @@ impl App {
             KeyKind::Up if n > 0 => self.result_selected = (self.result_selected + n - 1) % n,
             KeyKind::Down if n > 0 => self.result_selected = (self.result_selected + 1) % n,
             KeyKind::Enter if n > 0 => self.open_detail(),
-            KeyKind::Action if n > 0 => self.open_action_menu(),
+            // No `n > 0` guard: account screens offer a global create action even
+            // when the list is empty (e.g. creating your first deposit account).
+            KeyKind::Char('a') => self.open_action_menu(),
             KeyKind::Esc => self.focus = Focus::Queries,
             _ => {}
         }
@@ -329,15 +388,83 @@ impl App {
             KeyKind::Up if n > 0 => self.action_selected = (self.action_selected + n - 1) % n,
             KeyKind::Down if n > 0 => self.action_selected = (self.action_selected + 1) % n,
             KeyKind::Enter if n > 0 => {
-                let (label, command) = self.action_items[self.action_selected].clone();
-                let summary = self.command_summary(&label, &command);
-                self.pending = Some((command, summary));
-                self.screen = Screen::Confirm;
+                let (label, action) = self.action_items[self.action_selected].clone();
+                match action {
+                    PendingAction::Command(command) => {
+                        let summary = self.command_summary(&label, &command);
+                        self.pending = Some((command, summary));
+                        self.screen = Screen::Confirm;
+                    }
+                    PendingAction::Form(kind) => {
+                        self.form = Some(FormState::new(kind));
+                        self.screen = Screen::Form;
+                    }
+                }
             }
             KeyKind::Esc => self.screen = Screen::Main,
             _ => {}
         }
         Vec::new()
+    }
+
+    fn on_key_form(&mut self, key: KeyKind) -> Vec<Effect> {
+        let Some(form) = self.form.as_mut() else {
+            self.screen = Screen::Main;
+            return Vec::new();
+        };
+        match key {
+            KeyKind::Char(c) => {
+                form.input.push(c);
+                form.error = None;
+            }
+            KeyKind::Backspace => {
+                form.input.pop();
+                form.error = None;
+            }
+            KeyKind::Esc => {
+                self.form = None;
+                self.screen = Screen::Main;
+            }
+            KeyKind::Enter => match self.form_to_command() {
+                Ok(command) => {
+                    let summary = self.command_summary(command.verb(), &command);
+                    self.pending = Some((command, summary));
+                    self.form = None;
+                    self.screen = Screen::Confirm;
+                }
+                Err(e) => {
+                    if let Some(form) = self.form.as_mut() {
+                        form.error = Some(e);
+                    }
+                }
+            },
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    /// Validate the active form's input and build the corresponding command.
+    fn form_to_command(&self) -> Result<Command, String> {
+        let form = self.form.as_ref().ok_or("no active form")?;
+        let input = form.input.trim();
+        match &form.kind {
+            FormKind::CreateWithdrawAccount => {
+                if input.is_empty() {
+                    return Err("Destination BTC address is required".to_string());
+                }
+                Ok(Command::CreateWithdrawAccount { btc_address: input.to_string() })
+            }
+            FormKind::SubmitWithdraw { account_cid } => {
+                let amount = cbtc::DamlDecimal::parse(input).map_err(|_| "Invalid amount".to_string())?;
+                if amount <= cbtc::DamlDecimal::ZERO {
+                    return Err("Amount must be greater than zero".to_string());
+                }
+                Ok(Command::SubmitWithdraw {
+                    account_cid: account_cid.clone(),
+                    amount: input.to_string(),
+                })
+            }
+        }
     }
 
     fn on_key_confirm(&mut self, key: KeyKind) -> Vec<Effect> {
@@ -385,7 +512,7 @@ impl App {
                 self.focus = Focus::Queries;
                 self.show_cached_for_selected();
             }
-            KeyKind::Refresh => return vec![Effect::FetchParties],
+            KeyKind::Char('r') => return vec![Effect::FetchParties],
             KeyKind::Esc => self.screen = Screen::Main,
             _ => {}
         }
@@ -466,33 +593,60 @@ impl App {
             }
             _ => (None, Vec::new()),
         };
-        let mut items: Vec<(String, Command)> = Vec::new();
+        let mut items: Vec<(String, PendingAction)> = Vec::new();
         match self.operations[self.selected_op] {
             Operation::CheckBalance => {
                 let holdings = self.rows_len();
                 if holdings >= 2 {
                     items.push((
                         format!("Merge holdings ({holdings})"),
-                        Command::MergeHoldings,
+                        PendingAction::Command(Command::MergeHoldings),
                     ));
                 }
             }
             Operation::IncomingOffers => {
                 if let Some(cid) = row_cid {
-                    items.push(("Accept".to_string(), Command::Accept { cid: cid.clone() }));
-                    items.push(("Reject".to_string(), Command::Reject { cid }));
+                    items.push((
+                        "Accept".to_string(),
+                        PendingAction::Command(Command::Accept { cid: cid.clone() }),
+                    ));
+                    items.push((
+                        "Reject".to_string(),
+                        PendingAction::Command(Command::Reject { cid }),
+                    ));
                 }
             }
             Operation::OutgoingOffers => {
                 if let Some(cid) = row_cid {
-                    items.push(("Cancel".to_string(), Command::Cancel { cid }));
+                    items.push((
+                        "Cancel".to_string(),
+                        PendingAction::Command(Command::Cancel { cid }),
+                    ));
                 }
                 if !expired_cids.is_empty() {
                     items.push((
                         format!("Cancel all expired ({})", expired_cids.len()),
-                        Command::CancelExpired { cids: expired_cids },
+                        PendingAction::Command(Command::CancelExpired { cids: expired_cids }),
                     ));
                 }
+            }
+            Operation::DepositAddresses => {
+                items.push((
+                    "Create deposit account".to_string(),
+                    PendingAction::Command(Command::CreateDepositAccount),
+                ));
+            }
+            Operation::WithdrawAccounts => {
+                if let Some(cid) = row_cid {
+                    items.push((
+                        "Submit withdraw".to_string(),
+                        PendingAction::Form(FormKind::SubmitWithdraw { account_cid: cid }),
+                    ));
+                }
+                items.push((
+                    "Create withdraw account".to_string(),
+                    PendingAction::Form(FormKind::CreateWithdrawAccount),
+                ));
             }
             _ => {}
         }
@@ -506,11 +660,19 @@ impl App {
 
     /// Human-readable summary of a pending command for the confirm popup.
     fn command_summary(&self, label: &str, command: &Command) -> String {
-        if let Command::CancelExpired { cids } = command {
-            return format!("Cancel {} expired outgoing offer(s)", cids.len());
-        }
-        if let Command::MergeHoldings = command {
-            return format!("Merge {} holdings into one", self.rows_len());
+        match command {
+            Command::CancelExpired { cids } => {
+                return format!("Cancel {} expired outgoing offer(s)", cids.len());
+            }
+            Command::MergeHoldings => return format!("Merge {} holdings into one", self.rows_len()),
+            Command::CreateDepositAccount => {
+                return "Create a new CBTC deposit account".to_string();
+            }
+            Command::CreateWithdrawAccount { btc_address } => {
+                return format!("Create withdraw account to:\n{btc_address}");
+            }
+            Command::SubmitWithdraw { amount, .. } => return format!("Withdraw {amount} CBTC"),
+            _ => {}
         }
         let detail = match &self.result {
             Some(OpResult::Table { rows, .. }) => rows
@@ -669,7 +831,7 @@ mod tests {
         ];
         app.update(Event::Key(KeyKind::Enter));
         app.update(Event::LoginResult(Ok(("t1".into(), parties.clone()))));
-        app.update(Event::Key(KeyKind::OpenParties));
+        app.update(Event::Key(KeyKind::Char('p')));
         app.update(Event::Key(KeyKind::Down));
         app.update(Event::Key(KeyKind::Enter));
         assert_eq!(app.active_party.as_deref(), Some("funded::1220"));
@@ -771,7 +933,7 @@ mod tests {
     fn accept_offer_flow() {
         let mut app = on_incoming_offers();
         // 'a' opens a context actions menu with Accept/Reject.
-        app.update(Event::Key(KeyKind::Action));
+        app.update(Event::Key(KeyKind::Char('a')));
         assert_eq!(app.screen, Screen::ActionMenu);
         assert_eq!(app.action_items.len(), 2);
         assert_eq!(app.action_items[0].0, "Accept");
@@ -793,7 +955,7 @@ mod tests {
     #[test]
     fn action_menu_esc_cancels() {
         let mut app = on_incoming_offers();
-        app.update(Event::Key(KeyKind::Action));
+        app.update(Event::Key(KeyKind::Char('a')));
         assert_eq!(app.screen, Screen::ActionMenu);
         app.update(Event::Key(KeyKind::Esc));
         assert_eq!(app.screen, Screen::Main);
@@ -807,7 +969,7 @@ mod tests {
         app.selected_op = 0; // CheckBalance
         app.result = Some(sample_table());
         app.focus = Focus::Results;
-        app.update(Event::Key(KeyKind::Action));
+        app.update(Event::Key(KeyKind::Char('a')));
         assert_eq!(app.screen, Screen::Main);
     }
 
@@ -833,7 +995,7 @@ mod tests {
         });
         app.focus = Focus::Results;
         app.result_selected = 1; // a non-expired row is selected
-        app.update(Event::Key(KeyKind::Action));
+        app.update(Event::Key(KeyKind::Char('a')));
         assert_eq!(app.screen, Screen::ActionMenu);
         // Row "Cancel" + global "Cancel all expired (2)".
         assert_eq!(app.action_items.len(), 2);
@@ -865,7 +1027,7 @@ mod tests {
             ],
         });
         app.focus = Focus::Results;
-        app.update(Event::Key(KeyKind::Action));
+        app.update(Event::Key(KeyKind::Char('a')));
         assert_eq!(app.screen, Screen::ActionMenu);
         assert_eq!(app.action_items.len(), 1);
         assert!(app.action_items[0].0.contains("Merge holdings (2)"));
@@ -873,5 +1035,108 @@ mod tests {
         assert_eq!(app.screen, Screen::Confirm);
         let effects = app.update(Event::Key(KeyKind::Enter)); // → submit
         assert_eq!(effects, vec![Effect::RunCommand(Command::MergeHoldings)]);
+    }
+
+    fn empty_table() -> OpResult {
+        OpResult::Table { title: String::new(), columns: vec!["x".into()], rows: Vec::new() }
+    }
+
+    fn type_str(app: &mut App, s: &str) {
+        for c in s.chars() {
+            app.update(Event::Key(KeyKind::Char(c)));
+        }
+    }
+
+    #[test]
+    fn create_deposit_account_flow() {
+        let mut app = logged_in();
+        app.selected_op = 3; // DepositAddresses
+        assert_eq!(app.operations[app.selected_op], Operation::DepositAddresses);
+        app.result = Some(empty_table()); // empty list — global create still offered
+        app.focus = Focus::Results;
+        app.update(Event::Key(KeyKind::Char('a')));
+        assert_eq!(app.screen, Screen::ActionMenu);
+        assert_eq!(app.action_items.len(), 1);
+        assert!(app.action_items[0].0.contains("Create deposit account"));
+        app.update(Event::Key(KeyKind::Enter)); // no form → straight to confirm
+        assert_eq!(app.screen, Screen::Confirm);
+        let effects = app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(effects, vec![Effect::RunCommand(Command::CreateDepositAccount)]);
+    }
+
+    #[test]
+    fn create_withdraw_account_form_flow() {
+        let mut app = logged_in();
+        app.selected_op = 4; // WithdrawAccounts
+        assert_eq!(app.operations[app.selected_op], Operation::WithdrawAccounts);
+        app.result = Some(empty_table());
+        app.focus = Focus::Results;
+        app.update(Event::Key(KeyKind::Char('a')));
+        assert_eq!(app.action_items.len(), 1); // no row → only the global create
+        assert!(app.action_items[0].0.contains("Create withdraw account"));
+        app.update(Event::Key(KeyKind::Enter)); // → Form
+        assert_eq!(app.screen, Screen::Form);
+        // bech32 address contains 'q','p','a','r' — must type, not trigger shortcuts.
+        type_str(&mut app, "bc1qpar");
+        assert_eq!(app.form.as_ref().unwrap().input, "bc1qpar");
+        app.update(Event::Key(KeyKind::Enter)); // validate → Confirm
+        assert_eq!(app.screen, Screen::Confirm);
+        let effects = app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(
+            effects,
+            vec![Effect::RunCommand(Command::CreateWithdrawAccount {
+                btc_address: "bc1qpar".into()
+            })]
+        );
+    }
+
+    #[test]
+    fn submit_withdraw_form_flow() {
+        let mut app = logged_in();
+        app.selected_op = 4; // WithdrawAccounts
+        app.result = Some(OpResult::Table {
+            title: String::new(),
+            columns: vec!["Dest".into()],
+            rows: vec![crate::ops::ResultRow::new(vec!["bc1dest".into()], None).with_id("00wacct".into())],
+        });
+        app.focus = Focus::Results;
+        app.result_selected = 0;
+        app.update(Event::Key(KeyKind::Char('a')));
+        // Row "Submit withdraw" + global "Create withdraw account".
+        assert_eq!(app.action_items.len(), 2);
+        assert!(app.action_items[0].0.contains("Submit withdraw"));
+        app.update(Event::Key(KeyKind::Enter)); // Submit withdraw → amount Form
+        assert_eq!(app.screen, Screen::Form);
+        type_str(&mut app, "0.5");
+        app.update(Event::Key(KeyKind::Enter)); // validate → Confirm
+        assert_eq!(app.screen, Screen::Confirm);
+        let effects = app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(
+            effects,
+            vec![Effect::RunCommand(Command::SubmitWithdraw {
+                account_cid: "00wacct".into(),
+                amount: "0.5".into()
+            })]
+        );
+    }
+
+    #[test]
+    fn form_rejects_invalid_input() {
+        let mut app = logged_in();
+        app.selected_op = 4;
+        app.result = Some(empty_table());
+        app.focus = Focus::Results;
+        app.update(Event::Key(KeyKind::Char('a')));
+        app.update(Event::Key(KeyKind::Enter)); // → BTC-address Form
+        assert_eq!(app.screen, Screen::Form);
+        // Empty submit is rejected and stays on the form with an error.
+        app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(app.screen, Screen::Form);
+        assert!(app.form.as_ref().unwrap().error.is_some());
+        // Typing clears the error; Backspace edits the buffer.
+        type_str(&mut app, "bc1xy");
+        app.update(Event::Key(KeyKind::Backspace));
+        assert_eq!(app.form.as_ref().unwrap().input, "bc1x");
+        assert!(app.form.as_ref().unwrap().error.is_none());
     }
 }

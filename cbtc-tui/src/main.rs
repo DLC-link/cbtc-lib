@@ -157,6 +157,7 @@ fn build_context(app: &App) -> Option<OpContext> {
         bitsafe_api_url: env.bitsafe_api_url,
         registry_url: env.registry_url,
         decentralized_party_id: env.decentralized_party_id,
+        user_name: profile.keycloak_username.clone(),
         dar_dirs: Vec::new(),
     })
 }

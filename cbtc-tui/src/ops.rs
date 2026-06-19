@@ -83,6 +83,7 @@ pub struct OpContext {
     pub bitsafe_api_url: String,
     pub registry_url: String,
     pub decentralized_party_id: String,
+    pub user_name: String,
     pub dar_dirs: Vec<String>,
 }
 
@@ -319,6 +320,7 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                         ],
                         Some(format!("{a:#?}")),
                     )
+                    .with_id(a.contract_id.clone())
                 })
                 .collect();
             Ok(OpResult::Table {

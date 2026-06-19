@@ -8,7 +8,7 @@ use ratatui::widgets::{
     Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table, TableState,
 };
 
-use crate::app::{App, Focus, Screen};
+use crate::app::{App, Focus, FormKind, Screen};
 use crate::ops::OpResult;
 use crate::theme::{Role, Theme, glyph};
 
@@ -28,6 +28,10 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) {
         Screen::ActionMenu => {
             draw_main(frame, app, theme, spinner_frame);
             draw_action_menu(frame, app, theme);
+        }
+        Screen::Form => {
+            draw_main(frame, app, theme, spinner_frame);
+            draw_form(frame, app, theme);
         }
         Screen::Confirm => {
             draw_main(frame, app, theme, spinner_frame);
@@ -318,6 +322,45 @@ fn draw_action_menu(frame: &mut Frame, app: &App, theme: &Theme) {
     frame.render_stateful_widget(list, area, &mut state);
 }
 
+fn draw_form(frame: &mut Frame, app: &App, theme: &Theme) {
+    let area = centered_rect(60, 30, frame.area());
+    frame.render_widget(Clear, area);
+    let title = match app.form.as_ref().map(|f| &f.kind) {
+        Some(FormKind::CreateWithdrawAccount) => "New withdraw account",
+        Some(FormKind::SubmitWithdraw { .. }) => "Submit withdraw",
+        None => "Input",
+    };
+    let (label, input, error) = match &app.form {
+        Some(f) => (f.label.as_str(), f.input.as_str(), f.error.as_deref()),
+        None => ("", "", None),
+    };
+    let mut lines: Vec<Line> = vec![
+        Line::from(Span::styled(label.to_string(), Style::default().fg(theme.color(Role::FgDim)))),
+        Line::from(format!("> {input}█")),
+        Line::from(""),
+    ];
+    if let Some(e) = error {
+        lines.push(Line::from(Span::styled(
+            format!("{} {e}", glyph::CROSS),
+            Style::default().fg(theme.color(Role::Danger)),
+        )));
+    }
+    lines.push(Line::from(Span::styled(
+        "Enter submit · Esc cancel",
+        Style::default().fg(theme.color(Role::FgDim)),
+    )));
+    let para = Paragraph::new(lines).block(
+        Block::default()
+            .title(Span::styled(
+                title,
+                Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+            ))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.color(Role::Accent))),
+    );
+    frame.render_widget(para, area);
+}
+
 fn draw_confirm(frame: &mut Frame, app: &App, theme: &Theme) {
     let area = centered_rect(60, 40, frame.area());
     frame.render_widget(Clear, area);
@@ -532,8 +575,14 @@ mod tests {
         let mut app = App::new(Config::default());
         app.screen = Screen::ActionMenu;
         app.action_items = vec![
-            ("Accept".into(), crate::app::Command::Accept { cid: "x".into() }),
-            ("Reject".into(), crate::app::Command::Reject { cid: "x".into() }),
+            (
+                "Accept".into(),
+                crate::app::PendingAction::Command(crate::app::Command::Accept { cid: "x".into() }),
+            ),
+            (
+                "Reject".into(),
+                crate::app::PendingAction::Command(crate::app::Command::Reject { cid: "x".into() }),
+            ),
         ];
         let theme = Theme { truecolor: true };
         let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
@@ -569,5 +618,23 @@ mod tests {
         assert!(text.contains("Confirm"));
         assert!(text.contains("MAINNET"));
         assert!(text.contains("Accept"));
+    }
+
+    #[test]
+    fn form_popup_renders() {
+        let mut app = App::new(Config::default());
+        app.screen = Screen::Form;
+        app.form = Some(crate::app::FormState {
+            kind: crate::app::FormKind::CreateWithdrawAccount,
+            label: "Destination BTC address".into(),
+            input: "bc1qexample".into(),
+            error: None,
+        });
+        let theme = Theme { truecolor: true };
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        let text: String = terminal.backend().buffer().clone().content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("New withdraw account"));
+        assert!(text.contains("bc1qexample"));
     }
 }

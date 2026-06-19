@@ -18,11 +18,8 @@ pub fn map_key(code: KeyCode) -> Option<KeyKind> {
         KeyCode::PageUp => Some(KeyKind::PageUp),
         KeyCode::PageDown => Some(KeyKind::PageDown),
         KeyCode::Esc => Some(KeyKind::Esc),
-        KeyCode::Char('q') => Some(KeyKind::Quit),
-        KeyCode::Char('p') => Some(KeyKind::OpenParties),
-        KeyCode::Char('P') => Some(KeyKind::OpenProfiles),
-        KeyCode::Char('r') => Some(KeyKind::Refresh),
-        KeyCode::Char('a') => Some(KeyKind::Action),
+        KeyCode::Backspace => Some(KeyKind::Backspace),
+        KeyCode::Char(c) => Some(KeyKind::Char(c)),
         _ => None,
     }
 }
@@ -209,7 +206,116 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
             .await
             .map(|cids| format!("Merged into {} holding(s)", cids.len()))
         }
+        Command::CreateDepositAccount => {
+            let rules =
+                cbtc::mint_redeem::attestor::get_account_contract_rules(&ctx.bitsafe_api_url).await?;
+            let credential_cids = minter_credential_cids(ctx).await?;
+            if credential_cids.is_empty() {
+                return Err(
+                    "No Minter credential found — accept a Minter credential offer first."
+                        .to_string(),
+                );
+            }
+            cbtc::mint_redeem::mint::create_deposit_account(
+                cbtc::mint_redeem::mint::CreateDepositAccountParams {
+                    ledger_host: ctx.ledger_host.clone(),
+                    party: ctx.party.clone(),
+                    user_name: ctx.user_name.clone(),
+                    access_token: ctx.access_token.clone(),
+                    account_rules: rules,
+                    credential_cids,
+                },
+            )
+            .await
+            .map(|_| "Created deposit account".to_string())
+        }
+        Command::CreateWithdrawAccount { btc_address } => {
+            let rules =
+                cbtc::mint_redeem::attestor::get_account_contract_rules(&ctx.bitsafe_api_url).await?;
+            let credential_cids = minter_credential_cids(ctx).await?;
+            if credential_cids.is_empty() {
+                return Err(
+                    "No Minter credential found — accept a Minter credential offer first."
+                        .to_string(),
+                );
+            }
+            cbtc::mint_redeem::redeem::create_withdraw_account(
+                cbtc::mint_redeem::redeem::CreateWithdrawAccountParams {
+                    ledger_host: ctx.ledger_host.clone(),
+                    party: ctx.party.clone(),
+                    user_name: ctx.user_name.clone(),
+                    access_token: ctx.access_token.clone(),
+                    account_rules_contract_id: rules.wa_rules.contract_id.clone(),
+                    account_rules_template_id: rules.wa_rules.template_id.clone(),
+                    account_rules_created_event_blob: rules.wa_rules.created_event_blob.clone(),
+                    destination_btc_address: btc_address.clone(),
+                    credential_cids,
+                },
+            )
+            .await
+            .map(|_| format!("Created withdraw account to {btc_address}"))
+        }
+        Command::SubmitWithdraw { account_cid, amount } => {
+            let amount_dec =
+                cbtc::DamlDecimal::parse(amount).map_err(|e| format!("invalid amount: {e}"))?;
+            let credential_cids = minter_credential_cids(ctx).await?;
+            let holdings = cbtc::mint_redeem::redeem::list_holdings(
+                cbtc::mint_redeem::redeem::ListHoldingsParams {
+                    ledger_host: ctx.ledger_host.clone(),
+                    party: ctx.party.clone(),
+                    access_token: ctx.access_token.clone(),
+                },
+            )
+            .await?;
+            // Coin-select CBTC holdings until they cover the amount.
+            let mut holding_contract_ids = Vec::new();
+            let mut total = cbtc::DamlDecimal::ZERO;
+            for h in holdings.iter().filter(|h| h.instrument_id == "CBTC") {
+                holding_contract_ids.push(h.contract_id.clone());
+                total += h.amount;
+                if total >= amount_dec {
+                    break;
+                }
+            }
+            if holding_contract_ids.is_empty() {
+                return Err("No CBTC holdings available to withdraw".to_string());
+            }
+            cbtc::mint_redeem::redeem::submit_withdraw(
+                cbtc::mint_redeem::redeem::SubmitWithdrawParams {
+                    ledger_host: ctx.ledger_host.clone(),
+                    party: ctx.party.clone(),
+                    user_name: ctx.user_name.clone(),
+                    access_token: ctx.access_token.clone(),
+                    api_url: ctx.bitsafe_api_url.clone(),
+                    withdraw_account_contract_id: account_cid.clone(),
+                    amount: amount_dec,
+                    holding_contract_ids,
+                    credential_cids: Some(credential_cids),
+                },
+            )
+            .await
+            .map(|_| format!("Submitted withdraw of {amount} CBTC"))
+        }
     }
+}
+
+/// Fetch the party's Minter credential contract ids (CBTC role).
+async fn minter_credential_cids(ctx: &OpContext) -> Result<Vec<String>, String> {
+    let credentials = cbtc::credentials::list_credentials(cbtc::credentials::ListCredentialsParams {
+        ledger_host: ctx.ledger_host.clone(),
+        party: ctx.party.clone(),
+        access_token: ctx.access_token.clone(),
+    })
+    .await?;
+    Ok(credentials
+        .iter()
+        .filter(|c| {
+            c.claims
+                .iter()
+                .any(|cl| cl.property == "hasCBTCRole" && cl.value == "Minter")
+        })
+        .map(|c| c.contract_id.clone())
+        .collect())
 }
 
 #[cfg(test)]
@@ -217,13 +323,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn maps_navigation_keys() {
-        assert_eq!(map_key(KeyCode::Up), Some(crate::app::KeyKind::Up));
-        assert_eq!(map_key(KeyCode::Enter), Some(crate::app::KeyKind::Enter));
-        assert_eq!(map_key(KeyCode::Char('q')), Some(crate::app::KeyKind::Quit));
-        assert_eq!(map_key(KeyCode::Char('p')), Some(crate::app::KeyKind::OpenParties));
-        assert_eq!(map_key(KeyCode::Char('P')), Some(crate::app::KeyKind::OpenProfiles));
-        assert_eq!(map_key(KeyCode::Esc), Some(crate::app::KeyKind::Esc));
-        assert_eq!(map_key(KeyCode::Char('z')), None);
+    fn maps_keys_to_raw_kinds() {
+        use crate::app::KeyKind;
+        assert_eq!(map_key(KeyCode::Up), Some(KeyKind::Up));
+        assert_eq!(map_key(KeyCode::Enter), Some(KeyKind::Enter));
+        assert_eq!(map_key(KeyCode::Tab), Some(KeyKind::Tab));
+        assert_eq!(map_key(KeyCode::Esc), Some(KeyKind::Esc));
+        assert_eq!(map_key(KeyCode::Backspace), Some(KeyKind::Backspace));
+        // Chars map raw — the app interprets them per screen (shortcut vs text).
+        assert_eq!(map_key(KeyCode::Char('q')), Some(KeyKind::Char('q')));
+        assert_eq!(map_key(KeyCode::Char('z')), Some(KeyKind::Char('z')));
+        assert_eq!(map_key(KeyCode::F(1)), None);
     }
 }

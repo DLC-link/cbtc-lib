@@ -56,14 +56,17 @@ pub enum Command {
     Cancel { cid: String },
     /// Batch-cancel a set of (expired) outgoing offers.
     CancelExpired { cids: Vec<String> },
+    /// Merge (consolidate) all of the party's CBTC holdings into one.
+    MergeHoldings,
 }
 
 impl Command {
-    /// The (primary) contract id this command targets.
+    /// The (primary) contract id this command targets, if any.
     pub fn cid(&self) -> &str {
         match self {
             Command::Accept { cid } | Command::Reject { cid } | Command::Cancel { cid } => cid,
             Command::CancelExpired { cids } => cids.first().map(String::as_str).unwrap_or(""),
+            Command::MergeHoldings => "",
         }
     }
 
@@ -74,6 +77,7 @@ impl Command {
             Command::Reject { .. } => "Reject",
             Command::Cancel { .. } => "Cancel",
             Command::CancelExpired { .. } => "Cancel expired",
+            Command::MergeHoldings => "Merge holdings",
         }
     }
 }
@@ -464,6 +468,15 @@ impl App {
         };
         let mut items: Vec<(String, Command)> = Vec::new();
         match self.operations[self.selected_op] {
+            Operation::CheckBalance => {
+                let holdings = self.rows_len();
+                if holdings >= 2 {
+                    items.push((
+                        format!("Merge holdings ({holdings})"),
+                        Command::MergeHoldings,
+                    ));
+                }
+            }
             Operation::IncomingOffers => {
                 if let Some(cid) = row_cid {
                     items.push(("Accept".to_string(), Command::Accept { cid: cid.clone() }));
@@ -495,6 +508,9 @@ impl App {
     fn command_summary(&self, label: &str, command: &Command) -> String {
         if let Command::CancelExpired { cids } = command {
             return format!("Cancel {} expired outgoing offer(s)", cids.len());
+        }
+        if let Command::MergeHoldings = command {
+            return format!("Merge {} holdings into one", self.rows_len());
         }
         let detail = match &self.result {
             Some(OpResult::Table { rows, .. }) => rows
@@ -833,5 +849,29 @@ mod tests {
                 cids: vec!["00a".into(), "00c".into()]
             })]
         );
+    }
+
+    #[test]
+    fn merge_holdings_flow() {
+        let mut app = logged_in();
+        app.selected_op = 0; // CheckBalance
+        assert_eq!(app.operations[app.selected_op], Operation::CheckBalance);
+        app.result = Some(OpResult::Table {
+            title: "Total CBTC: 1".into(),
+            columns: vec!["#".into(), "Amount".into()],
+            rows: vec![
+                crate::ops::ResultRow::new(vec!["1".into(), "0.5".into()], None),
+                crate::ops::ResultRow::new(vec!["2".into(), "0.5".into()], None),
+            ],
+        });
+        app.focus = Focus::Results;
+        app.update(Event::Key(KeyKind::Action));
+        assert_eq!(app.screen, Screen::ActionMenu);
+        assert_eq!(app.action_items.len(), 1);
+        assert!(app.action_items[0].0.contains("Merge holdings (2)"));
+        app.update(Event::Key(KeyKind::Enter)); // → Confirm
+        assert_eq!(app.screen, Screen::Confirm);
+        let effects = app.update(Event::Key(KeyKind::Enter)); // → submit
+        assert_eq!(effects, vec![Effect::RunCommand(Command::MergeHoldings)]);
     }
 }

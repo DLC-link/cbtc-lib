@@ -9,6 +9,7 @@ canton-api-client = "3.6.0-0.1.0"
 cbtc = { path = ".." }
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }
 dirs = "5"
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }
 ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }

@@ -193,6 +193,22 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
                 }
             })
         }
+        Command::MergeHoldings => {
+            cbtc::consolidate::consolidate_utxos(cbtc::consolidate::ConsolidateParams {
+                party: ctx.party.clone(),
+                instrument_id: common::transfer::InstrumentId {
+                    admin: ctx.decentralized_party_id.clone(),
+                    id: "CBTC".to_string(),
+                },
+                input_holding_cids: None,
+                ledger_host: ctx.ledger_host.clone(),
+                access_token: ctx.access_token.clone(),
+                registry_url: ctx.registry_url.clone(),
+                decentralized_party_id: ctx.decentralized_party_id.clone(),
+            })
+            .await
+            .map(|cids| format!("Merged into {} holding(s)", cids.len()))
+        }
     }
 }
 

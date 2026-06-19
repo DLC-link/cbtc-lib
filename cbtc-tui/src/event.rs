@@ -155,6 +155,28 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
         })
         .await
         .map(|()| "Cancelled offer".to_string()),
+        Command::CancelExpired { cids } => {
+            cbtc::cancel_offers::withdraw_batch(cbtc::cancel_offers::WithdrawBatchParams {
+                contract_ids: cids.clone(),
+                sender_party: ctx.party.clone(),
+                ledger_host: ctx.ledger_host.clone(),
+                access_token: ctx.access_token.clone(),
+                registry_url: ctx.registry_url.clone(),
+                decentralized_party_id: ctx.decentralized_party_id.clone(),
+            })
+            .await
+            .map(|res| {
+                let total = res.successful_count + res.failed_count;
+                if res.failed_count == 0 {
+                    format!("Cancelled {} expired offer(s)", res.successful_count)
+                } else {
+                    format!(
+                        "Cancelled {}/{} expired offer(s), {} failed",
+                        res.successful_count, total, res.failed_count
+                    )
+                }
+            })
+        }
     }
 }
 

@@ -15,6 +15,24 @@ pub struct Params {
     pub decentralized_party_id: String,
 }
 
+/// Parameters for withdrawing a specific set of CBTC transfer offers (by contract
+/// id) as the sending party, using an existing access token. Submissions are
+/// batched; the registry withdraw-context is fetched once and shared.
+pub struct WithdrawBatchParams {
+    /// Contract IDs of the TransferOffer/TransferInstructions to withdraw
+    pub contract_ids: Vec<String>,
+    /// The sender party ID
+    pub sender_party: String,
+    /// Ledger host URL
+    pub ledger_host: String,
+    /// Access token for the sender party
+    pub access_token: String,
+    /// Registry URL
+    pub registry_url: String,
+    /// Decentralized party ID for CBTC
+    pub decentralized_party_id: String,
+}
+
 /// Parameters for withdrawing all pending CBTC transfers for a party.
 pub struct WithdrawAllParams {
     /// The sender party ID
@@ -128,6 +146,119 @@ pub async fn submit(params: Params) -> Result<(), String> {
     .await?;
 
     Ok(())
+}
+
+/// Withdraw a specific set of CBTC transfer offers by contract id, batched.
+///
+/// Like [`withdraw_all`] but operates on a provided list of contract ids and an
+/// existing access token (no re-authentication). The registry withdraw-context
+/// is fetched once (shared across CBTC transfers) and reused for every command;
+/// commands are submitted in batches of 5.
+///
+/// # Errors
+/// Returns an error string if the shared registry context cannot be fetched.
+/// Per-batch ledger failures are recorded in the returned result rather than
+/// aborting the whole run.
+pub async fn withdraw_batch(params: WithdrawBatchParams) -> Result<WithdrawAllResult, String> {
+    if params.contract_ids.is_empty() {
+        return Ok(WithdrawAllResult {
+            results: Vec::new(),
+            successful_count: 0,
+            failed_count: 0,
+        });
+    }
+
+    // Fetch the withdraw context once (same for all CBTC transfers).
+    let withdraw_context = registry::accept_context::get(registry::accept_context::Params {
+        registry_url: params.registry_url.clone(),
+        decentralized_party_id: params.decentralized_party_id.clone(),
+        transfer_offer_contract_id: params.contract_ids[0].clone(),
+        request: registry::accept_context::Request {
+            meta: registry::accept_context::Meta {
+                values: String::new(),
+            },
+        },
+    })
+    .await?;
+
+    const BATCH_SIZE: usize = 5;
+    let mut results = Vec::new();
+    let mut successful_count = 0;
+    let mut failed_count = 0;
+
+    for batch in params.contract_ids.chunks(BATCH_SIZE) {
+        let batch_commands: Vec<common::submission::Command> = batch
+            .iter()
+            .map(|contract_id| {
+                common::submission::Command::ExerciseCommand(common::submission::ExerciseCommand {
+                    exercise_command: common::submission::ExerciseCommandData {
+                        template_id: common::consts::TEMPLATE_TRANSFER_INSTRUCTION.to_string(),
+                        contract_id: contract_id.clone(),
+                        choice: "TransferInstruction_Withdraw".to_string(),
+                        choice_argument: common::submission::ChoiceArgumentsVariations::Accept(
+                            common::accept::ChoiceArguments {
+                                extra_args: common::accept::ExtraArgs {
+                                    context: common::accept::Context {
+                                        values: withdraw_context.choice_context_data.values.clone(),
+                                    },
+                                    meta: common::accept::Meta {
+                                        values: common::accept::MetaValue {},
+                                    },
+                                },
+                            },
+                        ),
+                    },
+                })
+            })
+            .collect();
+
+        let submission_request = common::submission::Submission {
+            act_as: vec![params.sender_party.clone()],
+            read_as: None,
+            command_id: uuid::Uuid::new_v4().to_string(),
+            disclosed_contracts: withdraw_context.disclosed_contracts.clone(),
+            commands: batch_commands,
+            ..Default::default()
+        };
+
+        let outcome = ledger::submit::wait_for_transaction(ledger::submit::Params {
+            ledger_host: params.ledger_host.clone(),
+            access_token: params.access_token.clone(),
+            request: submission_request,
+        })
+        .await;
+
+        for contract_id in batch {
+            match &outcome {
+                Ok(_) => {
+                    successful_count += 1;
+                    results.push(WithdrawResult {
+                        success: true,
+                        contract_id: contract_id.clone(),
+                        amount: None,
+                        receiver: None,
+                        error: None,
+                    });
+                }
+                Err(e) => {
+                    failed_count += 1;
+                    results.push(WithdrawResult {
+                        success: false,
+                        contract_id: contract_id.clone(),
+                        amount: None,
+                        receiver: None,
+                        error: Some(e.clone()),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(WithdrawAllResult {
+        results,
+        successful_count,
+        failed_count,
+    })
 }
 
 /// Withdraw all pending CBTC transfers for a party (transfers sent by this party).

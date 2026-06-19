@@ -54,13 +54,16 @@ pub enum Command {
     Accept { cid: String },
     Reject { cid: String },
     Cancel { cid: String },
+    /// Batch-cancel a set of (expired) outgoing offers.
+    CancelExpired { cids: Vec<String> },
 }
 
 impl Command {
-    /// The contract id this command targets.
+    /// The (primary) contract id this command targets.
     pub fn cid(&self) -> &str {
         match self {
             Command::Accept { cid } | Command::Reject { cid } | Command::Cancel { cid } => cid,
+            Command::CancelExpired { cids } => cids.first().map(String::as_str).unwrap_or(""),
         }
     }
 
@@ -70,6 +73,7 @@ impl Command {
             Command::Accept { .. } => "Accept",
             Command::Reject { .. } => "Reject",
             Command::Cancel { .. } => "Cancel",
+            Command::CancelExpired { .. } => "Cancel expired",
         }
     }
 }
@@ -446,25 +450,39 @@ impl App {
 
     /// Build the context-aware actions for the selected results row and open the menu.
     fn open_action_menu(&mut self) {
-        let cid = match &self.result {
+        let (row_cid, expired_cids): (Option<String>, Vec<String>) = match &self.result {
             Some(OpResult::Table { rows, .. }) => {
-                rows.get(self.result_selected).and_then(|r| r.id.clone())
+                let row_cid = rows.get(self.result_selected).and_then(|r| r.id.clone());
+                let expired = rows
+                    .iter()
+                    .filter(|r| r.expired)
+                    .filter_map(|r| r.id.clone())
+                    .collect();
+                (row_cid, expired)
             }
-            _ => None,
+            _ => (None, Vec::new()),
         };
-        let Some(cid) = cid else {
-            return;
-        };
-        let items: Vec<(String, Command)> = match self.operations[self.selected_op] {
-            Operation::IncomingOffers => vec![
-                ("Accept".to_string(), Command::Accept { cid: cid.clone() }),
-                ("Reject".to_string(), Command::Reject { cid }),
-            ],
+        let mut items: Vec<(String, Command)> = Vec::new();
+        match self.operations[self.selected_op] {
+            Operation::IncomingOffers => {
+                if let Some(cid) = row_cid {
+                    items.push(("Accept".to_string(), Command::Accept { cid: cid.clone() }));
+                    items.push(("Reject".to_string(), Command::Reject { cid }));
+                }
+            }
             Operation::OutgoingOffers => {
-                vec![("Cancel".to_string(), Command::Cancel { cid })]
+                if let Some(cid) = row_cid {
+                    items.push(("Cancel".to_string(), Command::Cancel { cid }));
+                }
+                if !expired_cids.is_empty() {
+                    items.push((
+                        format!("Cancel all expired ({})", expired_cids.len()),
+                        Command::CancelExpired { cids: expired_cids },
+                    ));
+                }
             }
-            _ => Vec::new(),
-        };
+            _ => {}
+        }
         if items.is_empty() {
             return;
         }
@@ -475,6 +493,9 @@ impl App {
 
     /// Human-readable summary of a pending command for the confirm popup.
     fn command_summary(&self, label: &str, command: &Command) -> String {
+        if let Command::CancelExpired { cids } = command {
+            return format!("Cancel {} expired outgoing offer(s)", cids.len());
+        }
         let detail = match &self.result {
             Some(OpResult::Table { rows, .. }) => rows
                 .get(self.result_selected)
@@ -772,5 +793,45 @@ mod tests {
         app.focus = Focus::Results;
         app.update(Event::Key(KeyKind::Action));
         assert_eq!(app.screen, Screen::Main);
+    }
+
+    #[test]
+    fn cancel_all_expired_flow() {
+        let mut app = logged_in();
+        app.selected_op = 2; // OutgoingOffers
+        assert_eq!(app.operations[app.selected_op], Operation::OutgoingOffers);
+        app.result = Some(OpResult::Table {
+            title: "Outgoing Offers".into(),
+            columns: vec!["To".into()],
+            rows: vec![
+                crate::ops::ResultRow::new(vec!["a".into()], None)
+                    .with_id("00a".into())
+                    .with_expired(true),
+                crate::ops::ResultRow::new(vec!["b".into()], None)
+                    .with_id("00b".into())
+                    .with_expired(false),
+                crate::ops::ResultRow::new(vec!["c".into()], None)
+                    .with_id("00c".into())
+                    .with_expired(true),
+            ],
+        });
+        app.focus = Focus::Results;
+        app.result_selected = 1; // a non-expired row is selected
+        app.update(Event::Key(KeyKind::Action));
+        assert_eq!(app.screen, Screen::ActionMenu);
+        // Row "Cancel" + global "Cancel all expired (2)".
+        assert_eq!(app.action_items.len(), 2);
+        assert!(app.action_items[1].0.contains("Cancel all expired (2)"));
+        // Pick the global action → confirm → submit.
+        app.update(Event::Key(KeyKind::Down));
+        app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(app.screen, Screen::Confirm);
+        let effects = app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(
+            effects,
+            vec![Effect::RunCommand(Command::CancelExpired {
+                cids: vec!["00a".into(), "00c".into()]
+            })]
+        );
     }
 }

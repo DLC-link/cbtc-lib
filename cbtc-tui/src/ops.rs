@@ -28,17 +28,31 @@ pub enum Operation {
     Credentials,
 }
 
-/// One row of a table result: display `cells` plus an optional `detail` payload
-/// (pretty-printed `create_argument` / struct fields) shown in the detail view.
+/// One row of a table result: display `cells`, an optional `detail` payload
+/// (shown in the detail view), an optional `id` (full contract id used as the
+/// target for row actions), and an `expired` flag for offer rows past their
+/// `executeBefore`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResultRow {
     pub cells: Vec<String>,
     pub detail: Option<String>,
+    pub id: Option<String>,
+    pub expired: bool,
 }
 
 impl ResultRow {
     pub fn new(cells: Vec<String>, detail: Option<String>) -> Self {
-        Self { cells, detail }
+        Self { cells, detail, id: None, expired: false }
+    }
+
+    pub fn with_id(mut self, id: String) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    pub fn with_expired(mut self, expired: bool) -> Self {
+        self.expired = expired;
+        self
     }
 }
 
@@ -67,6 +81,8 @@ pub struct OpContext {
     pub party: String,
     pub access_token: String,
     pub bitsafe_api_url: String,
+    pub registry_url: String,
+    pub decentralized_party_id: String,
     pub dar_dirs: Vec<String>,
 }
 
@@ -149,15 +165,22 @@ fn transfers_to_result(
         .filter_map(|c| {
             let arg = c.created_event.create_argument.as_ref()?;
             let r = parse_transfer_row(arg, counterparty_key)?;
-            Some(ResultRow::new(
-                vec![
-                    r.counterparty,
-                    r.amount,
-                    r.execute_before,
-                    short(&c.created_event.contract_id),
-                ],
-                contract_detail(c),
-            ))
+            let expired = chrono::DateTime::parse_from_rfc3339(&r.execute_before)
+                .map(|t| t.with_timezone(&chrono::Utc) < chrono::Utc::now())
+                .unwrap_or(false);
+            Some(
+                ResultRow::new(
+                    vec![
+                        r.counterparty,
+                        r.amount,
+                        r.execute_before,
+                        short(&c.created_event.contract_id),
+                    ],
+                    contract_detail(c),
+                )
+                .with_id(c.created_event.contract_id.clone())
+                .with_expired(expired),
+            )
         })
         .collect();
     OpResult::Table {

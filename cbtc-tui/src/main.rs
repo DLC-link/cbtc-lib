@@ -118,6 +118,14 @@ async fn run(
                         }
                     }
                 }
+                Effect::RunCommand(command) => {
+                    if let Some(ctx) = build_context(&app) {
+                        event::spawn_command(tx.clone(), command, ctx);
+                    } else {
+                        let _ = app
+                            .update(Event::CommandResult(Err("no active party/session".to_string())));
+                    }
+                }
                 Effect::FetchParties => {
                     if let Some(idx) = app.active_profile
                         && let Some(profile) = app.config.profiles.get(idx).cloned()
@@ -147,6 +155,8 @@ fn build_context(app: &App) -> Option<OpContext> {
         party,
         access_token: token,
         bitsafe_api_url: env.bitsafe_api_url,
+        registry_url: env.registry_url,
+        decentralized_party_id: env.decentralized_party_id,
         dar_dirs: Vec::new(),
     })
 }

@@ -25,6 +25,14 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) {
             draw_main(frame, app, theme, spinner_frame);
             draw_detail(frame, app, theme);
         }
+        Screen::ActionMenu => {
+            draw_main(frame, app, theme, spinner_frame);
+            draw_action_menu(frame, app, theme);
+        }
+        Screen::Confirm => {
+            draw_main(frame, app, theme, spinner_frame);
+            draw_confirm(frame, app, theme);
+        }
     }
 }
 
@@ -134,7 +142,7 @@ fn draw_main(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) 
     // Footer.
     frame.render_widget(
         Paragraph::new(
-            "Tab pane · ↑↓ · Enter run/detail · p party · P profiles · r refresh · q quit",
+            "Tab pane · ↑↓ · Enter run/detail · a actions · p party · P prof · q quit",
         )
         .style(Style::default().fg(theme.color(Role::FgDim))),
         rows[2],
@@ -195,7 +203,14 @@ fn draw_results(
                 .map(|_| Constraint::Percentage(100 / columns.len().max(1) as u16))
                 .collect();
             let mut table = Table::new(
-                rows.iter().map(|r| Row::new(r.cells.iter().map(|c| Cell::from(c.clone())))),
+                rows.iter().map(|r| {
+                    let row = Row::new(r.cells.iter().map(|c| Cell::from(c.clone())));
+                    if r.expired {
+                        row.style(Style::default().fg(theme.color(Role::FgDim)))
+                    } else {
+                        row
+                    }
+                }),
                 widths,
             )
             .header(header)
@@ -271,6 +286,68 @@ fn draw_detail(frame: &mut Frame, app: &App, theme: &Theme) {
                 .border_style(Style::default().fg(theme.color(Role::Accent))),
         )
         .scroll((app.detail_scroll as u16, 0));
+    frame.render_widget(para, area);
+}
+
+fn draw_action_menu(frame: &mut Frame, app: &App, theme: &Theme) {
+    let area = centered_rect(40, 30, frame.area());
+    frame.render_widget(Clear, area);
+    let items: Vec<ListItem> = app
+        .action_items
+        .iter()
+        .map(|(label, _)| ListItem::new(label.clone()))
+        .collect();
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(Span::styled(
+                    "Actions · Enter · Esc",
+                    Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.color(Role::Accent))),
+        )
+        .highlight_style(
+            Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ");
+    let mut state = ListState::default();
+    if !app.action_items.is_empty() {
+        state.select(Some(app.action_selected));
+    }
+    frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn draw_confirm(frame: &mut Frame, app: &App, theme: &Theme) {
+    let area = centered_rect(60, 40, frame.area());
+    frame.render_widget(Clear, area);
+    let mainnet = app.is_mainnet();
+    let summary = app.pending.as_ref().map(|(_, s)| s.clone()).unwrap_or_default();
+    let mut lines: Vec<Line> = Vec::new();
+    if mainnet {
+        lines.push(Line::from(Span::styled(
+            "⚠ MAINNET ⚠",
+            Style::default().fg(theme.color(Role::Danger)).add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from(""));
+    }
+    for l in summary.lines() {
+        lines.push(Line::from(l.to_string()));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(
+        Span::styled("Enter confirm · Esc cancel", Style::default().fg(theme.color(Role::FgDim))),
+    ));
+    let border = if mainnet { Role::Danger } else { Role::Accent };
+    let para = Paragraph::new(lines).block(
+        Block::default()
+            .title(Span::styled(
+                "Confirm",
+                Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD),
+            ))
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.color(border))),
+    );
     frame.render_widget(para, area);
 }
 
@@ -448,5 +525,49 @@ mod tests {
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("acct-7"));
         assert!(text.contains("Detail"));
+    }
+
+    #[test]
+    fn action_menu_popup_renders() {
+        let mut app = App::new(Config::default());
+        app.screen = Screen::ActionMenu;
+        app.action_items = vec![
+            ("Accept".into(), crate::app::Command::Accept { cid: "x".into() }),
+            ("Reject".into(), crate::app::Command::Reject { cid: "x".into() }),
+        ];
+        let theme = Theme { truecolor: true };
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        let text: String = terminal.backend().buffer().clone().content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("Actions"));
+        assert!(text.contains("Accept"));
+        assert!(text.contains("Reject"));
+    }
+
+    #[test]
+    fn confirm_popup_renders_with_mainnet_banner() {
+        let cfg = Config {
+            default_profile: None,
+            environments: Default::default(),
+            profiles: vec![Profile {
+                name: "p".into(),
+                environment: "mainnet".into(),
+                ..Default::default()
+            }],
+        };
+        let mut app = App::new(cfg);
+        app.active_profile = Some(0);
+        app.screen = Screen::Confirm;
+        app.pending = Some((
+            crate::app::Command::Accept { cid: "00cid".into() },
+            "Accept:\nbob::1220  0.5".into(),
+        ));
+        let theme = Theme { truecolor: true };
+        let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        let text: String = terminal.backend().buffer().clone().content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("Confirm"));
+        assert!(text.contains("MAINNET"));
+        assert!(text.contains("Accept"));
     }
 }

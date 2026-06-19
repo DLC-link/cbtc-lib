@@ -13,6 +13,8 @@ pub enum Screen {
     Main,
     PartyOverlay,
     Detail,
+    ActionMenu,
+    Confirm,
 }
 
 /// Which pane on the main screen has keyboard focus.
@@ -33,6 +35,7 @@ pub enum KeyKind {
     OpenParties,
     OpenProfiles,
     Refresh,
+    Action,
     Quit,
     Esc,
 }
@@ -42,6 +45,33 @@ pub enum Event {
     Key(KeyKind),
     LoginResult(std::result::Result<(String, Vec<PartyRight>), String>),
     OpResult(std::result::Result<OpResult, String>),
+    CommandResult(std::result::Result<String, String>),
+}
+
+/// A write command targeting a specific contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Command {
+    Accept { cid: String },
+    Reject { cid: String },
+    Cancel { cid: String },
+}
+
+impl Command {
+    /// The contract id this command targets.
+    pub fn cid(&self) -> &str {
+        match self {
+            Command::Accept { cid } | Command::Reject { cid } | Command::Cancel { cid } => cid,
+        }
+    }
+
+    /// Short verb for labels and status messages.
+    pub fn verb(&self) -> &'static str {
+        match self {
+            Command::Accept { .. } => "Accept",
+            Command::Reject { .. } => "Reject",
+            Command::Cancel { .. } => "Cancel",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +79,7 @@ pub enum Effect {
     Quit,
     Login(usize),
     RunOp(Operation),
+    RunCommand(Command),
     FetchParties,
 }
 
@@ -80,6 +111,11 @@ pub struct App {
     pub running: Option<(String, Operation)>,
     pub detail_lines: Vec<String>,
     pub detail_scroll: usize,
+    /// Context actions (label, command) shown in the actions menu.
+    pub action_items: Vec<(String, Command)>,
+    pub action_selected: usize,
+    /// The command awaiting confirmation, with a human-readable summary.
+    pub pending: Option<(Command, String)>,
     pub loading: bool,
     pub error: Option<String>,
     pub status: String,
@@ -106,6 +142,9 @@ impl App {
             running: None,
             detail_lines: Vec::new(),
             detail_scroll: 0,
+            action_items: Vec::new(),
+            action_selected: 0,
+            pending: None,
             loading: false,
             error: None,
             status: String::new(),
@@ -163,6 +202,25 @@ impl App {
                 self.error = Some(e);
                 Vec::new()
             }
+            Event::CommandResult(Ok(msg)) => {
+                self.status = msg;
+                self.error = None;
+                // Invalidate this party+op cache entry and refresh so the list
+                // reflects the command's effect.
+                if let Some(party) = self.active_party.clone() {
+                    let op = self.operations[self.selected_op];
+                    self.cache.remove(&(party.clone(), op));
+                    self.running = Some((party, op));
+                    self.loading = true;
+                    return vec![Effect::RunOp(op)];
+                }
+                Vec::new()
+            }
+            Event::CommandResult(Err(e)) => {
+                self.loading = false;
+                self.error = Some(format!("command failed: {e}"));
+                Vec::new()
+            }
         }
     }
 
@@ -175,6 +233,8 @@ impl App {
             Screen::Main => self.on_key_main(key),
             Screen::PartyOverlay => self.on_key_party(key),
             Screen::Detail => self.on_key_detail(key),
+            Screen::ActionMenu => self.on_key_action_menu(key),
+            Screen::Confirm => self.on_key_confirm(key),
         }
     }
 
@@ -248,7 +308,46 @@ impl App {
             KeyKind::Up if n > 0 => self.result_selected = (self.result_selected + n - 1) % n,
             KeyKind::Down if n > 0 => self.result_selected = (self.result_selected + 1) % n,
             KeyKind::Enter if n > 0 => self.open_detail(),
+            KeyKind::Action if n > 0 => self.open_action_menu(),
             KeyKind::Esc => self.focus = Focus::Queries,
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn on_key_action_menu(&mut self, key: KeyKind) -> Vec<Effect> {
+        let n = self.action_items.len();
+        match key {
+            KeyKind::Up if n > 0 => self.action_selected = (self.action_selected + n - 1) % n,
+            KeyKind::Down if n > 0 => self.action_selected = (self.action_selected + 1) % n,
+            KeyKind::Enter if n > 0 => {
+                let (label, command) = self.action_items[self.action_selected].clone();
+                let summary = self.command_summary(&label, &command);
+                self.pending = Some((command, summary));
+                self.screen = Screen::Confirm;
+            }
+            KeyKind::Esc => self.screen = Screen::Main,
+            _ => {}
+        }
+        Vec::new()
+    }
+
+    fn on_key_confirm(&mut self, key: KeyKind) -> Vec<Effect> {
+        match key {
+            KeyKind::Enter => {
+                if let Some((command, _)) = self.pending.take() {
+                    self.screen = Screen::Main;
+                    self.loading = true;
+                    self.error = None;
+                    self.status = format!("Submitting {}…", command.verb());
+                    return vec![Effect::RunCommand(command)];
+                }
+                self.screen = Screen::Main;
+            }
+            KeyKind::Esc => {
+                self.pending = None;
+                self.screen = Screen::Main;
+            }
             _ => {}
         }
         Vec::new()
@@ -343,6 +442,55 @@ impl App {
             self.detail_scroll = 0;
             self.screen = Screen::Detail;
         }
+    }
+
+    /// Build the context-aware actions for the selected results row and open the menu.
+    fn open_action_menu(&mut self) {
+        let cid = match &self.result {
+            Some(OpResult::Table { rows, .. }) => {
+                rows.get(self.result_selected).and_then(|r| r.id.clone())
+            }
+            _ => None,
+        };
+        let Some(cid) = cid else {
+            return;
+        };
+        let items: Vec<(String, Command)> = match self.operations[self.selected_op] {
+            Operation::IncomingOffers => vec![
+                ("Accept".to_string(), Command::Accept { cid: cid.clone() }),
+                ("Reject".to_string(), Command::Reject { cid }),
+            ],
+            Operation::OutgoingOffers => {
+                vec![("Cancel".to_string(), Command::Cancel { cid })]
+            }
+            _ => Vec::new(),
+        };
+        if items.is_empty() {
+            return;
+        }
+        self.action_items = items;
+        self.action_selected = 0;
+        self.screen = Screen::ActionMenu;
+    }
+
+    /// Human-readable summary of a pending command for the confirm popup.
+    fn command_summary(&self, label: &str, command: &Command) -> String {
+        let detail = match &self.result {
+            Some(OpResult::Table { rows, .. }) => rows
+                .get(self.result_selected)
+                .map(|r| r.cells.join("  "))
+                .unwrap_or_default(),
+            _ => command.cid().to_string(),
+        };
+        format!("{label}:\n{detail}")
+    }
+
+    /// True when the active profile targets the mainnet environment.
+    pub fn is_mainnet(&self) -> bool {
+        self.active_profile
+            .and_then(|i| self.config.profiles.get(i))
+            .map(|p| p.environment == "mainnet")
+            .unwrap_or(false)
     }
 }
 
@@ -557,6 +705,72 @@ mod tests {
         app.update(Event::Key(KeyKind::Down));
         assert_eq!(app.detail_scroll, 1);
         app.update(Event::Key(KeyKind::Esc));
+        assert_eq!(app.screen, Screen::Main);
+    }
+
+    fn offer_table() -> OpResult {
+        OpResult::Table {
+            title: "Incoming Offers".into(),
+            columns: vec!["From".into(), "Amount".into()],
+            rows: vec![
+                crate::ops::ResultRow::new(vec!["bob::1220".into(), "0.5".into()], None)
+                    .with_id("00offercid".into()),
+            ],
+        }
+    }
+
+    /// Put a logged-in app on Incoming Offers with one selectable offer row, results focused.
+    fn on_incoming_offers() -> App {
+        let mut app = logged_in();
+        app.selected_op = 1; // IncomingOffers (CheckBalance=0)
+        assert_eq!(app.operations[app.selected_op], Operation::IncomingOffers);
+        app.result = Some(offer_table());
+        app.focus = Focus::Results;
+        app.result_selected = 0;
+        app
+    }
+
+    #[test]
+    fn accept_offer_flow() {
+        let mut app = on_incoming_offers();
+        // 'a' opens a context actions menu with Accept/Reject.
+        app.update(Event::Key(KeyKind::Action));
+        assert_eq!(app.screen, Screen::ActionMenu);
+        assert_eq!(app.action_items.len(), 2);
+        assert_eq!(app.action_items[0].0, "Accept");
+        assert_eq!(app.action_items[1].0, "Reject");
+        // Enter → confirmation popup with a pending command.
+        app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(app.screen, Screen::Confirm);
+        assert!(app.pending.is_some());
+        // Enter → submit the command.
+        let effects = app.update(Event::Key(KeyKind::Enter));
+        assert_eq!(effects, vec![Effect::RunCommand(Command::Accept { cid: "00offercid".into() })]);
+        assert!(app.loading);
+        // Command result → invalidate cache + refresh the offer list.
+        let refresh = app.update(Event::CommandResult(Ok("Accepted offer".into())));
+        assert_eq!(refresh, vec![Effect::RunOp(Operation::IncomingOffers)]);
+        assert_eq!(app.status, "Accepted offer");
+    }
+
+    #[test]
+    fn action_menu_esc_cancels() {
+        let mut app = on_incoming_offers();
+        app.update(Event::Key(KeyKind::Action));
+        assert_eq!(app.screen, Screen::ActionMenu);
+        app.update(Event::Key(KeyKind::Esc));
+        assert_eq!(app.screen, Screen::Main);
+        assert!(app.pending.is_none());
+    }
+
+    #[test]
+    fn balance_row_has_no_actions() {
+        // On a non-offer screen, 'a' does nothing.
+        let mut app = logged_in();
+        app.selected_op = 0; // CheckBalance
+        app.result = Some(sample_table());
+        app.focus = Focus::Results;
+        app.update(Event::Key(KeyKind::Action));
         assert_eq!(app.screen, Screen::Main);
     }
 }

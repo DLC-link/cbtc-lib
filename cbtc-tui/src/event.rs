@@ -3,7 +3,7 @@ use std::time::Duration;
 use ratatui::crossterm::event::{self, Event as CtEvent, KeyCode, KeyEventKind};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::app::{Event, KeyKind};
+use crate::app::{Command, Event, KeyKind};
 use crate::config::Profile;
 use crate::ops::{self, OpContext, Operation};
 use crate::session;
@@ -22,6 +22,7 @@ pub fn map_key(code: KeyCode) -> Option<KeyKind> {
         KeyCode::Char('p') => Some(KeyKind::OpenParties),
         KeyCode::Char('P') => Some(KeyKind::OpenProfiles),
         KeyCode::Char('r') => Some(KeyKind::Refresh),
+        KeyCode::Char('a') => Some(KeyKind::Action),
         _ => None,
     }
 }
@@ -98,6 +99,63 @@ pub fn spawn_login(tx: UnboundedSender<Event>, profile: Profile) {
             let _ = panic_tx.send(Event::LoginResult(Err(format!("login panicked: {join_err}"))));
         }
     });
+}
+
+/// Spawn an async task that runs a write `command` and sends the result back.
+/// A panic in the task is converted into an error so the UI never hangs.
+pub fn spawn_command(tx: UnboundedSender<Event>, command: Command, ctx: OpContext) {
+    let panic_tx = tx.clone();
+    let handle = tokio::spawn(async move {
+        tracing::info!("submitting {} for {}", command.verb(), command.cid());
+        let result = run_command(&command, &ctx).await;
+        match &result {
+            Ok(msg) => tracing::info!("command ok: {msg}"),
+            Err(e) => tracing::warn!("command failed: {e}"),
+        }
+        let _ = tx.send(Event::CommandResult(result));
+    });
+    tokio::spawn(async move {
+        if let Err(join_err) = handle.await {
+            let _ = panic_tx.send(Event::CommandResult(Err(format!(
+                "command panicked: {join_err}"
+            ))));
+        }
+    });
+}
+
+async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, String> {
+    match command {
+        Command::Accept { cid } => cbtc::accept::submit(cbtc::accept::Params {
+            transfer_offer_contract_id: cid.clone(),
+            receiver_party: ctx.party.clone(),
+            ledger_host: ctx.ledger_host.clone(),
+            access_token: ctx.access_token.clone(),
+            registry_url: ctx.registry_url.clone(),
+            decentralized_party_id: ctx.decentralized_party_id.clone(),
+        })
+        .await
+        .map(|()| "Accepted offer".to_string()),
+        Command::Reject { cid } => cbtc::reject::submit(cbtc::reject::Params {
+            transfer_offer_contract_id: cid.clone(),
+            receiver_party: ctx.party.clone(),
+            ledger_host: ctx.ledger_host.clone(),
+            access_token: ctx.access_token.clone(),
+            registry_url: ctx.registry_url.clone(),
+            decentralized_party_id: ctx.decentralized_party_id.clone(),
+        })
+        .await
+        .map(|()| "Rejected offer".to_string()),
+        Command::Cancel { cid } => cbtc::cancel_offers::submit(cbtc::cancel_offers::Params {
+            transfer_offer_contract_id: cid.clone(),
+            sender_party: ctx.party.clone(),
+            ledger_host: ctx.ledger_host.clone(),
+            access_token: ctx.access_token.clone(),
+            registry_url: ctx.registry_url.clone(),
+            decentralized_party_id: ctx.decentralized_party_id.clone(),
+        })
+        .await
+        .map(|()| "Cancelled offer".to_string()),
+    }
 }
 
 #[cfg(test)]

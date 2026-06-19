@@ -317,6 +317,7 @@ dependencies = [
  "anyhow",
  "canton-api-client",
  "cbtc",
+ "chrono",
  "clap",
  "dirs",
  "keycloak",

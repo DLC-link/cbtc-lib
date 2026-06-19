@@ -10,6 +10,7 @@ pub mod dar_check;
 pub mod distribute;
 mod event_helpers;
 pub mod mint_redeem;
+pub mod reject;
 pub mod split;
 pub mod transfer;
 pub mod utils;

@@ -166,12 +166,28 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
             })
             .await
             .map(|res| {
+                for r in res.results.iter().filter(|r| !r.success) {
+                    tracing::warn!(
+                        "cancel-expired failed for {}: {}",
+                        r.contract_id,
+                        r.error.as_deref().unwrap_or("unknown error")
+                    );
+                }
                 let total = res.successful_count + res.failed_count;
                 if res.failed_count == 0 {
                     format!("Cancelled {} expired offer(s)", res.successful_count)
                 } else {
+                    let first: String = res
+                        .results
+                        .iter()
+                        .find(|r| !r.success)
+                        .and_then(|r| r.error.clone())
+                        .unwrap_or_default()
+                        .chars()
+                        .take(80)
+                        .collect();
                     format!(
-                        "Cancelled {}/{} expired offer(s), {} failed",
+                        "Cancelled {}/{}, {} failed — {first}",
                         res.successful_count, total, res.failed_count
                     )
                 }

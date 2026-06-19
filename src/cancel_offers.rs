@@ -148,17 +148,101 @@ pub async fn submit(params: Params) -> Result<(), String> {
     Ok(())
 }
 
+/// Build a single `TransferInstruction_Withdraw` exercise command from a shared context.
+fn build_withdraw_command(
+    contract_id: &str,
+    context: &registry::accept_context::Response,
+) -> common::submission::Command {
+    common::submission::Command::ExerciseCommand(common::submission::ExerciseCommand {
+        exercise_command: common::submission::ExerciseCommandData {
+            template_id: common::consts::TEMPLATE_TRANSFER_INSTRUCTION.to_string(),
+            contract_id: contract_id.to_string(),
+            choice: "TransferInstruction_Withdraw".to_string(),
+            choice_argument: common::submission::ChoiceArgumentsVariations::Accept(
+                common::accept::ChoiceArguments {
+                    extra_args: common::accept::ExtraArgs {
+                        context: common::accept::Context {
+                            values: context.choice_context_data.values.clone(),
+                        },
+                        meta: common::accept::Meta {
+                            values: common::accept::MetaValue {},
+                        },
+                    },
+                },
+            ),
+        },
+    })
+}
+
+/// Submit a withdraw for the given contract ids as one (atomic) transaction.
+async fn submit_withdraws(
+    contract_ids: &[String],
+    sender_party: &str,
+    ledger_host: &str,
+    access_token: &str,
+    context: &registry::accept_context::Response,
+) -> Result<(), String> {
+    let commands = contract_ids
+        .iter()
+        .map(|cid| build_withdraw_command(cid, context))
+        .collect();
+    let submission_request = common::submission::Submission {
+        act_as: vec![sender_party.to_string()],
+        read_as: None,
+        command_id: uuid::Uuid::new_v4().to_string(),
+        disclosed_contracts: context.disclosed_contracts.clone(),
+        commands,
+        ..Default::default()
+    };
+    ledger::submit::wait_for_transaction(ledger::submit::Params {
+        ledger_host: ledger_host.to_string(),
+        access_token: access_token.to_string(),
+        request: submission_request,
+    })
+    .await
+    .map(|_| ())
+}
+
+/// Record one offer's outcome into the running result tally.
+fn record_withdraw(
+    results: &mut Vec<WithdrawResult>,
+    successful_count: &mut usize,
+    failed_count: &mut usize,
+    contract_id: &str,
+    outcome: Result<(), String>,
+) {
+    let (success, error) = match outcome {
+        Ok(()) => {
+            *successful_count += 1;
+            (true, None)
+        }
+        Err(e) => {
+            *failed_count += 1;
+            (false, Some(e))
+        }
+    };
+    results.push(WithdrawResult {
+        success,
+        contract_id: contract_id.to_string(),
+        amount: None,
+        receiver: None,
+        error,
+    });
+}
+
 /// Withdraw a specific set of CBTC transfer offers by contract id, batched.
 ///
 /// Like [`withdraw_all`] but operates on a provided list of contract ids and an
 /// existing access token (no re-authentication). The registry withdraw-context
 /// is fetched once (shared across CBTC transfers) and reused for every command;
-/// commands are submitted in batches of 5.
+/// commands are submitted in batches of 5. Because a Canton transaction is
+/// atomic, a batch containing a non-withdrawable offer is retried per-offer so
+/// the withdrawable offers still succeed and only the offender(s) fail.
 ///
 /// # Errors
-/// Returns an error string if the shared registry context cannot be fetched.
-/// Per-batch ledger failures are recorded in the returned result rather than
-/// aborting the whole run.
+/// Returns an error string only if the shared registry context cannot be fetched.
+/// Individual offer failures are recorded in the returned result (with the error)
+/// rather than aborting the whole run.
 pub async fn withdraw_batch(params: WithdrawBatchParams) -> Result<WithdrawAllResult, String> {
     if params.contract_ids.is_empty() {
         return Ok(WithdrawAllResult {
@@ -187,69 +271,39 @@ pub async fn withdraw_batch(params: WithdrawBatchParams) -> Result<WithdrawAllRe
     let mut failed_count = 0;
 
     for batch in params.contract_ids.chunks(BATCH_SIZE) {
-        let batch_commands: Vec<common::submission::Command> = batch
-            .iter()
-            .map(|contract_id| {
-                common::submission::Command::ExerciseCommand(common::submission::ExerciseCommand {
-                    exercise_command: common::submission::ExerciseCommandData {
-                        template_id: common::consts::TEMPLATE_TRANSFER_INSTRUCTION.to_string(),
-                        contract_id: contract_id.clone(),
-                        choice: "TransferInstruction_Withdraw".to_string(),
-                        choice_argument: common::submission::ChoiceArgumentsVariations::Accept(
-                            common::accept::ChoiceArguments {
-                                extra_args: common::accept::ExtraArgs {
-                                    context: common::accept::Context {
-                                        values: withdraw_context.choice_context_data.values.clone(),
-                                    },
-                                    meta: common::accept::Meta {
-                                        values: common::accept::MetaValue {},
-                                    },
-                                },
-                            },
-                        ),
-                    },
-                })
-            })
-            .collect();
-
-        let submission_request = common::submission::Submission {
-            act_as: vec![params.sender_party.clone()],
-            read_as: None,
-            command_id: uuid::Uuid::new_v4().to_string(),
-            disclosed_contracts: withdraw_context.disclosed_contracts.clone(),
-            commands: batch_commands,
-            ..Default::default()
-        };
-
-        let outcome = ledger::submit::wait_for_transaction(ledger::submit::Params {
-            ledger_host: params.ledger_host.clone(),
-            access_token: params.access_token.clone(),
-            request: submission_request,
-        })
+        let outcome = submit_withdraws(
+            batch,
+            &params.sender_party,
+            &params.ledger_host,
+            &params.access_token,
+            &withdraw_context,
+        )
         .await;
 
-        for contract_id in batch {
-            match &outcome {
-                Ok(_) => {
-                    successful_count += 1;
-                    results.push(WithdrawResult {
-                        success: true,
-                        contract_id: contract_id.clone(),
-                        amount: None,
-                        receiver: None,
-                        error: None,
-                    });
+        match outcome {
+            Ok(()) => {
+                for cid in batch {
+                    record_withdraw(&mut results, &mut successful_count, &mut failed_count, cid, Ok(()));
                 }
-                Err(e) => {
-                    failed_count += 1;
-                    results.push(WithdrawResult {
-                        success: false,
-                        contract_id: contract_id.clone(),
-                        amount: None,
-                        receiver: None,
-                        error: Some(e.clone()),
-                    });
+            }
+            // A Canton transaction is atomic: one non-withdrawable offer fails the
+            // whole batch. Retry each offer individually so the good ones still get
+            // cancelled and the offender(s) fail in isolation with their own error.
+            Err(_) if batch.len() > 1 => {
+                for cid in batch {
+                    let single = submit_withdraws(
+                        std::slice::from_ref(cid),
+                        &params.sender_party,
+                        &params.ledger_host,
+                        &params.access_token,
+                        &withdraw_context,
+                    )
+                    .await;
+                    record_withdraw(&mut results, &mut successful_count, &mut failed_count, cid, single);
                 }
+            }
+            Err(e) => {
+                record_withdraw(&mut results, &mut successful_count, &mut failed_count, &batch[0], Err(e));
             }
         }
     }

@@ -42,32 +42,68 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, spinner_frame: usize) {
 
 fn draw_launcher(frame: &mut Frame, app: &App, theme: &Theme) {
     let area = frame.area();
-    let items: Vec<ListItem> = app
-        .config
-        .profiles
-        .iter()
-        .enumerate()
-        .map(|(i, p)| {
-            let label = format!("{}   {}   {}", p.name, p.environment, p.keycloak_username);
-            let style = if i == app.selected_profile {
-                Style::default().fg(theme.color(Role::Accent)).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            };
-            ListItem::new(label).style(style)
-        })
-        .collect();
-    let list = List::new(items).block(
-        Block::default()
-            .title("cbtc-tui · PROFILES")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.color(Role::FgDim))),
+    let default = app.config.default_profile.as_deref();
+
+    let header = Row::new(["", "PROFILE", "ENV", "USER"].map(Cell::from)).style(
+        Style::default()
+            .fg(theme.color(Role::FgDim))
+            .add_modifier(Modifier::BOLD),
     );
+    let rows = app.config.profiles.iter().map(|p| {
+        // Mark the default profile (the one that auto-logs-in on launch) with the
+        // brand diamond, aligned in its own leading column.
+        let marker = if default == Some(p.name.as_str()) {
+            Cell::from(glyph::DIAMOND).style(Style::default().fg(theme.color(Role::Accent)))
+        } else {
+            Cell::from("")
+        };
+        Row::new(vec![
+            marker,
+            Cell::from(p.name.clone()),
+            Cell::from(p.environment.clone()),
+            Cell::from(p.keycloak_username.clone()),
+        ])
+    });
+    // Fixed marker/env columns; name and user share the remaining width so the
+    // columns stay aligned regardless of how long any single value is.
+    let widths = [
+        Constraint::Length(1),
+        Constraint::Min(14),
+        Constraint::Length(10),
+        Constraint::Min(14),
+    ];
+    let table = Table::new(rows, widths)
+        .header(header)
+        .column_spacing(2)
+        .block(
+            Block::default()
+                .title(Span::styled(
+                    "cbtc-tui · PROFILES",
+                    Style::default()
+                        .fg(theme.color(Role::Accent))
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.color(Role::FgDim))),
+        )
+        .row_highlight_style(
+            Style::default()
+                .fg(theme.color(Role::Accent))
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol("> ");
+    let mut state = TableState::default();
+    if !app.config.profiles.is_empty() {
+        state.select(Some(
+            app.selected_profile.min(app.config.profiles.len() - 1),
+        ));
+    }
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(3), Constraint::Length(1), Constraint::Length(1)])
         .split(area);
-    frame.render_widget(list, chunks[0]);
+    frame.render_stateful_widget(table, chunks[0], &mut state);
     // Status / error line: login progress, or the last error in red.
     let (msg, role) = match &app.error {
         Some(err) => (format!("{} {err}", glyph::CROSS), Role::Danger),
@@ -78,8 +114,11 @@ fn draw_launcher(frame: &mut Frame, app: &App, theme: &Theme) {
         chunks[1],
     );
     frame.render_widget(
-        Paragraph::new("↑/↓ select · Enter activate · q quit")
-            .style(Style::default().fg(theme.color(Role::FgDim))),
+        Paragraph::new(format!(
+            "↑/↓ select · Enter activate · {} default · q quit",
+            glyph::DIAMOND
+        ))
+        .style(Style::default().fg(theme.color(Role::FgDim))),
         chunks[2],
     );
 }
@@ -515,6 +554,45 @@ mod tests {
         let buffer = terminal.backend().buffer().clone();
         let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
         assert!(text.contains("Invalid user credentials"));
+    }
+
+    #[test]
+    fn launcher_renders_profile_table_with_default_marker() {
+        // Arrange: two profiles of differing name length, mainnet is the default.
+        let cfg = Config {
+            default_profile: Some("mainnet".into()),
+            environments: Default::default(),
+            profiles: vec![
+                Profile {
+                    name: "devnet".into(),
+                    environment: "devnet".into(),
+                    keycloak_username: "merchant_user".into(),
+                    ..Default::default()
+                },
+                Profile {
+                    name: "mainnet".into(),
+                    environment: "mainnet".into(),
+                    keycloak_username: "cbtc-incentive-sender".into(),
+                    ..Default::default()
+                },
+            ],
+        };
+        let mut app = App::new(cfg);
+        app.screen = Screen::Launcher;
+        let theme = Theme { truecolor: true };
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        // Act
+        terminal.draw(|f| draw(f, &app, &theme, 0)).unwrap();
+        // Assert: column headers, both profiles, and the default-marker glyph.
+        let buffer = terminal.backend().buffer().clone();
+        let text: String = buffer.content().iter().map(|c| c.symbol()).collect();
+        assert!(text.contains("PROFILE"));
+        assert!(text.contains("ENV"));
+        assert!(text.contains("USER"));
+        assert!(text.contains("devnet"));
+        assert!(text.contains("mainnet"));
+        assert!(text.contains(glyph::DIAMOND));
     }
 
     #[test]

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 /// The sender locks holdings for one leg of a Delivery-versus-Payment
 /// settlement via the registry's `AllocationFactory_Allocate` choice. The leg is
 /// later settled atomically (with the other legs) by the settlement executor.
-pub struct AllocateParams {
+pub struct Params {
     /// The allocation specification: the shared settlement plus this leg.
     pub allocation: common::allocation::AllocationSpecification,
     /// `requestedAt` timestamp for the allocate choice (RFC3339).
@@ -23,7 +23,7 @@ pub struct AllocateParams {
 
 /// Parameters for exercising a choice on an existing allocation contract
 /// (`Allocation_ExecuteTransfer`, `Allocation_Withdraw`, or `Allocation_Cancel`).
-pub struct AllocationActionParams {
+pub struct ActionParams {
     /// Contract id of the allocation to act on.
     pub allocation_contract_id: String,
     /// The party submitting the action (`actAs`). For `execute_transfer` this is
@@ -46,7 +46,7 @@ pub struct AllocationActionParams {
 ///
 /// Returns an error string if holding selection, the registry request, or the
 /// ledger submission fails.
-pub async fn allocate(params: AllocateParams) -> Result<(), String> {
+pub async fn allocate(params: Params) -> Result<(), String> {
     // Auto-select the sender's holdings when none were provided.
     let mut input_holding_cids = params.input_holding_cids;
     if input_holding_cids.is_empty() {
@@ -71,14 +71,7 @@ pub async fn allocate(params: AllocateParams) -> Result<(), String> {
                 allocation: params.allocation.clone(),
                 requested_at: params.requested_at.clone(),
                 input_holding_cids: input_holding_cids.clone(),
-                extra_args: common::transfer_factory::ExtraArgs {
-                    context: common::transfer_factory::Context {
-                        values: HashMap::new(),
-                    },
-                    meta: common::transfer_factory::Meta {
-                        values: common::transfer_factory::MetaValue {},
-                    },
-                },
+                extra_args: empty_extra_args(),
             },
             exclude_debug_fields: true,
         },
@@ -86,28 +79,14 @@ pub async fn allocate(params: AllocateParams) -> Result<(), String> {
     .await?;
 
     let sender = params.allocation.transfer_leg.sender.clone();
-
-    let exercise_command = common::submission::ExerciseCommand {
-        exercise_command: common::submission::ExerciseCommandData {
-            template_id: common::consts::TEMPLATE_ALLOCATION_FACTORY.to_string(),
-            contract_id: factory.factory_id,
-            choice: "AllocationFactory_Allocate".to_string(),
-            choice_argument: common::submission::ChoiceArgumentsVariations::AllocationFactory(
-                common::allocation_factory::ChoiceArguments {
-                    expected_admin: params.decentralized_party_id,
-                    allocation: params.allocation,
-                    requested_at: params.requested_at,
-                    input_holding_cids,
-                    extra_args: common::transfer_factory::ExtraArgs {
-                        context: factory.choice_context.choice_context_data,
-                        meta: common::transfer_factory::Meta {
-                            values: common::transfer_factory::MetaValue {},
-                        },
-                    },
-                },
-            ),
-        },
-    };
+    let exercise_command = build_allocate_command(
+        factory.factory_id,
+        params.decentralized_party_id,
+        params.allocation,
+        params.requested_at,
+        input_holding_cids,
+        factory.choice_context.choice_context_data,
+    );
 
     let submission_request = common::submission::Submission {
         act_as: vec![sender],
@@ -139,7 +118,7 @@ pub async fn allocate(params: AllocateParams) -> Result<(), String> {
 /// # Errors
 ///
 /// Returns an error string if the registry request or ledger submission fails.
-pub async fn execute_transfer(params: AllocationActionParams) -> Result<(), String> {
+pub async fn execute_transfer(params: ActionParams) -> Result<(), String> {
     exercise_allocation_choice(
         AllocationChoice::ExecuteTransfer,
         "Allocation_ExecuteTransfer",
@@ -154,7 +133,7 @@ pub async fn execute_transfer(params: AllocationActionParams) -> Result<(), Stri
 /// # Errors
 ///
 /// Returns an error string if the registry request or ledger submission fails.
-pub async fn withdraw(params: AllocationActionParams) -> Result<(), String> {
+pub async fn withdraw(params: ActionParams) -> Result<(), String> {
     exercise_allocation_choice(AllocationChoice::Withdraw, "Allocation_Withdraw", params).await
 }
 
@@ -164,7 +143,7 @@ pub async fn withdraw(params: AllocationActionParams) -> Result<(), String> {
 /// # Errors
 ///
 /// Returns an error string if the registry request or ledger submission fails.
-pub async fn cancel(params: AllocationActionParams) -> Result<(), String> {
+pub async fn cancel(params: ActionParams) -> Result<(), String> {
     exercise_allocation_choice(AllocationChoice::Cancel, "Allocation_Cancel", params).await
 }
 
@@ -174,7 +153,7 @@ pub async fn cancel(params: AllocationActionParams) -> Result<(), String> {
 async fn exercise_allocation_choice(
     choice: AllocationChoice,
     daml_choice: &str,
-    params: AllocationActionParams,
+    params: ActionParams,
 ) -> Result<(), String> {
     let context = registry::allocation_context::get(registry::allocation_context::Params {
         registry_url: params.registry_url,
@@ -189,27 +168,11 @@ async fn exercise_allocation_choice(
     })
     .await?;
 
-    let exercise_command = common::submission::ExerciseCommand {
-        exercise_command: common::submission::ExerciseCommandData {
-            template_id: common::consts::TEMPLATE_ALLOCATION.to_string(),
-            contract_id: params.allocation_contract_id,
-            choice: daml_choice.to_string(),
-            // The Allocation_* choices take only `extraArgs`, so they reuse the
-            // generic accept-style choice argument shape.
-            choice_argument: common::submission::ChoiceArgumentsVariations::Accept(
-                common::accept::ChoiceArguments {
-                    extra_args: common::accept::ExtraArgs {
-                        context: common::accept::Context {
-                            values: context.choice_context_data.values,
-                        },
-                        meta: common::accept::Meta {
-                            values: common::accept::MetaValue {},
-                        },
-                    },
-                },
-            ),
-        },
-    };
+    let exercise_command = build_action_command(
+        params.allocation_contract_id,
+        daml_choice,
+        context.choice_context_data.values,
+    );
 
     let submission_request = common::submission::Submission {
         act_as: vec![params.actor_party],
@@ -230,4 +193,163 @@ async fn exercise_allocation_choice(
     .await?;
 
     Ok(())
+}
+
+/// An empty `extraArgs` (empty context and meta), as required on the allocate
+/// request before the registry fills in the choice context.
+fn empty_extra_args() -> common::transfer_factory::ExtraArgs {
+    common::transfer_factory::ExtraArgs {
+        context: common::transfer_factory::Context {
+            values: HashMap::new(),
+        },
+        meta: common::transfer_factory::Meta {
+            values: common::transfer_factory::MetaValue {},
+        },
+    }
+}
+
+/// Build the `AllocationFactory_Allocate` exercise command, threading the
+/// registry-provided `context` into the choice's `extraArgs`.
+fn build_allocate_command(
+    factory_id: String,
+    expected_admin: String,
+    allocation: common::allocation::AllocationSpecification,
+    requested_at: String,
+    input_holding_cids: Vec<String>,
+    context: common::transfer_factory::Context,
+) -> common::submission::ExerciseCommand {
+    common::submission::ExerciseCommand {
+        exercise_command: common::submission::ExerciseCommandData {
+            template_id: common::consts::TEMPLATE_ALLOCATION_FACTORY.to_string(),
+            contract_id: factory_id,
+            choice: "AllocationFactory_Allocate".to_string(),
+            choice_argument: common::submission::ChoiceArgumentsVariations::AllocationFactory(
+                common::allocation_factory::ChoiceArguments {
+                    expected_admin,
+                    allocation,
+                    requested_at,
+                    input_holding_cids,
+                    extra_args: common::transfer_factory::ExtraArgs {
+                        context,
+                        meta: common::transfer_factory::Meta {
+                            values: common::transfer_factory::MetaValue {},
+                        },
+                    },
+                },
+            ),
+        },
+    }
+}
+
+/// Build an `Allocation_*` exercise command (`daml_choice`) on an existing
+/// allocation. These choices take only `extraArgs`, so they reuse the generic
+/// accept-style choice-argument shape with the registry-provided context.
+fn build_action_command(
+    allocation_contract_id: String,
+    daml_choice: &str,
+    context_values: serde_json::Value,
+) -> common::submission::ExerciseCommand {
+    common::submission::ExerciseCommand {
+        exercise_command: common::submission::ExerciseCommandData {
+            template_id: common::consts::TEMPLATE_ALLOCATION.to_string(),
+            contract_id: allocation_contract_id,
+            choice: daml_choice.to_string(),
+            choice_argument: common::submission::ChoiceArgumentsVariations::Accept(
+                common::accept::ChoiceArguments {
+                    extra_args: common::accept::ExtraArgs {
+                        context: common::accept::Context {
+                            values: context_values,
+                        },
+                        meta: common::accept::Meta {
+                            values: common::accept::MetaValue {},
+                        },
+                    },
+                },
+            ),
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common::submission::ChoiceArgumentsVariations;
+
+    fn sample_allocation() -> common::allocation::AllocationSpecification {
+        common::allocation::AllocationSpecification {
+            settlement: common::allocation::SettlementInfo {
+                executor: "venue".to_string(),
+                settlement_ref: common::allocation::Reference {
+                    id: "ref".to_string(),
+                    cid: None,
+                },
+                requested_at: "2024-01-01T00:00:00Z".to_string(),
+                allocate_before: "2024-01-02T00:00:00Z".to_string(),
+                settle_before: "2024-01-03T00:00:00Z".to_string(),
+                meta: common::allocation::Metadata::default(),
+            },
+            transfer_leg_id: "leg0".to_string(),
+            transfer_leg: common::allocation::TransferLeg {
+                sender: "sender".to_string(),
+                receiver: "receiver".to_string(),
+                amount: common::decimal::DamlDecimal::parse("0.1").unwrap(),
+                instrument_id: common::transfer::InstrumentId {
+                    admin: "admin".to_string(),
+                    id: "CBTC".to_string(),
+                },
+                meta: common::allocation::Metadata::default(),
+            },
+        }
+    }
+
+    #[test]
+    fn allocate_command_targets_factory_allocate_choice() {
+        let command = build_allocate_command(
+            "00factory".to_string(),
+            "admin".to_string(),
+            sample_allocation(),
+            "2024-01-01T00:00:00Z".to_string(),
+            vec!["cid1".to_string()],
+            common::transfer_factory::Context {
+                values: HashMap::new(),
+            },
+        );
+
+        assert_eq!(
+            command.exercise_command.template_id,
+            common::consts::TEMPLATE_ALLOCATION_FACTORY
+        );
+        assert_eq!(command.exercise_command.contract_id, "00factory");
+        assert_eq!(
+            command.exercise_command.choice,
+            "AllocationFactory_Allocate"
+        );
+        assert!(matches!(
+            command.exercise_command.choice_argument,
+            ChoiceArgumentsVariations::AllocationFactory(_)
+        ));
+    }
+
+    #[test]
+    fn action_commands_target_allocation_choices() {
+        for daml_choice in [
+            "Allocation_ExecuteTransfer",
+            "Allocation_Withdraw",
+            "Allocation_Cancel",
+        ] {
+            let command =
+                build_action_command("00alloc".to_string(), daml_choice, serde_json::json!({}));
+
+            assert_eq!(
+                command.exercise_command.template_id,
+                common::consts::TEMPLATE_ALLOCATION
+            );
+            assert_eq!(command.exercise_command.contract_id, "00alloc");
+            assert_eq!(command.exercise_command.choice, daml_choice);
+            assert!(matches!(
+                command.exercise_command.choice_argument,
+                ChoiceArgumentsVariations::Accept(_)
+            ));
+        }
+    }
 }

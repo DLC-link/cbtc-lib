@@ -93,7 +93,7 @@ async fn main() -> Result<(), String> {
         },
     };
 
-    let params = cbtc::allocation::AllocateParams {
+    let params = cbtc::allocation::Params {
         allocation,
         requested_at: now.to_rfc3339(),
         input_holding_cids: Vec::new(), // Library auto-selects the sender's holdings

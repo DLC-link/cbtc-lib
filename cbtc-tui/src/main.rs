@@ -2,8 +2,6 @@
 
 mod app;
 mod config;
-// import-from-.env feature; tested in env_import; UI/CLI binding is a deferred follow-up.
-#[allow(dead_code)]
 mod env_import;
 mod error;
 mod event;
@@ -33,6 +31,15 @@ struct Args {
     /// Log level (trace|debug|info|warn|error).
     #[arg(long, default_value = "info")]
     log_level: String,
+    /// Import a `.env` file as a profile into the config, then exit (no TUI).
+    #[arg(long, value_name = "ENV_FILE")]
+    import_env: Option<PathBuf>,
+    /// Name for the imported profile (defaults to the file's `ENVIRONMENT` value).
+    #[arg(long)]
+    profile_name: Option<String>,
+    /// When importing, also set the new profile as the default.
+    #[arg(long)]
+    set_default: bool,
 }
 
 #[tokio::main]
@@ -40,7 +47,17 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let _guard = init_logging(&args.log_level)?;
 
-    let config_path = args.config.unwrap_or_else(config::config_path);
+    let config_path = args.config.clone().unwrap_or_else(config::config_path);
+
+    if let Some(env_file) = args.import_env.as_deref() {
+        return run_import(
+            env_file,
+            &config_path,
+            args.profile_name.clone(),
+            args.set_default,
+        );
+    }
+
     let config = if config_path.exists() {
         Config::load(&config_path).context("loading config")?
     } else {
@@ -68,6 +85,78 @@ fn init_logging(level: &str) -> anyhow::Result<tracing_appender::non_blocking::W
         .with_ansi(false)
         .init();
     Ok(guard)
+}
+
+/// Import a `.env` file into the config as a profile (merging into any existing
+/// config) and persist it, without launching the TUI. The secret password flows
+/// file → config and is never printed.
+fn run_import(
+    env_file: &Path,
+    config_path: &Path,
+    profile_name: Option<String>,
+    set_default: bool,
+) -> anyhow::Result<()> {
+    let content = std::fs::read_to_string(env_file)
+        .with_context(|| format!("reading {}", env_file.display()))?;
+
+    // Default the profile name to the file's ENVIRONMENT (e.g. "mainnet").
+    let name = profile_name.unwrap_or_else(|| {
+        env_import::parse_env(&content)
+            .get("ENVIRONMENT")
+            .cloned()
+            .unwrap_or_else(|| "imported".to_string())
+    });
+
+    let (mut profile, override_env) = env_import::import(&content, &name);
+    if profile.ledger_host.is_empty() || profile.keycloak_host.is_empty() {
+        anyhow::bail!(
+            "{} is missing LEDGER_HOST/KEYCLOAK_HOST — cannot build a usable profile",
+            env_file.display()
+        );
+    }
+
+    let mut config = if config_path.exists() {
+        Config::load(config_path).context("loading existing config")?
+    } else {
+        Config::default()
+    };
+
+    // Preserve the previously-selected party when re-importing the same profile.
+    if profile.last_selected_party.is_none()
+        && let Some(existing) = config.profiles.iter().find(|p| p.name == name)
+    {
+        profile.last_selected_party = existing.last_selected_party.clone();
+    }
+
+    // Only write an environment override when the file actually carried one.
+    if let Some((env_name, env)) = override_env {
+        config.environments.insert(env_name, env);
+    }
+
+    // Replace a same-named profile in place, otherwise append.
+    if let Some(slot) = config.profiles.iter_mut().find(|p| p.name == name) {
+        *slot = profile;
+    } else {
+        config.profiles.push(profile);
+    }
+
+    if set_default {
+        config.default_profile = Some(name.clone());
+    }
+
+    config
+        .save(config_path)
+        .with_context(|| format!("saving config to {}", config_path.display()))?;
+
+    println!(
+        "Imported profile '{name}' into {} ({} profile total).",
+        config_path.display(),
+        config.profiles.len()
+    );
+    if set_default {
+        println!("Set '{name}' as the default profile.");
+    }
+    Ok(())
 }
 
 async fn run(

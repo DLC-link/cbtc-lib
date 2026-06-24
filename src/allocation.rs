@@ -303,16 +303,19 @@ mod tests {
     }
 
     #[test]
-    fn allocate_command_targets_factory_allocate_choice() {
+    fn allocate_command_wires_factory_choice_and_fields() {
+        let mut ctx_values = HashMap::new();
+        ctx_values.insert(
+            "instrument-configuration".to_string(),
+            common::transfer_factory::ContextValue::ContractId("00cfg".to_string()),
+        );
         let command = build_allocate_command(
             "00factory".to_string(),
             "admin".to_string(),
             sample_allocation(),
             "2024-01-01T00:00:00Z".to_string(),
-            vec!["cid1".to_string()],
-            common::transfer_factory::Context {
-                values: HashMap::new(),
-            },
+            vec!["cid1".to_string(), "cid2".to_string()],
+            common::transfer_factory::Context { values: ctx_values },
         );
 
         assert_eq!(
@@ -324,21 +327,40 @@ mod tests {
             command.exercise_command.choice,
             "AllocationFactory_Allocate"
         );
-        assert!(matches!(
-            command.exercise_command.choice_argument,
-            ChoiceArgumentsVariations::AllocationFactory(_)
-        ));
+
+        match command.exercise_command.choice_argument {
+            ChoiceArgumentsVariations::AllocationFactory(args) => {
+                assert_eq!(args.expected_admin, "admin");
+                assert_eq!(args.requested_at, "2024-01-01T00:00:00Z");
+                assert_eq!(
+                    args.input_holding_cids,
+                    vec!["cid1".to_string(), "cid2".to_string()]
+                );
+                assert_eq!(args.allocation.transfer_leg_id, "leg0");
+                // The registry-provided factory context must be threaded through.
+                assert!(
+                    args.extra_args
+                        .context
+                        .values
+                        .contains_key("instrument-configuration")
+                );
+            }
+            _ => panic!("expected AllocationFactory choice argument"),
+        }
     }
 
     #[test]
-    fn action_commands_target_allocation_choices() {
+    fn action_commands_wire_choice_and_context() {
         for daml_choice in [
             "Allocation_ExecuteTransfer",
             "Allocation_Withdraw",
             "Allocation_Cancel",
         ] {
-            let command =
-                build_action_command("00alloc".to_string(), daml_choice, serde_json::json!({}));
+            let command = build_action_command(
+                "00alloc".to_string(),
+                daml_choice,
+                serde_json::json!({ "context-key": "context-value" }),
+            );
 
             assert_eq!(
                 command.exercise_command.template_id,
@@ -346,10 +368,17 @@ mod tests {
             );
             assert_eq!(command.exercise_command.contract_id, "00alloc");
             assert_eq!(command.exercise_command.choice, daml_choice);
-            assert!(matches!(
-                command.exercise_command.choice_argument,
-                ChoiceArgumentsVariations::Accept(_)
-            ));
+
+            match command.exercise_command.choice_argument {
+                ChoiceArgumentsVariations::Accept(args) => {
+                    // The registry-provided choice context must pass through untouched.
+                    assert_eq!(
+                        args.extra_args.context.values,
+                        serde_json::json!({ "context-key": "context-value" })
+                    );
+                }
+                _ => panic!("expected Accept choice argument"),
+            }
         }
     }
 }

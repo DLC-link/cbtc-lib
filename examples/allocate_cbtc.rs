@@ -56,11 +56,11 @@ async fn main() -> Result<(), String> {
     let now = chrono::Utc::now();
     let allocate_before = now
         .checked_add_signed(chrono::Duration::hours(24))
-        .unwrap()
+        .expect("allocateBefore offset overflowed")
         .to_rfc3339();
     let settle_before = now
         .checked_add_signed(chrono::Duration::hours(48))
-        .unwrap()
+        .expect("settleBefore offset overflowed")
         .to_rfc3339();
 
     println!("\nAllocating {} CBTC into settlement leg", amount);

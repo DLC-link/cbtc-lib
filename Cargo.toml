@@ -105,3 +105,13 @@ path = "examples/integration_test.rs"
 [[example]]
 name = "check_dars"
 path = "examples/check_dars.rs"
+
+[workspace]
+members = ["cbtc-tui"]
+
+[profile.release]
+opt-level = 3
+strip = "debuginfo"
+codegen-units = 1
+lto = true
+panic = "unwind"

@@ -13,6 +13,7 @@ A Rust library for interacting with the Canton blockchain to manage CBTC tokens 
 - **High-Volume Transfers** - Optimized for high-volume transfer operations
 - **Multi-Environment** - Support for devnet, testnet, and mainnet
 - **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
+- **Interactive TUI** - A terminal UI (`cbtc-tui`) to browse balances, offers, and accounts and submit commands without writing code
 
 > **Important Setup Requirements**:
 > - **For Send/Receive Operations**: The [Digital Asset Registry Utility](https://docs.digitalasset.com/utilities/mainnet/index.html) must be installed on your validator node
@@ -23,21 +24,22 @@ A Rust library for interacting with the Canton blockchain to manage CBTC tokens 
 ## Table of Contents
 
 1. [Quick Start - How to Use This Library](#quick-start---how-to-use-this-library)
-2. [Installation](#installation)
-3. [Configuration](#configuration)
-4. [Usage Examples](#usage-examples)
+2. [Interactive TUI (cbtc-tui)](#interactive-tui-cbtc-tui)
+3. [Installation](#installation)
+4. [Configuration](#configuration)
+5. [Usage Examples](#usage-examples)
    - [Core Operations](#core-operations)
    - [Key Concepts](#key-concepts)
-5. [DAR Version Check](#dar-version-check)
-6. [CBTC Mint & Redeem](#cbtc-mint--redeem)
+6. [DAR Version Check](#dar-version-check)
+7. [CBTC Mint & Redeem](#cbtc-mint--redeem)
    - [Minting CBTC (BTC → CBTC)](#minting-cbtc-btc--cbtc)
    - [Redeeming CBTC (CBTC → BTC)](#redeeming-cbtc-cbtc--btc)
    - [Understanding UTXO Management](#understanding-utxo-management)
-7. [High-Volume Operations](#high-volume-operations)
-8. [API Reference](#api-reference)
-9. [Direct Canton API Usage (Reference)](#direct-canton-api-usage-reference)
-10. [Testing](#testing)
-11. [Contributing](#contributing)
+8. [High-Volume Operations](#high-volume-operations)
+9. [API Reference](#api-reference)
+10. [Direct Canton API Usage (Reference)](#direct-canton-api-usage-reference)
+11. [Testing](#testing)
+12. [Contributing](#contributing)
 
 ---
 
@@ -128,6 +130,61 @@ For advanced users who want direct control, see [Direct Canton API Usage](#direc
 | Accept tokens     | `cbtc::accept::submit()`                     | [Core Operations](#core-operations)                     |
 | Batch send        | `cbtc::batch::submit_from_csv()`             | [High-Volume Operations](#high-volume-operations)       |
 | Consolidate UTXOs | `cbtc::consolidate::check_and_consolidate()` | [Understanding UTXO Management](#understanding-utxo-management) |
+
+---
+
+## Interactive TUI (cbtc-tui)
+
+`cbtc-tui` is an interactive terminal UI built on this library. It lets you manage Canton login profiles, switch parties and environments, browse on-ledger state, and submit commands — the same operations as the example scripts, without writing code.
+
+### Launch
+
+```bash
+# with just (recommended)
+just tui
+
+# or directly
+cargo run -p cbtc-tui
+```
+
+The app opens on the **Profiles** screen. Select a profile and press `Enter` to log in.
+
+### Profiles & configuration
+
+Config lives at `~/.config/cbtc-tui/config.toml` (created `0600`). Secrets are stored in plaintext, so keep the file private. The `devnet`, `testnet`, and `mainnet` environments are built in, so a profile only needs your ledger host and Keycloak credentials.
+
+The fastest way to create a profile is to import one of the repo's `.env` files:
+
+```bash
+# create/update a profile named after the file's ENVIRONMENT (e.g. "mainnet")
+just tui-import .env.mainnet
+
+# or directly, with options
+cargo run -p cbtc-tui -- --import-env .env.mainnet --profile-name mainnet --set-default
+```
+
+Importing merges into any existing config (replacing a same-named profile), writes an environment override only if the `.env` file carries one, and never prints the password.
+
+### What you can do
+
+**Queries (read-only):** Check Balance, Incoming Offers, Outgoing Offers, Deposit Addresses, Withdraw Accounts, Withdraw Requests, DAR Versions. Results are cached per party; press `Enter` on a result row for a detail popup.
+
+**Commands:** accept / reject incoming offers, cancel outgoing offers, cancel-all-expired (batched), merge holdings, create a deposit account, create a withdraw account, and submit a withdraw. Every submission asks for confirmation first — with a red banner on **mainnet**.
+
+### Keys
+
+| Key | Action |
+| --- | --- |
+| `↑` / `↓` | Move selection |
+| `Tab` | Switch between the query list and results panes |
+| `Enter` | Run the selected query / open row detail / confirm |
+| `a` | Actions menu for the selected query (submit commands) |
+| `p` | Switch party |
+| `P` | Switch profile |
+| `Esc` | Close popup / cancel |
+| `q` | Quit |
+
+Logs are written to `~/.local/state/cbtc-tui/cbtc-tui.log`.
 
 ---
 

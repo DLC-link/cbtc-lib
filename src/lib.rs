@@ -2,6 +2,7 @@ pub use common::decimal::DamlDecimal;
 
 pub mod accept;
 pub mod active_contracts;
+pub mod allocation;
 pub mod batch;
 pub mod cancel_offers;
 pub mod consolidate;

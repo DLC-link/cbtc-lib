@@ -8,10 +8,10 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }
-registry = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.0" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c048dd78c85c0dc8b540d2f32a1ba1662fe3f7fb" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c048dd78c85c0dc8b540d2f32a1ba1662fe3f7fb" }
+registry = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c048dd78c85c0dc8b540d2f32a1ba1662fe3f7fb" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c048dd78c85c0dc8b540d2f32a1ba1662fe3f7fb" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"
@@ -105,6 +105,10 @@ path = "examples/integration_test.rs"
 [[example]]
 name = "check_dars"
 path = "examples/check_dars.rs"
+
+[[example]]
+name = "allocate_cbtc"
+path = "examples/allocate_cbtc.rs"
 
 [workspace]
 members = ["cbtc-tui"]

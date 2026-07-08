@@ -38,3 +38,10 @@ jobs:
           ssh-key: ${{ secrets.BOT_SSH_PRIVATE_KEY }}
           ssh-known-hosts: ${{ steps.keyscan.outputs.known-hosts }}
           use-git-cli: true
+
+  cargo-machete:
+    name: Cargo Machete
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: bnjbvr/cargo-machete@v0.9.2

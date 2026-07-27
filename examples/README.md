@@ -255,6 +255,30 @@ cargo run --example cancel_offers
 
 This example withdraws all transfer offers you've sent that are still pending, returning the CBTC to your account.
 
+### Allocate CBTC (DvP)
+
+Lock CBTC into one leg of a Delivery-versus-Payment settlement:
+
+```bash
+# The leg receiver and the settlement executor (venue)
+export LIB_TEST_RECEIVER_PARTY_ID="receiver-party::1220..."
+export EXECUTOR_PARTY_ID="executor-party::1220..."
+
+# Optional
+export ALLOCATE_AMOUNT=0.1                    # default: 0.1
+export SETTLEMENT_REF_ID="my-settlement-123"  # default: cbtc-dvp-example
+
+cargo run --example allocate_cbtc
+```
+
+This example exercises `AllocationFactory_Allocate` as the leg sender, locking the sender's holdings into a settlement leg. Holdings are auto-selected when no input holding CIDs are given.
+
+Unlike `send_cbtc`, which is a free-of-payment transfer the receiver accepts, an allocation is settled by a third party — the **settlement executor** — which settles all legs of the settlement atomically before `settleBefore`. The allocation must be funded before `allocateBefore` and settled before `settleBefore`, which must be the later of the two.
+
+To unwind before settlement, the sender can withdraw the allocation (`cbtc::allocation::withdraw`) to reclaim the locked holdings, or cancel it (`cbtc::allocation::cancel`). The executor settles a leg with `cbtc::allocation::execute_transfer`.
+
+No Minter credential is required — allocations move existing CBTC rather than minting or burning it.
+
 ### Stream CBTC
 
 Stream CBTC to a single receiver multiple times:
@@ -510,3 +534,10 @@ For stream example:
 - `RECEIVER_PARTY` - The party ID to receive all stream transfers
 - `TRANSFER_COUNT` - Number of transfers to send in the stream
 - `TRANSFER_AMOUNT` - Amount per transfer
+
+For the allocate_cbtc example:
+
+- `LIB_TEST_RECEIVER_PARTY_ID` (required) - The leg receiver
+- `EXECUTOR_PARTY_ID` (required) - The settlement executor / venue that settles the legs
+- `ALLOCATE_AMOUNT` (optional, default: `0.1`) - Amount of CBTC to allocate into the leg
+- `SETTLEMENT_REF_ID` (optional, default: `cbtc-dvp-example`) - Settlement reference id

@@ -691,7 +691,7 @@ mod parser_tests {
     //! `parse_submit_withdraw_response`.
 
     use super::*;
-    use crate::utils::test_fixtures::{
+    use crate::test_fixtures::{
         created_event_value, created_event_value_with_blob, exercised_event_value,
         transaction_response,
     };

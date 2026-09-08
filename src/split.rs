@@ -279,7 +279,7 @@ mod parser_tests {
     //! `split_once` (`parse_split_response`).
 
     use super::*;
-    use crate::utils::test_fixtures::{
+    use crate::test_fixtures::{
         created_event_value, exercised_event_value, transaction_response,
     };
     use serde_json::json;

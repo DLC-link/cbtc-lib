@@ -13,5 +13,7 @@ mod event_helpers;
 pub mod mint_redeem;
 pub mod reject;
 pub mod split;
+#[cfg(test)]
+mod test_fixtures;
 pub mod transfer;
 pub mod utils;

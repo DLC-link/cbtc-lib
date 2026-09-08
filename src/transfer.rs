@@ -723,7 +723,7 @@ mod parser_tests {
     //! `parse_transfer_response` / `parse_transfer_response_value`.
 
     use super::*;
-    use crate::utils::test_fixtures::{
+    use crate::test_fixtures::{
         exercised_event_value, transaction_response, transaction_response_without_update_id,
     };
     use serde_json::json;

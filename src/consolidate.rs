@@ -443,7 +443,7 @@ mod parser_tests {
     //! `consolidate_utxos` (`parse_consolidate_response`).
 
     use super::*;
-    use crate::utils::test_fixtures::{
+    use crate::test_fixtures::{
         created_event_value, exercised_event_value, transaction_response,
     };
     use serde_json::json;

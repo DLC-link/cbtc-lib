@@ -2,7 +2,7 @@ use cbtc::credentials::{
     AcceptCredentialOfferParams, FindUserServiceParams, ListCredentialOffersParams,
     ListCredentialsParams,
 };
-use keycloak::login::{PasswordParams, password, password_url};
+use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: password_url(
+        url: token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),

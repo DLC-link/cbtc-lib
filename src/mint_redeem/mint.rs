@@ -109,13 +109,12 @@ fn parse_created_deposit_account_cid(
     let events = &response.transaction.events;
 
     for event in events {
-        if let Some(created) = crate::event_helpers::as_created_event(event) {
-            if created
+        if let Some(created) = crate::event_helpers::as_created_event(event)
+            && created
                 .template_id
                 .ends_with(":CBTC.DepositAccount:CBTCDepositAccount")
-            {
-                return Ok(created.contract_id.clone());
-            }
+        {
+            return Ok(created.contract_id.clone());
         }
     }
 
@@ -289,10 +288,11 @@ pub async fn get_deposit_account_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{PasswordParams, password, password_url};
+    use keycloak::login::{PasswordParams, password, token_url};
     use std::env;
 
     #[tokio::test]
+    #[ignore = "needs live devnet credentials; run with --ignored"]
     async fn test_create_deposit_account_with_credentials() {
         dotenvy::dotenv().ok();
 
@@ -304,7 +304,7 @@ mod tests {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
             username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-            url: password_url(
+            url: token_url(
                 &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
                 &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
             ),
@@ -359,6 +359,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "needs live devnet credentials; run with --ignored"]
     async fn test_list_deposit_accounts() {
         dotenvy::dotenv().ok();
 
@@ -369,7 +370,7 @@ mod tests {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
             username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-            url: password_url(
+            url: token_url(
                 &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
                 &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
             ),

@@ -20,21 +20,21 @@ pub fn check_limits(
     limits: &Option<Limits>,
 ) -> Result<(), String> {
     if let Some(lim) = limits {
-        if let Some(min) = &lim.min_amount {
-            if amount < *min {
-                return Err(format!(
-                    "{} amount {} is below minimum {}",
-                    operation, amount, min
-                ));
-            }
+        if let Some(min) = &lim.min_amount
+            && amount < *min
+        {
+            return Err(format!(
+                "{} amount {} is below minimum {}",
+                operation, amount, min
+            ));
         }
-        if let Some(max) = &lim.max_amount {
-            if amount > *max {
-                return Err(format!(
-                    "{} amount {} exceeds maximum {}",
-                    operation, amount, max
-                ));
-            }
+        if let Some(max) = &lim.max_amount
+            && amount > *max
+        {
+            return Err(format!(
+                "{} amount {} exceeds maximum {}",
+                operation, amount, max
+            ));
         }
     }
     Ok(())

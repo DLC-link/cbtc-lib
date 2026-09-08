@@ -52,7 +52,7 @@ fn load_sender_config() -> PartyConfig {
         keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         keycloak_username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         keycloak_password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        keycloak_url: keycloak::login::password_url(
+        keycloak_url: keycloak::login::token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
@@ -75,7 +75,7 @@ fn load_receiver_config() -> PartyConfig {
             .expect("RECEIVER_KEYCLOAK_USERNAME must be set"),
         keycloak_password: env::var("RECEIVER_KEYCLOAK_PASSWORD")
             .expect("RECEIVER_KEYCLOAK_PASSWORD must be set"),
-        keycloak_url: keycloak::login::password_url(&keycloak_host, &keycloak_realm),
+        keycloak_url: keycloak::login::token_url(&keycloak_host, &keycloak_realm),
     }
 }
 
@@ -376,7 +376,7 @@ async fn main() -> Result<(), String> {
     run_step!("Fetch account rules", async {
         account_rules =
             Some(cbtc::mint_redeem::attestor::get_account_contract_rules(&bitsafe_api_url).await?);
-        Ok::<String, String>(format!("(da_rules + wa_rules)"))
+        Ok::<String, String>("(da_rules + wa_rules)".to_string())
     });
 
     // Step 6: Create deposit account (sender)
@@ -550,7 +550,7 @@ async fn main() -> Result<(), String> {
             transfer: common::transfer::Transfer {
                 sender: sender.party_id.clone(),
                 receiver: receiver.party_id.clone(),
-                amount: amount.clone(),
+                amount,
                 instrument_id: common::transfer::InstrumentId {
                     admin: decentralized_party_id.clone(),
                     id: "CBTC".to_string(),
@@ -636,7 +636,7 @@ async fn main() -> Result<(), String> {
             transfer: common::transfer::Transfer {
                 sender: receiver.party_id.clone(),
                 receiver: sender.party_id.clone(),
-                amount: amount.clone(),
+                amount,
                 instrument_id: common::transfer::InstrumentId {
                     admin: decentralized_party_id.clone(),
                     id: "CBTC".to_string(),
@@ -834,7 +834,7 @@ async fn main() -> Result<(), String> {
             }
             Some(holding) => {
                 // Split the holding into one output worth half its value; the rest becomes change.
-                let half = holding.amount.clone() / cbtc::DamlDecimal::parse("2").unwrap();
+                let half = holding.amount / cbtc::DamlDecimal::parse("2").unwrap();
 
                 let split_params = cbtc::split::Params {
                     party: sender.party_id.clone(),

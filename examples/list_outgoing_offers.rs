@@ -19,7 +19,7 @@ async fn main() -> Result<(), String> {
         env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
     let keycloak_username = env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set");
     let keycloak_password = env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set");
-    let keycloak_url = keycloak::login::password_url(
+    let keycloak_url = keycloak::login::token_url(
         &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
         &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
     );
@@ -72,26 +72,26 @@ async fn main() -> Result<(), String> {
         println!("   Full ID: {}", contract_id);
 
         // Extract transfer details
-        if let Some(create_arg) = &transfer.created_event.create_argument {
-            if let Some(transfer_data) = create_arg.get("transfer") {
-                if let Some(receiver) = transfer_data.get("receiver") {
-                    println!("   To: {}", receiver.as_str().unwrap_or("unknown"));
-                }
-                if let Some(amount) = transfer_data.get("amount") {
-                    println!("   Amount: {} CBTC", amount.as_str().unwrap_or("unknown"));
-                }
-                if let Some(requested_at) = transfer_data.get("requestedAt") {
-                    println!(
-                        "   Requested: {}",
-                        requested_at.as_str().unwrap_or("unknown")
-                    );
-                }
-                if let Some(execute_before) = transfer_data.get("executeBefore") {
-                    println!(
-                        "   Expires: {}",
-                        execute_before.as_str().unwrap_or("unknown")
-                    );
-                }
+        if let Some(create_arg) = &transfer.created_event.create_argument
+            && let Some(transfer_data) = create_arg.get("transfer")
+        {
+            if let Some(receiver) = transfer_data.get("receiver") {
+                println!("   To: {}", receiver.as_str().unwrap_or("unknown"));
+            }
+            if let Some(amount) = transfer_data.get("amount") {
+                println!("   Amount: {} CBTC", amount.as_str().unwrap_or("unknown"));
+            }
+            if let Some(requested_at) = transfer_data.get("requestedAt") {
+                println!(
+                    "   Requested: {}",
+                    requested_at.as_str().unwrap_or("unknown")
+                );
+            }
+            if let Some(execute_before) = transfer_data.get("executeBefore") {
+                println!(
+                    "   Expires: {}",
+                    execute_before.as_str().unwrap_or("unknown")
+                );
             }
         }
     }

@@ -10,7 +10,7 @@
 /// Required environment variables:
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 /// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
-/// - LEDGER_HOST, PARTY_ID
+/// - LEDGER_HOST, PARTY_ID, DECENTRALIZED_PARTY_ID
 ///
 /// Understanding UTXOs:
 /// Each CBTC holding is a separate UTXO (like Bitcoin). Canton has a soft

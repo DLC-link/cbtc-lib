@@ -85,9 +85,16 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", branch = "main" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", branch = "main" }
+# cbtc re-exports InstrumentId, Account and DamlDecimal, so most consumers
+# need no canton-lib dependency at all. If you add one, pin the same
+# revision: a different pin makes Cargo build two `common` packages, and
+# then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 ```
+
+`v0.7.0` is tagged once `canton-lib` PR 31 merges; until then pin the commit
+at the head of `feature/token-crate-adoption`.
 
 Or for local development:
 
@@ -107,7 +114,7 @@ let auth = login::password(login::PasswordParams {
     client_id: "your-client-id".to_string(),
     username: "your-username".to_string(),
     password: "your-password".to_string(),
-    url: login::password_url("https://your-keycloak-host", "your-realm"),
+    url: login::token_url("https://your-keycloak-host", "your-realm"),
 }).await?;
 
 // Send CBTC
@@ -194,8 +201,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", branch = "main" }
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
 ```
+
+`v0.7.0` is tagged once `canton-lib` PR 31 merges; until then pin the commit
+at the head of `feature/token-crate-adoption`.
 
 Or for local development:
 
@@ -465,18 +475,36 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 
 ## API Reference
 
+Every module below is a re-export of `canton-lib`'s `token` crate. `cbtc`
+adds `mint_redeem` and nothing else.
+
+Each operation has a Token Standard V2 counterpart in a `v2` submodule, for
+example `cbtc::transfer::v2::submit` beside `cbtc::transfer::submit`.
+Alternatively `cbtc::TokenClient` takes the version in its config and
+applies it to every write method and to `holdings`, `balance` and
+`utxo_count`, so a caller names the version once. `incoming_offers` and
+`outgoing_offers` read the same contracts under either version.
+
+Eight of the thirteen operations carry a `v2` submodule. `active_contracts`
+reaches V2 through its `account` field, and `allocation`, `credentials`,
+`dar_check` and `utils` have no V2 form.
+
+Every entry point takes the instrument from the caller. The library supplies
+no ticker, because Bitsafe plans to support instruments other than CBTC.
+`cbtc` re-exports `InstrumentId` and `Account`, so a consumer needs no
+`canton-lib` dependency to name them.
+
 ### Core Modules
 
 #### `cbtc::transfer`
 
 - `submit(Params)` - Send CBTC to a single recipient
-- `submit_multi(MultiParams)` - Send CBTC to multiple recipients in one transaction
 
 #### `cbtc::accept`
 
 - `submit(Params)` - Accept an incoming CBTC transfer
 
-#### `cbtc::withdraw`
+#### `cbtc::cancel_offers`
 
 - `withdraw_all(WithdrawAllParams)` - Withdraw all pending outgoing transfers
 - `submit(Params)` - Withdraw a specific transfer offer

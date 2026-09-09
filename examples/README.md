@@ -45,6 +45,10 @@ Additional env vars for this example:
 - `WITHDRAW_AMOUNT` (optional, default: `TRANSFER_AMOUNT`)
 - `FAUCET_URL` (optional, enables faucet steps)
 - `FAUCET_NETWORK` (optional, default: `"devnet"`)
+- `TOKEN_STANDARD_VERSION` (optional, default: `V1`) — `V1` or `V2`, selecting
+  which registry API every step drives. Any other value is rejected before the
+  example reads any other variable. Each step prints the exact path it took,
+  for example `[v2::transfer::submit]`.
 
 #### Test Steps (Given/When/Then)
 
@@ -213,6 +217,18 @@ Send CBTC to another party:
 export TRANSFER_AMOUNT=0.1
 export LIB_TEST_RECEIVER_PARTY_ID="receiver-party::1220..."
 cargo run --example send_cbtc
+```
+
+### Send CBTC over Token Standard V2
+
+The same transfer on the V2 entry point. V2 addresses accounts rather than bare
+parties, so `sender` and `receiver` are `Account`s built with `Account::basic`.
+That is the only difference from `send_cbtc`:
+
+```bash
+export TRANSFER_AMOUNT=0.1
+export LIB_TEST_RECEIVER_PARTY_ID="receiver-party::1220..."
+cargo run --example send_cbtc_v2
 ```
 
 ### List Incoming Offers

@@ -45,11 +45,11 @@ async fn main() -> Result<(), String> {
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
     let transfer_params = cbtc::transfer::Params {
-        transfer: common::transfer::Transfer {
+        transfer: cbtc::Transfer {
             sender: sender_party,
             receiver: receiver_party,
             amount,
-            instrument_id: common::transfer::InstrumentId {
+            instrument_id: cbtc::InstrumentId {
                 admin: decentralized_party.clone(),
                 id: "CBTC".to_string(),
             },

@@ -1,10 +1,22 @@
+/// The parameter types the Token Standard operations take.
+///
+/// Naming the individual types at the crate root is not enough:
+/// `transfer::Params.transfer` is a `common::transfer::Transfer` and
+/// `transfer::v2::Params.transfer` is a `common::transfer::v2::Transfer`, so a
+/// consumer needs the module to call the library's main operation at all. The
+/// V2 type cannot sit at the crate root, because `cbtc::transfer` is already
+/// `token::transfer`.
+///
+/// This module carries only what those signatures name. `cbtc` does not
+/// re-export `common` whole, so a `common` change reaches this crate's public
+/// API only where a signature already used it.
+pub mod types {
+    pub use common::allocation;
+    pub use common::transfer::*;
+}
 pub use common::decimal::DamlDecimal;
-// Every call site builds an InstrumentId, and a V2 caller builds an
-// Account. Neither `token` nor `common` is a dependency a consumer of
-// this crate declares, and a consumer that added `common` at a different
-// pin would get two `common` packages and two incompatible `DamlDecimal`
-// types. So re-export both (decision 18).
-pub use common::transfer::{InstrumentId, v2::Account};
+// The three types every call site names, hoisted to the crate root.
+pub use common::transfer::{InstrumentId, Meta, Transfer, v2::Account};
 pub use token::{
     DistributeParams, KeycloakConfig, SendParams, SplitParams, TokenClient, TokenClientConfig,
     TokenStandardVersion, accept, active_contracts, allocation, batch, cancel_offers, consolidate,

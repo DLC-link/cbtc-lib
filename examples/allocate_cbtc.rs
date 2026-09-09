@@ -68,28 +68,28 @@ async fn main() -> Result<(), String> {
     println!("Receiver: {}", receiver_party);
     println!("Executor: {}", executor_party);
 
-    let allocation = common::allocation::AllocationSpecification {
-        settlement: common::allocation::SettlementInfo {
+    let allocation = cbtc::types::allocation::AllocationSpecification {
+        settlement: cbtc::types::allocation::SettlementInfo {
             executor: executor_party,
-            settlement_ref: common::allocation::Reference {
+            settlement_ref: cbtc::types::allocation::Reference {
                 id: settlement_ref_id,
                 cid: None,
             },
             requested_at: now.to_rfc3339(),
             allocate_before,
             settle_before,
-            meta: common::allocation::Metadata::default(),
+            meta: cbtc::types::allocation::Metadata::default(),
         },
         transfer_leg_id: "leg0".to_string(),
-        transfer_leg: common::allocation::TransferLeg {
+        transfer_leg: cbtc::types::allocation::TransferLeg {
             sender: sender_party,
             receiver: receiver_party,
             amount,
-            instrument_id: common::transfer::InstrumentId {
+            instrument_id: cbtc::InstrumentId {
                 admin: decentralized_party.clone(),
                 id: "CBTC".to_string(),
             },
-            meta: common::allocation::Metadata::default(),
+            meta: cbtc::types::allocation::Metadata::default(),
         },
     };
 

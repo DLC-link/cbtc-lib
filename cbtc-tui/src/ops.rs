@@ -92,8 +92,8 @@ impl OpContext {
     ///
     /// `cbtc` takes the instrument from its caller, so the ticker lives
     /// here rather than in the library.
-    pub fn instrument(&self) -> common::transfer::InstrumentId {
-        common::transfer::InstrumentId {
+    pub fn instrument(&self) -> cbtc::InstrumentId {
+        cbtc::InstrumentId {
             admin: self.decentralized_party_id.clone(),
             id: "CBTC".to_string(),
         }

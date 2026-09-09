@@ -314,7 +314,6 @@ dependencies = [
  "cbtc",
  "chrono",
  "clap",
- "common",
  "dirs",
  "keycloak",
  "ledger",

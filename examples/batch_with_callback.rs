@@ -100,7 +100,7 @@ async fn main() -> Result<(), String> {
     let result = cbtc::distribute::submit(cbtc::distribute::Params {
         recipients,
         sender,
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
             id: "CBTC".to_string(),
         },

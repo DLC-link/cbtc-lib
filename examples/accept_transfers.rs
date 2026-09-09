@@ -19,7 +19,7 @@ async fn main() -> Result<(), String> {
 
     let params = cbtc::accept::AcceptAllParams {
         receiver_party: env::var("PARTY_ID").expect("PARTY_ID must be set"),
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
             id: "CBTC".to_string(),
         },

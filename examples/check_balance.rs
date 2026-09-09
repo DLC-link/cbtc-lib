@@ -53,7 +53,7 @@ async fn main() -> Result<(), String> {
         ledger_host,
         party,
         access_token: auth.access_token,
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id,
             id: "CBTC".to_string(),
         },

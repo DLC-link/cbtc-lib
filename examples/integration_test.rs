@@ -93,7 +93,7 @@ async fn authenticate(config: &PartyConfig) -> Result<String, String> {
 
 async fn check_balance(
     config: &PartyConfig,
-    instrument: &common::transfer::InstrumentId,
+    instrument: &cbtc::InstrumentId,
     version: cbtc::TokenStandardVersion,
 ) -> Result<(cbtc::DamlDecimal, usize), String> {
     let token = authenticate(config).await?;
@@ -106,9 +106,7 @@ async fn check_balance(
         }
         cbtc::TokenStandardVersion::V2 => {
             println!("   [v2::active_contracts::get]");
-            Some(common::transfer::v2::Account::basic(
-                config.party_id.clone(),
-            ))
+            Some(cbtc::Account::basic(config.party_id.clone()))
         }
     };
     let holdings = cbtc::active_contracts::get(cbtc::active_contracts::Params {
@@ -182,7 +180,7 @@ async fn cleanup_sender_offers(
     sender: &PartyConfig,
     decentralized_party_id: &str,
     registry_url: &str,
-    instrument: &common::transfer::InstrumentId,
+    instrument: &cbtc::InstrumentId,
     version: cbtc::TokenStandardVersion,
 ) {
     println!("\nAttempting cleanup: canceling pending sender offers...");
@@ -233,7 +231,7 @@ async fn main() -> Result<(), String> {
     let receiver = load_receiver_config();
     let decentralized_party_id =
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
-    let instrument = common::transfer::InstrumentId {
+    let instrument = cbtc::InstrumentId {
         admin: decentralized_party_id.clone(),
         id: "CBTC".to_string(),
     };
@@ -615,7 +613,7 @@ async fn main() -> Result<(), String> {
             cbtc::TokenStandardVersion::V1 => {
                 println!("   [v1::transfer::submit]");
                 cbtc::transfer::submit(cbtc::transfer::Params {
-                    transfer: common::transfer::Transfer {
+                    transfer: cbtc::Transfer {
                         sender: sender.party_id.clone(),
                         receiver: receiver.party_id.clone(),
                         amount,
@@ -638,9 +636,9 @@ async fn main() -> Result<(), String> {
             cbtc::TokenStandardVersion::V2 => {
                 println!("   [v2::transfer::submit]");
                 cbtc::transfer::v2::submit(cbtc::transfer::v2::Params {
-                    transfer: common::transfer::v2::Transfer {
-                        sender: common::transfer::v2::Account::basic(sender.party_id.clone()),
-                        receiver: common::transfer::v2::Account::basic(receiver.party_id.clone()),
+                    transfer: cbtc::types::v2::Transfer {
+                        sender: cbtc::Account::basic(sender.party_id.clone()),
+                        receiver: cbtc::Account::basic(receiver.party_id.clone()),
                         amount,
                         instrument_id: instrument.clone(),
                         requested_at: chrono::Utc::now().to_rfc3339(),
@@ -702,7 +700,7 @@ async fn main() -> Result<(), String> {
             cbtc::TokenStandardVersion::V1 => {
                 println!("   [v1::transfer::submit]");
                 cbtc::transfer::submit(cbtc::transfer::Params {
-                    transfer: common::transfer::Transfer {
+                    transfer: cbtc::Transfer {
                         sender: sender.party_id.clone(),
                         receiver: receiver.party_id.clone(),
                         amount,
@@ -725,9 +723,9 @@ async fn main() -> Result<(), String> {
             cbtc::TokenStandardVersion::V2 => {
                 println!("   [v2::transfer::submit]");
                 cbtc::transfer::v2::submit(cbtc::transfer::v2::Params {
-                    transfer: common::transfer::v2::Transfer {
-                        sender: common::transfer::v2::Account::basic(sender.party_id.clone()),
-                        receiver: common::transfer::v2::Account::basic(receiver.party_id.clone()),
+                    transfer: cbtc::types::v2::Transfer {
+                        sender: cbtc::Account::basic(sender.party_id.clone()),
+                        receiver: cbtc::Account::basic(receiver.party_id.clone()),
                         amount,
                         instrument_id: instrument.clone(),
                         requested_at: chrono::Utc::now().to_rfc3339(),
@@ -825,7 +823,7 @@ async fn main() -> Result<(), String> {
             cbtc::TokenStandardVersion::V1 => {
                 println!("   [v1::transfer::submit]");
                 cbtc::transfer::submit(cbtc::transfer::Params {
-                    transfer: common::transfer::Transfer {
+                    transfer: cbtc::Transfer {
                         sender: receiver.party_id.clone(),
                         receiver: sender.party_id.clone(),
                         amount,
@@ -848,9 +846,9 @@ async fn main() -> Result<(), String> {
             cbtc::TokenStandardVersion::V2 => {
                 println!("   [v2::transfer::submit]");
                 cbtc::transfer::v2::submit(cbtc::transfer::v2::Params {
-                    transfer: common::transfer::v2::Transfer {
-                        sender: common::transfer::v2::Account::basic(receiver.party_id.clone()),
-                        receiver: common::transfer::v2::Account::basic(sender.party_id.clone()),
+                    transfer: cbtc::types::v2::Transfer {
+                        sender: cbtc::Account::basic(receiver.party_id.clone()),
+                        receiver: cbtc::Account::basic(sender.party_id.clone()),
                         amount,
                         instrument_id: instrument.clone(),
                         requested_at: chrono::Utc::now().to_rfc3339(),
@@ -1015,7 +1013,7 @@ async fn main() -> Result<(), String> {
                 println!("   [v2::consolidate::check_and_consolidate]");
                 cbtc::consolidate::v2::check_and_consolidate(
                     cbtc::consolidate::v2::CheckConsolidateParams {
-                        account: common::transfer::v2::Account::basic(sender.party_id.clone()),
+                        account: cbtc::Account::basic(sender.party_id.clone()),
                         instrument_id: instrument.clone(),
                         threshold,
                         ledger_host: sender.ledger_host.clone(),
@@ -1101,9 +1099,7 @@ async fn main() -> Result<(), String> {
                     cbtc::TokenStandardVersion::V2 => {
                         println!("   [v2::split::submit]");
                         cbtc::split::v2::submit(cbtc::split::v2::Params {
-                            account: common::transfer::v2::Account::basic(
-                                sender.party_id.clone(),
-                            ),
+                            account: cbtc::Account::basic(sender.party_id.clone()),
                             instrument_id: instrument.clone(),
                             input_holding_cids: vec![holding.contract_id.clone()],
                             amounts: vec![half],

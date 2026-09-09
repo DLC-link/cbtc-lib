@@ -44,7 +44,7 @@ async fn main() -> Result<(), String> {
 
     let consolidate_params = cbtc::consolidate::CheckConsolidateParams {
         party,
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
             id: "CBTC".to_string(),
         },

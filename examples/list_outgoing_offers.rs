@@ -45,7 +45,7 @@ async fn main() -> Result<(), String> {
         ledger_host,
         party.clone(),
         auth.access_token,
-        common::transfer::InstrumentId {
+        cbtc::InstrumentId {
             admin: env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set"),
             id: "CBTC".to_string(),
         },

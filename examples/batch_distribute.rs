@@ -37,7 +37,7 @@ async fn main() -> Result<(), String> {
     let batch_params = cbtc::batch::Params {
         csv_path: csv_path.clone(),
         sender: sender_party.clone(),
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party.clone(),
             id: "CBTC".to_string(),
         },

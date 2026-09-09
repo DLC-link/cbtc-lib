@@ -9,7 +9,6 @@ canton-api-client = "3.6.0-0.1.0"
 cbtc = { path = ".." }
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 dirs = "5"
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }

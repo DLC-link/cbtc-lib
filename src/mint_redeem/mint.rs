@@ -397,9 +397,7 @@ mod parser_tests {
     //! `parse_created_deposit_account_cid`.
 
     use super::*;
-    use crate::test_fixtures::{
-        created_event_value, exercised_event_value, transaction_response,
-    };
+    use crate::test_fixtures::{created_event_value, exercised_event_value, transaction_response};
     use serde_json::json;
 
     #[test]

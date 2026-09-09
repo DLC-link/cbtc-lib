@@ -23,10 +23,17 @@ bridge operations.
   the registry API for every write method and for the holding reads.
   `incoming_offers` and `outgoing_offers` are version-neutral, because the
   registry writes a bare party in `transfer.receiver` under both versions.
-- `cbtc::InstrumentId` and `cbtc::Account`, re-exported from `common`. Every
-  call site builds an `InstrumentId`, and a consumer that declared its own
-  `common` at a different pin would get two `common` packages and two
-  incompatible `DamlDecimal` types.
+- `cbtc::InstrumentId`, `cbtc::Transfer`, `cbtc::Meta` and `cbtc::Account`,
+  re-exported from `common`, and `cbtc::types`, which carries the parameter
+  types those signatures name. Every call site builds an `InstrumentId`, and a
+  consumer that declared its own `common` at a different pin would get two
+  `common` packages and two incompatible `DamlDecimal` types. The module is
+  what makes the guarantee complete: `transfer::v2::Params.transfer` is a
+  `common::transfer::v2::Transfer`, which cannot sit at the crate root because
+  `cbtc::transfer` is already `token::transfer`. Reach it as
+  `cbtc::types::v2::Transfer`. `cbtc` does **not** re-export `common` whole, so
+  a `common` change reaches this crate's public API only where a signature
+  already used it.
 - `cbtc::TokenClient`, a client bound to one token and one party. It stores
   the ledger host, registry URL, instrument, party and credentials that
   otherwise repeat on every call.
@@ -69,6 +76,28 @@ bridge operations.
   `cbtc-faucet`, `vault-ui`, `cBTC-Canton-App` and `cbtc-doc` on 8 September
   2026 and found none.
 
+### Known gap — the mint and redeem path still matches on the ticker alone
+
+The two filters above compare `id` and `admin` exactly, and they close the
+transfer-offer route. **They do not cover minting and redeeming.**
+`mint_redeem::redeem::list_holdings` queries the shared utility-registry
+`Holding` template with no instrument filter, and its `Holding` type carries
+`instrument_id` as a bare `String`. That string holds the ticker and no admin,
+**so an admin comparison is not expressible on this type at all.**
+
+The consequence is the same shape as the route this release closes, on a
+different path. A holding with the ticker `CBTC` under a foreign admin reaches
+the sender's active contracts, `submit_withdraw` and `split::submit` then
+receive it while naming the correct admin, and the registry rejects the whole
+request with `400 Given holdings are invalid`. That halts a burn or a split.
+There is no fund loss and no unauthorised change to anyone's holdings.
+
+Closing it means selecting holdings through `active_contracts::get`, which
+filters on the `Holding` **interface** rather than the concrete
+utility-registry template. That could admit a holding the cBTC burn factory
+then rejects, so it needs a devnet run to settle rather than a code reading.
+Tracked separately; this release does not attempt it.
+
 ### Changed — behaviour
 
 - A split response is parsed by choice name rather than by position.
@@ -105,10 +134,16 @@ bridge operations.
 
 - `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
   `canton-lib` at revision
-  `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`, the head of
-  `feature/token-standard-v2`. **A consumer must pin the same revision.** A
-  tag beside a revision makes Cargo build two `common` packages, and then
-  `cbtc::DamlDecimal` and `common::decimal::DamlDecimal` are different
-  types.
+  `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`. **A consumer must pin the same
+  revision.** A tag beside a revision makes Cargo build two `common`
+  packages, and then `cbtc::DamlDecimal` and `common::decimal::DamlDecimal`
+  are different types. That revision is one commit behind the head of
+  `feature/token-standard-v2`: `a0f46ae` follows it and adds the
+  instrument-admin guard tests. `a0f46ae` changes no behaviour — it extracts
+  `wanted_transfer` from a closure and tests it — so the pin is equivalent
+  in behaviour and short of those tests. Issue #67 moves the pin to
+  `tag = "v0.7.0"`.
 - `registry`, `zip`, `semver`, `base64`, `futures` and `log` are removed.
   Nothing in the crate uses them once the thirteen modules go.
+- `cbtc-tui` no longer declares `common` itself. It names `cbtc::InstrumentId`
+  instead, so it cannot drift from `cbtc`'s pin.

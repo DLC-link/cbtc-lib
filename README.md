@@ -85,9 +85,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-# cbtc re-exports InstrumentId, Account and DamlDecimal, so most consumers
-# need no canton-lib dependency at all. If you add one, pin the same
-# revision: a different pin makes Cargo build two `common` packages, and
+# cbtc re-exports DamlDecimal, InstrumentId, Transfer, Meta and Account, and
+# the parameter types as `cbtc::types`, so a consumer needs no
+# canton-lib dependency for the Token Standard types. If you add one, pin the
+# same revision: a different pin makes Cargo build two `common` packages, and
 # then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
@@ -491,8 +492,15 @@ reaches V2 through its `account` field, and `allocation`, `credentials`,
 
 Every entry point takes the instrument from the caller. The library supplies
 no ticker, because Bitsafe plans to support instruments other than CBTC.
-`cbtc` re-exports `InstrumentId` and `Account`, so a consumer needs no
-`canton-lib` dependency to name them.
+`cbtc` re-exports `InstrumentId`, `Transfer`, `Meta` and `Account` at its
+root, and the parameter types those signatures name as `cbtc::types`, so a
+consumer needs no `canton-lib` dependency to name them.
+`transfer::Params.transfer` and `transfer::v2::Params.transfer` are
+`cbtc::Transfer` and `cbtc::types::v2::Transfer`. `cbtc` does not re-export
+`common` whole. The reads — `active_contracts::get`,
+`utils::fetch_incoming_transfers`, `utils::fetch_outgoing_transfers` and
+`TokenClient::holdings` — return `Vec<JsActiveContract>`, which comes from
+the crates.io crate `canton-api-client`, not from `canton-lib`.
 
 ### Core Modules
 

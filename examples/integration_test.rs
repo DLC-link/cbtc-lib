@@ -94,14 +94,29 @@ async fn authenticate(config: &PartyConfig) -> Result<String, String> {
 async fn check_balance(
     config: &PartyConfig,
     instrument: &common::transfer::InstrumentId,
+    version: cbtc::TokenStandardVersion,
 ) -> Result<(cbtc::DamlDecimal, usize), String> {
     let token = authenticate(config).await?;
+    // A V2 caller reads only its own account's holdings. A V1 caller has no
+    // account label to filter on.
+    let account = match version {
+        cbtc::TokenStandardVersion::V1 => {
+            println!("   [v1::active_contracts::get]");
+            None
+        }
+        cbtc::TokenStandardVersion::V2 => {
+            println!("   [v2::active_contracts::get]");
+            Some(common::transfer::v2::Account::basic(
+                config.party_id.clone(),
+            ))
+        }
+    };
     let holdings = cbtc::active_contracts::get(cbtc::active_contracts::Params {
         ledger_host: config.ledger_host.clone(),
         party: config.party_id.clone(),
         access_token: token,
         instrument_id: instrument.clone(),
-        account: None,
+        account,
     })
     .await?;
 
@@ -112,11 +127,12 @@ async fn check_balance(
     Ok((total, holdings.len()))
 }
 
-fn print_header(amount: &str) {
+fn print_header(amount: &str, version: cbtc::TokenStandardVersion) {
     println!();
     println!("===============================================");
     println!("  CBTC Integration Test");
     println!("  Amount: {} CBTC", amount);
+    println!("  Token Standard: {:?}", version);
     println!("===============================================");
     println!();
 }
@@ -167,9 +183,10 @@ async fn cleanup_sender_offers(
     decentralized_party_id: &str,
     registry_url: &str,
     instrument: &common::transfer::InstrumentId,
+    version: cbtc::TokenStandardVersion,
 ) {
     println!("\nAttempting cleanup: canceling pending sender offers...");
-    let result = cbtc::cancel_offers::withdraw_all(cbtc::cancel_offers::WithdrawAllParams {
+    let withdraw_params = cbtc::cancel_offers::WithdrawAllParams {
         sender_party: sender.party_id.clone(),
         instrument_id: instrument.clone(),
         ledger_host: sender.ledger_host.clone(),
@@ -179,8 +196,17 @@ async fn cleanup_sender_offers(
         keycloak_username: sender.keycloak_username.clone(),
         keycloak_password: sender.keycloak_password.clone(),
         keycloak_url: sender.keycloak_url.clone(),
-    })
-    .await;
+    };
+    let result = match version {
+        cbtc::TokenStandardVersion::V1 => {
+            println!("   [v1::cancel_offers::withdraw_all]");
+            cbtc::cancel_offers::withdraw_all(withdraw_params).await
+        }
+        cbtc::TokenStandardVersion::V2 => {
+            println!("   [v2::cancel_offers::withdraw_all]");
+            cbtc::cancel_offers::v2::withdraw_all(withdraw_params).await
+        }
+    };
     match result {
         Ok(r) => println!("Cleanup: canceled {} offer(s)", r.successful_count),
         Err(e) => println!("Cleanup failed: {}", e),
@@ -191,6 +217,16 @@ async fn cleanup_sender_offers(
 async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
     env_logger::init();
+
+    let version = match env::var("TOKEN_STANDARD_VERSION").as_deref() {
+        Ok("V2") | Ok("v2") => cbtc::TokenStandardVersion::V2,
+        Ok("V1") | Ok("v1") | Err(_) => cbtc::TokenStandardVersion::V1,
+        Ok(other) => {
+            return Err(format!(
+                "TOKEN_STANDARD_VERSION must be V1 or V2, not {other:?}"
+            ));
+        }
+    };
 
     let start = Instant::now();
     let sender = load_sender_config();
@@ -218,7 +254,7 @@ async fn main() -> Result<(), String> {
     let faucet_url = env::var("FAUCET_URL").ok();
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
-    let base_steps: usize = 20;
+    let base_steps: usize = 22;
     let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
 
     if sender.party_id == receiver.party_id {
@@ -228,7 +264,7 @@ async fn main() -> Result<(), String> {
     let withdraw_amount_decimal = cbtc::DamlDecimal::parse(&withdraw_amount)
         .expect("WITHDRAW_AMOUNT must be a valid number");
 
-    print_header(&amount.to_string());
+    print_header(&amount.to_string(), version);
 
     let mut step = 0;
     let mut passed = 0;
@@ -259,6 +295,7 @@ async fn main() -> Result<(), String> {
                             &decentralized_party_id,
                             &registry_url,
                             &instrument,
+                            version,
                         )
                         .await;
                     }
@@ -276,7 +313,7 @@ async fn main() -> Result<(), String> {
 
     // Step 1: Check sender balance
     run_step!("Check sender balance", async {
-        let (balance, utxos) = check_balance(&sender, &instrument).await?;
+        let (balance, utxos) = check_balance(&sender, &instrument, version).await?;
         if balance <= cbtc::DamlDecimal::ZERO {
             return Err("Sender has no CBTC balance".to_string());
         }
@@ -285,7 +322,7 @@ async fn main() -> Result<(), String> {
 
     // Step 2: Check receiver balance
     run_step!("Check receiver balance", async {
-        let (balance, utxos) = check_balance(&receiver, &instrument).await?;
+        let (balance, utxos) = check_balance(&receiver, &instrument, version).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
@@ -540,7 +577,7 @@ async fn main() -> Result<(), String> {
 
         // Step 11: Accept faucet transfer
         run_step!("Accept faucet transfer", async {
-            let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
+            let accept_params = cbtc::accept::AcceptAllParams {
                 receiver_party: sender.party_id.clone(),
                 instrument_id: instrument.clone(),
                 ledger_host: sender.ledger_host.clone(),
@@ -550,8 +587,17 @@ async fn main() -> Result<(), String> {
                 keycloak_username: sender.keycloak_username.clone(),
                 keycloak_password: sender.keycloak_password.clone(),
                 keycloak_url: sender.keycloak_url.clone(),
-            })
-            .await?;
+            };
+            let result = match version {
+                cbtc::TokenStandardVersion::V1 => {
+                    println!("   [v1::accept::accept_all]");
+                    cbtc::accept::accept_all(accept_params).await?
+                }
+                cbtc::TokenStandardVersion::V2 => {
+                    println!("   [v2::accept::accept_all]");
+                    cbtc::accept::v2::accept_all(accept_params).await?
+                }
+            };
             if result.failed_count > 0 {
                 return Err(format!("{} accept(s) failed", result.failed_count));
             }
@@ -565,26 +611,141 @@ async fn main() -> Result<(), String> {
     // Step 9: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;
-        cbtc::transfer::submit(cbtc::transfer::Params {
-            transfer: common::transfer::Transfer {
-                sender: sender.party_id.clone(),
-                receiver: receiver.party_id.clone(),
-                amount,
-                instrument_id: instrument.clone(),
-                requested_at: chrono::Utc::now().to_rfc3339(),
-                execute_before: chrono::Utc::now()
-                    .checked_add_signed(chrono::Duration::hours(168))
-                    .unwrap()
-                    .to_rfc3339(),
-                input_holding_cids: None,
-                meta: None,
-            },
+        match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::transfer::submit]");
+                cbtc::transfer::submit(cbtc::transfer::Params {
+                    transfer: common::transfer::Transfer {
+                        sender: sender.party_id.clone(),
+                        receiver: receiver.party_id.clone(),
+                        amount,
+                        instrument_id: instrument.clone(),
+                        requested_at: chrono::Utc::now().to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .checked_add_signed(chrono::Duration::hours(168))
+                            .unwrap()
+                            .to_rfc3339(),
+                        input_holding_cids: None,
+                        meta: None,
+                    },
+                    ledger_host: sender.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                })
+                .await?
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::transfer::submit]");
+                cbtc::transfer::v2::submit(cbtc::transfer::v2::Params {
+                    transfer: common::transfer::v2::Transfer {
+                        sender: common::transfer::v2::Account::basic(sender.party_id.clone()),
+                        receiver: common::transfer::v2::Account::basic(receiver.party_id.clone()),
+                        amount,
+                        instrument_id: instrument.clone(),
+                        requested_at: chrono::Utc::now().to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .checked_add_signed(chrono::Duration::hours(168))
+                            .unwrap()
+                            .to_rfc3339(),
+                        input_holding_cids: None,
+                        meta: None,
+                    },
+                    ledger_host: sender.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                })
+                .await?
+            }
+        };
+        sender_has_pending_offer = true;
+        Ok::<String, String>(format!("({} CBTC)", amount))
+    });
+
+    // Step 9b: Withdraw the offer the previous step created, then send it again.
+    // This is the only place cancel_offers::withdraw_all runs on a passing run;
+    // cleanup_sender_offers calls it solely from a failure path.
+    run_step!("Withdraw own pending offer", async {
+        let withdraw_params = cbtc::cancel_offers::WithdrawAllParams {
+            sender_party: sender.party_id.clone(),
+            instrument_id: instrument.clone(),
             ledger_host: sender.ledger_host.clone(),
-            access_token: token,
             registry_url: registry_url.clone(),
             decentralized_party_id: decentralized_party_id.clone(),
-        })
-        .await?;
+            keycloak_client_id: sender.keycloak_client_id.clone(),
+            keycloak_username: sender.keycloak_username.clone(),
+            keycloak_password: sender.keycloak_password.clone(),
+            keycloak_url: sender.keycloak_url.clone(),
+        };
+        let result = match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::cancel_offers::withdraw_all]");
+                cbtc::cancel_offers::withdraw_all(withdraw_params).await?
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::cancel_offers::withdraw_all]");
+                cbtc::cancel_offers::v2::withdraw_all(withdraw_params).await?
+            }
+        };
+        if result.successful_count == 0 {
+            return Err("withdrew no offer, so this step proved nothing".to_string());
+        }
+        sender_has_pending_offer = false;
+        Ok::<String, String>(format!("({} withdrawn)", result.successful_count))
+    });
+
+    // Step 9c: Send again, so the steps below have a pending offer to accept.
+    run_step!("Send CBTC to receiver", async {
+        let token = authenticate(&sender).await?;
+        match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::transfer::submit]");
+                cbtc::transfer::submit(cbtc::transfer::Params {
+                    transfer: common::transfer::Transfer {
+                        sender: sender.party_id.clone(),
+                        receiver: receiver.party_id.clone(),
+                        amount,
+                        instrument_id: instrument.clone(),
+                        requested_at: chrono::Utc::now().to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .checked_add_signed(chrono::Duration::hours(168))
+                            .unwrap()
+                            .to_rfc3339(),
+                        input_holding_cids: None,
+                        meta: None,
+                    },
+                    ledger_host: sender.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                })
+                .await?
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::transfer::submit]");
+                cbtc::transfer::v2::submit(cbtc::transfer::v2::Params {
+                    transfer: common::transfer::v2::Transfer {
+                        sender: common::transfer::v2::Account::basic(sender.party_id.clone()),
+                        receiver: common::transfer::v2::Account::basic(receiver.party_id.clone()),
+                        amount,
+                        instrument_id: instrument.clone(),
+                        requested_at: chrono::Utc::now().to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .checked_add_signed(chrono::Duration::hours(168))
+                            .unwrap()
+                            .to_rfc3339(),
+                        input_holding_cids: None,
+                        meta: None,
+                    },
+                    ledger_host: sender.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                })
+                .await?
+            }
+        };
         sender_has_pending_offer = true;
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
@@ -623,7 +784,7 @@ async fn main() -> Result<(), String> {
 
     // Step 12: Accept transfers (receiver)
     run_step!("Accept transfers (receiver)", async {
-        let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
+        let accept_params = cbtc::accept::AcceptAllParams {
             receiver_party: receiver.party_id.clone(),
             instrument_id: instrument.clone(),
             ledger_host: receiver.ledger_host.clone(),
@@ -633,8 +794,17 @@ async fn main() -> Result<(), String> {
             keycloak_username: receiver.keycloak_username.clone(),
             keycloak_password: receiver.keycloak_password.clone(),
             keycloak_url: receiver.keycloak_url.clone(),
-        })
-        .await?;
+        };
+        let result = match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::accept::accept_all]");
+                cbtc::accept::accept_all(accept_params).await?
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::accept::accept_all]");
+                cbtc::accept::v2::accept_all(accept_params).await?
+            }
+        };
         sender_has_pending_offer = false;
         if result.failed_count > 0 {
             return Err(format!("{} accept(s) failed", result.failed_count));
@@ -644,40 +814,68 @@ async fn main() -> Result<(), String> {
 
     // Step 13: Check receiver balance
     run_step!("Check receiver balance", async {
-        let (balance, utxos) = check_balance(&receiver, &instrument).await?;
+        let (balance, utxos) = check_balance(&receiver, &instrument, version).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
     // Step 14: Return CBTC receiver -> sender
     run_step!("Return CBTC to sender", async {
         let token = authenticate(&receiver).await?;
-        cbtc::transfer::submit(cbtc::transfer::Params {
-            transfer: common::transfer::Transfer {
-                sender: receiver.party_id.clone(),
-                receiver: sender.party_id.clone(),
-                amount,
-                instrument_id: instrument.clone(),
-                requested_at: chrono::Utc::now().to_rfc3339(),
-                execute_before: chrono::Utc::now()
-                    .checked_add_signed(chrono::Duration::hours(168))
-                    .unwrap()
-                    .to_rfc3339(),
-                input_holding_cids: None,
-                meta: None,
-            },
-            ledger_host: receiver.ledger_host.clone(),
-            access_token: token,
-            registry_url: registry_url.clone(),
-            decentralized_party_id: decentralized_party_id.clone(),
-        })
-        .await?;
+        match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::transfer::submit]");
+                cbtc::transfer::submit(cbtc::transfer::Params {
+                    transfer: common::transfer::Transfer {
+                        sender: receiver.party_id.clone(),
+                        receiver: sender.party_id.clone(),
+                        amount,
+                        instrument_id: instrument.clone(),
+                        requested_at: chrono::Utc::now().to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .checked_add_signed(chrono::Duration::hours(168))
+                            .unwrap()
+                            .to_rfc3339(),
+                        input_holding_cids: None,
+                        meta: None,
+                    },
+                    ledger_host: receiver.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                })
+                .await?
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::transfer::submit]");
+                cbtc::transfer::v2::submit(cbtc::transfer::v2::Params {
+                    transfer: common::transfer::v2::Transfer {
+                        sender: common::transfer::v2::Account::basic(receiver.party_id.clone()),
+                        receiver: common::transfer::v2::Account::basic(sender.party_id.clone()),
+                        amount,
+                        instrument_id: instrument.clone(),
+                        requested_at: chrono::Utc::now().to_rfc3339(),
+                        execute_before: chrono::Utc::now()
+                            .checked_add_signed(chrono::Duration::hours(168))
+                            .unwrap()
+                            .to_rfc3339(),
+                        input_holding_cids: None,
+                        meta: None,
+                    },
+                    ledger_host: receiver.ledger_host.clone(),
+                    access_token: token,
+                    registry_url: registry_url.clone(),
+                    decentralized_party_id: decentralized_party_id.clone(),
+                })
+                .await?
+            }
+        };
         receiver_has_pending_offer = true;
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
     // Step 15: Accept transfers (sender)
     run_step!("Accept transfers (sender)", async {
-        let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
+        let accept_params = cbtc::accept::AcceptAllParams {
             receiver_party: sender.party_id.clone(),
             instrument_id: instrument.clone(),
             ledger_host: sender.ledger_host.clone(),
@@ -687,8 +885,17 @@ async fn main() -> Result<(), String> {
             keycloak_username: sender.keycloak_username.clone(),
             keycloak_password: sender.keycloak_password.clone(),
             keycloak_url: sender.keycloak_url.clone(),
-        })
-        .await?;
+        };
+        let result = match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::accept::accept_all]");
+                cbtc::accept::accept_all(accept_params).await?
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::accept::accept_all]");
+                cbtc::accept::v2::accept_all(accept_params).await?
+            }
+        };
         receiver_has_pending_offer = false;
         if result.failed_count > 0 {
             return Err(format!("{} accept(s) failed", result.failed_count));
@@ -698,7 +905,7 @@ async fn main() -> Result<(), String> {
 
     // Step 16: Check sender balance (pre-withdraw)
     run_step!("Check sender balance", async {
-        let (balance, utxos) = check_balance(&sender, &instrument).await?;
+        let (balance, utxos) = check_balance(&sender, &instrument, version).await?;
         pre_withdraw_balance = balance;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
@@ -766,7 +973,7 @@ async fn main() -> Result<(), String> {
 
     // Step 18: Check sender balance (post-withdraw)
     run_step!("Check balance (post-withdraw)", async {
-        let (balance, utxos) = check_balance(&sender, &instrument).await?;
+        let (balance, utxos) = check_balance(&sender, &instrument, version).await?;
         if balance >= pre_withdraw_balance {
             return Err(format!(
                 "Balance did not decrease after withdrawal: was {:.8}, now {:.8}",
@@ -788,17 +995,39 @@ async fn main() -> Result<(), String> {
         let token = authenticate(&sender)
             .await
             .map_err(|e| format!("Auth failed: {}", e))?;
-        match cbtc::consolidate::check_and_consolidate(cbtc::consolidate::CheckConsolidateParams {
-            party: sender.party_id.clone(),
-            instrument_id: instrument.clone(),
-            threshold,
-            ledger_host: sender.ledger_host.clone(),
-            access_token: token,
-            registry_url: registry_url.clone(),
-            decentralized_party_id: decentralized_party_id.clone(),
-        })
-        .await
-        {
+        let outcome = match version {
+            cbtc::TokenStandardVersion::V1 => {
+                println!("   [v1::consolidate::check_and_consolidate]");
+                cbtc::consolidate::check_and_consolidate(
+                    cbtc::consolidate::CheckConsolidateParams {
+                        party: sender.party_id.clone(),
+                        instrument_id: instrument.clone(),
+                        threshold,
+                        ledger_host: sender.ledger_host.clone(),
+                        access_token: token,
+                        registry_url: registry_url.clone(),
+                        decentralized_party_id: decentralized_party_id.clone(),
+                    },
+                )
+                .await
+            }
+            cbtc::TokenStandardVersion::V2 => {
+                println!("   [v2::consolidate::check_and_consolidate]");
+                cbtc::consolidate::v2::check_and_consolidate(
+                    cbtc::consolidate::v2::CheckConsolidateParams {
+                        account: common::transfer::v2::Account::basic(sender.party_id.clone()),
+                        instrument_id: instrument.clone(),
+                        threshold,
+                        ledger_host: sender.ledger_host.clone(),
+                        access_token: token,
+                        registry_url: registry_url.clone(),
+                        decentralized_party_id: decentralized_party_id.clone(),
+                    },
+                )
+                .await
+            }
+        };
+        match outcome {
             Ok(result) => {
                 if result.consolidated {
                     print_ok(&format!(
@@ -854,18 +1083,40 @@ async fn main() -> Result<(), String> {
                 // Split the holding into one output worth half its value; the rest becomes change.
                 let half = holding.amount / cbtc::DamlDecimal::parse("2").unwrap();
 
-                let split_params = cbtc::split::Params {
-                    party: sender.party_id.clone(),
-                    instrument_id: instrument.clone(),
-                    input_holding_cids: vec![holding.contract_id.clone()],
-                    amounts: vec![half],
-                    ledger_host: sender.ledger_host.clone(),
-                    access_token: token,
-                    registry_url: registry_url.clone(),
-                    decentralized_party_id: decentralized_party_id.clone(),
+                let outcome = match version {
+                    cbtc::TokenStandardVersion::V1 => {
+                        println!("   [v1::split::submit]");
+                        cbtc::split::submit(cbtc::split::Params {
+                            party: sender.party_id.clone(),
+                            instrument_id: instrument.clone(),
+                            input_holding_cids: vec![holding.contract_id.clone()],
+                            amounts: vec![half],
+                            ledger_host: sender.ledger_host.clone(),
+                            access_token: token,
+                            registry_url: registry_url.clone(),
+                            decentralized_party_id: decentralized_party_id.clone(),
+                        })
+                        .await
+                    }
+                    cbtc::TokenStandardVersion::V2 => {
+                        println!("   [v2::split::submit]");
+                        cbtc::split::v2::submit(cbtc::split::v2::Params {
+                            account: common::transfer::v2::Account::basic(
+                                sender.party_id.clone(),
+                            ),
+                            instrument_id: instrument.clone(),
+                            input_holding_cids: vec![holding.contract_id.clone()],
+                            amounts: vec![half],
+                            ledger_host: sender.ledger_host.clone(),
+                            access_token: token,
+                            registry_url: registry_url.clone(),
+                            decentralized_party_id: decentralized_party_id.clone(),
+                        })
+                        .await
+                    }
                 };
 
-                match cbtc::split::submit(split_params).await {
+                match outcome {
                     Ok(result) => {
                         print_ok(&format!(
                             "({} output(s), {} change UTXO(s))",

@@ -58,6 +58,10 @@ name = "send_cbtc"
 path = "examples/send_cbtc.rs"
 
 [[example]]
+name = "send_cbtc_v2"
+path = "examples/send_cbtc_v2.rs"
+
+[[example]]
 name = "test_burn_cbtc"
 path = "examples/test_burn_cbtc.rs"
 

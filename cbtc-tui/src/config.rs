@@ -78,11 +78,31 @@ impl Config {
 
     /// The environment for `env_name`: a config override if present, else the
     /// built-in default.
+    ///
+    /// An override fills each field it leaves empty from the built-in default,
+    /// because `env_import` writes an override as soon as the `.env` carries
+    /// any one of the three variables and defaults the rest to `""`. An empty
+    /// `decentralized_party_id` becomes the instrument admin that every
+    /// holding and offer filter compares exactly, so it would show a zero
+    /// balance and no offers rather than a configuration error.
     pub fn resolved_environment(&self, env_name: &str) -> Option<Environment> {
-        if let Some(env) = self.environments.get(env_name) {
-            return Some(env.clone());
+        let builtin = Self::builtin_environments().get(env_name).cloned();
+        let Some(env) = self.environments.get(env_name) else {
+            return builtin;
+        };
+        let mut env = env.clone();
+        if let Some(builtin) = builtin {
+            if env.registry_url.is_empty() {
+                env.registry_url = builtin.registry_url;
+            }
+            if env.decentralized_party_id.is_empty() {
+                env.decentralized_party_id = builtin.decentralized_party_id;
+            }
+            if env.bitsafe_api_url.is_empty() {
+                env.bitsafe_api_url = builtin.bitsafe_api_url;
+            }
         }
-        Self::builtin_environments().get(env_name).cloned()
+        Some(env)
     }
 
     /// Load config from `path`.
@@ -252,5 +272,49 @@ mod tests {
         let env = cfg.resolved_environment("devnet").unwrap();
         // Assert
         assert_eq!(env.registry_url, "https://override");
+    }
+
+    #[test]
+    fn resolved_environment_fills_an_empty_override_field_from_the_builtin() {
+        // Arrange: `env_import` writes an override as soon as the .env carries
+        // any one of the three variables, and defaults the rest to "". An empty
+        // decentralized_party_id becomes the instrument admin, and every
+        // holding and offer filter compares that admin exactly, so the TUI
+        // would report a zero balance and no offers instead of a bad config.
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "devnet".to_string(),
+            Environment {
+                registry_url: "https://override".to_string(),
+                decentralized_party_id: String::new(),
+                bitsafe_api_url: String::new(),
+            },
+        );
+        // Act
+        let env = cfg.resolved_environment("devnet").unwrap();
+        // Assert
+        let builtin = Config::builtin_environments();
+        let devnet = builtin.get("devnet").unwrap();
+        assert_eq!(env.registry_url, "https://override");
+        assert_eq!(env.decentralized_party_id, devnet.decentralized_party_id);
+        assert_eq!(env.bitsafe_api_url, devnet.bitsafe_api_url);
+    }
+
+    #[test]
+    fn resolved_environment_keeps_an_empty_field_for_an_unknown_environment() {
+        // Arrange
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "private".to_string(),
+            Environment {
+                registry_url: "https://override".to_string(),
+                decentralized_party_id: String::new(),
+                bitsafe_api_url: String::new(),
+            },
+        );
+        // Act
+        let env = cfg.resolved_environment("private").unwrap();
+        // Assert
+        assert_eq!(env.decentralized_party_id, "");
     }
 }

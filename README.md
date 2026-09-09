@@ -91,11 +91,13 @@ Add to your `Cargo.toml`:
 # same revision: a different pin makes Cargo build two `common` packages, and
 # then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.7.0" }
 ```
 
-`v0.7.0` is tagged once `canton-lib` PR 31 merges; until then pin the commit
-at the head of `feature/token-crate-adoption`.
+`canton-lib` v0.7.0 is released, so the `keycloak` pin above names the tag.
+**`cbtc-lib` itself is not tagged yet** — that waits for its own pull request
+to merge, so until then pin the commit at the head of
+`feature/token-crate-adoption`.
 
 Or for local development:
 
@@ -205,8 +207,10 @@ Add this to your `Cargo.toml`:
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
 ```
 
-`v0.7.0` is tagged once `canton-lib` PR 31 merges; until then pin the commit
-at the head of `feature/token-crate-adoption`.
+`canton-lib` v0.7.0 is released, so the `keycloak` pin above names the tag.
+**`cbtc-lib` itself is not tagged yet** — that waits for its own pull request
+to merge, so until then pin the commit at the head of
+`feature/token-crate-adoption`.
 
 Or for local development:
 

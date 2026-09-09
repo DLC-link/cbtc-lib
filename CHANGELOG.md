@@ -133,16 +133,19 @@ Tracked separately; this release does not attempt it.
 ### Dependencies
 
 - `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
-  `canton-lib` at revision
-  `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`. **A consumer must pin the same
-  revision.** A tag beside a revision makes Cargo build two `common`
+  `canton-lib` at `tag = "v0.7.0"`. **A consumer must pin the same tag.**
+  Mixing a tag and a revision across manifests makes Cargo build two `common`
   packages, and then `cbtc::DamlDecimal` and `common::decimal::DamlDecimal`
-  are different types. That revision is one commit behind the head of
-  `feature/token-standard-v2`: `a0f46ae` follows it and adds the
-  instrument-admin guard tests. `a0f46ae` changes no behaviour — it extracts
-  `wanted_transfer` from a closure and tests it — so the pin is equivalent
-  in behaviour and short of those tests. Issue #67 moves the pin to
-  `tag = "v0.7.0"`.
+  are different types.
+
+  This release originally pinned revision `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`,
+  because no `canton-lib` tag then contained the `token` crate. `canton-lib`
+  PR 31 merged on 9 September 2026 and `v0.7.0` followed. Verified before the
+  swap: the tag carries `crates/token`, it keeps the instrument-admin guard
+  tests, and the old revision is still an ancestor of it. The tag adds exactly
+  one commit over that revision, `a0f46ae`, which extracts `wanted_transfer`
+  from a closure and tests it. **So the swap adds those tests and changes no
+  behaviour.**
 - `registry`, `zip`, `semver`, `base64`, `futures` and `log` are removed.
   Nothing in the crate uses them once the thirteen modules go.
 - `cbtc-tui` no longer declares `common` itself. It names `cbtc::InstrumentId`

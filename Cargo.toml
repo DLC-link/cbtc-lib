@@ -11,7 +11,6 @@ uninlined_format_args = "allow"
 token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
-registry = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
@@ -19,14 +18,9 @@ chrono = "0.4.42"
 uuid = { version = "1.18", features = ["v4"] }
 csv = "1.3"
 serde = { version = "1.0", features = ["derive"] }
-futures = "0.3"
 dotenvy = "0.15"
-base64 = "0.22"
-log = "0.4"
 canton-api-client = "3.6.0-0.1.0"
 reqwest = { version = "0.12.24", features = ["json"] }
-zip = "2"
-semver = "1"
 
 [dev-dependencies]
 env_logger = "0.11"

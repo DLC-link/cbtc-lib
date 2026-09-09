@@ -29,6 +29,10 @@ pub(crate) fn as_created_event(event: &Event) -> Option<&CreatedEvent> {
     }
 }
 
+// No caller survives the token-crate adoption: consolidate, split and
+// transfer moved to canton-lib, whose own event_helpers keeps this and
+// uses it. Kept so follow-up 6 can move all three accessors as one unit.
+#[allow(dead_code)]
 pub(crate) fn as_exercised_event(event: &Event) -> Option<&ExercisedEvent> {
     match event {
         Event::EventOneOf2(wrapper) => Some(&wrapper.exercised_event),

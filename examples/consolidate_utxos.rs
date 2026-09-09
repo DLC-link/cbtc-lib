@@ -39,14 +39,20 @@ async fn main() -> Result<(), String> {
     println!("   Party: {}", party);
     println!("   Threshold: {} UTXOs\n", threshold);
 
+    let decentralized_party_id =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+
     let consolidate_params = cbtc::consolidate::CheckConsolidateParams {
         party,
+        instrument_id: common::transfer::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
         threshold,
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
         access_token: auth.access_token,
         registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
-        decentralized_party_id: env::var("DECENTRALIZED_PARTY_ID")
-            .expect("DECENTRALIZED_PARTY_ID must be set"),
+        decentralized_party_id,
     };
 
     let result = cbtc::consolidate::check_and_consolidate(consolidate_params).await?;

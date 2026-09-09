@@ -36,6 +36,10 @@ async fn main() -> Result<(), String> {
     // Withdraw all pending transfers
     let result = cbtc::cancel_offers::withdraw_all(cbtc::cancel_offers::WithdrawAllParams {
         sender_party,
+        instrument_id: common::transfer::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
         ledger_host,
         registry_url,
         decentralized_party_id,

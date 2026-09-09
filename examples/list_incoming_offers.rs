@@ -41,9 +41,16 @@ async fn main() -> Result<(), String> {
     .await
     .map_err(|e| format!("Authentication failed: {}", e))?;
 
-    let transfers =
-        cbtc::utils::fetch_incoming_transfers(ledger_host, party.clone(), auth.access_token)
-            .await?;
+    let transfers = cbtc::utils::fetch_incoming_transfers(
+        ledger_host,
+        party.clone(),
+        auth.access_token,
+        common::transfer::InstrumentId {
+            admin: env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set"),
+            id: "CBTC".to_string(),
+        },
+    )
+    .await?;
 
     if transfers.is_empty() {
         println!("No pending incoming transfers found.\n");

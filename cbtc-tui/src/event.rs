@@ -193,10 +193,7 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
         Command::MergeHoldings => {
             cbtc::consolidate::consolidate_utxos(cbtc::consolidate::ConsolidateParams {
                 party: ctx.party.clone(),
-                instrument_id: common::transfer::InstrumentId {
-                    admin: ctx.decentralized_party_id.clone(),
-                    id: "CBTC".to_string(),
-                },
+                instrument_id: ctx.instrument(),
                 input_holding_cids: None,
                 ledger_host: ctx.ledger_host.clone(),
                 access_token: ctx.access_token.clone(),

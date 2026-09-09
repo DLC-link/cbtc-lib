@@ -91,12 +91,17 @@ async fn authenticate(config: &PartyConfig) -> Result<String, String> {
     Ok(auth.access_token)
 }
 
-async fn check_balance(config: &PartyConfig) -> Result<(cbtc::DamlDecimal, usize), String> {
+async fn check_balance(
+    config: &PartyConfig,
+    instrument: &common::transfer::InstrumentId,
+) -> Result<(cbtc::DamlDecimal, usize), String> {
     let token = authenticate(config).await?;
     let holdings = cbtc::active_contracts::get(cbtc::active_contracts::Params {
         ledger_host: config.ledger_host.clone(),
         party: config.party_id.clone(),
         access_token: token,
+        instrument_id: instrument.clone(),
+        account: None,
     })
     .await?;
 
@@ -161,10 +166,12 @@ async fn cleanup_sender_offers(
     sender: &PartyConfig,
     decentralized_party_id: &str,
     registry_url: &str,
+    instrument: &common::transfer::InstrumentId,
 ) {
     println!("\nAttempting cleanup: canceling pending sender offers...");
     let result = cbtc::cancel_offers::withdraw_all(cbtc::cancel_offers::WithdrawAllParams {
         sender_party: sender.party_id.clone(),
+        instrument_id: instrument.clone(),
         ledger_host: sender.ledger_host.clone(),
         registry_url: registry_url.to_string(),
         decentralized_party_id: decentralized_party_id.to_string(),
@@ -190,6 +197,10 @@ async fn main() -> Result<(), String> {
     let receiver = load_receiver_config();
     let decentralized_party_id =
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let instrument = common::transfer::InstrumentId {
+        admin: decentralized_party_id.clone(),
+        id: "CBTC".to_string(),
+    };
     let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
     let amount_str = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.00001".to_string());
     let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
@@ -243,8 +254,13 @@ async fn main() -> Result<(), String> {
                 Err(e) => {
                     print_fail(&e);
                     if sender_has_pending_offer {
-                        cleanup_sender_offers(&sender, &decentralized_party_id, &registry_url)
-                            .await;
+                        cleanup_sender_offers(
+                            &sender,
+                            &decentralized_party_id,
+                            &registry_url,
+                            &instrument,
+                        )
+                        .await;
                     }
                     if receiver_has_pending_offer {
                         println!(
@@ -260,7 +276,7 @@ async fn main() -> Result<(), String> {
 
     // Step 1: Check sender balance
     run_step!("Check sender balance", async {
-        let (balance, utxos) = check_balance(&sender).await?;
+        let (balance, utxos) = check_balance(&sender, &instrument).await?;
         if balance <= cbtc::DamlDecimal::ZERO {
             return Err("Sender has no CBTC balance".to_string());
         }
@@ -269,7 +285,7 @@ async fn main() -> Result<(), String> {
 
     // Step 2: Check receiver balance
     run_step!("Check receiver balance", async {
-        let (balance, utxos) = check_balance(&receiver).await?;
+        let (balance, utxos) = check_balance(&receiver, &instrument).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
@@ -451,6 +467,7 @@ async fn main() -> Result<(), String> {
                 sender.ledger_host.clone(),
                 sender.party_id.clone(),
                 token,
+                instrument.clone(),
             )
             .await?;
             pre_faucet_count = pre_faucet_incoming.len();
@@ -504,6 +521,7 @@ async fn main() -> Result<(), String> {
                     sender.ledger_host.clone(),
                     sender.party_id.clone(),
                     token,
+                    instrument.clone(),
                 )
                 .await?;
 
@@ -524,6 +542,7 @@ async fn main() -> Result<(), String> {
         run_step!("Accept faucet transfer", async {
             let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
                 receiver_party: sender.party_id.clone(),
+                instrument_id: instrument.clone(),
                 ledger_host: sender.ledger_host.clone(),
                 registry_url: registry_url.clone(),
                 decentralized_party_id: decentralized_party_id.clone(),
@@ -551,10 +570,7 @@ async fn main() -> Result<(), String> {
                 sender: sender.party_id.clone(),
                 receiver: receiver.party_id.clone(),
                 amount,
-                instrument_id: common::transfer::InstrumentId {
-                    admin: decentralized_party_id.clone(),
-                    id: "CBTC".to_string(),
-                },
+                instrument_id: instrument.clone(),
                 requested_at: chrono::Utc::now().to_rfc3339(),
                 execute_before: chrono::Utc::now()
                     .checked_add_signed(chrono::Duration::hours(168))
@@ -580,6 +596,7 @@ async fn main() -> Result<(), String> {
             sender.ledger_host.clone(),
             sender.party_id.clone(),
             token,
+            instrument.clone(),
         )
         .await?;
         if offers.is_empty() {
@@ -595,6 +612,7 @@ async fn main() -> Result<(), String> {
             receiver.ledger_host.clone(),
             receiver.party_id.clone(),
             token,
+            instrument.clone(),
         )
         .await?;
         if offers.is_empty() {
@@ -607,6 +625,7 @@ async fn main() -> Result<(), String> {
     run_step!("Accept transfers (receiver)", async {
         let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
             receiver_party: receiver.party_id.clone(),
+            instrument_id: instrument.clone(),
             ledger_host: receiver.ledger_host.clone(),
             registry_url: registry_url.clone(),
             decentralized_party_id: decentralized_party_id.clone(),
@@ -625,7 +644,7 @@ async fn main() -> Result<(), String> {
 
     // Step 13: Check receiver balance
     run_step!("Check receiver balance", async {
-        let (balance, utxos) = check_balance(&receiver).await?;
+        let (balance, utxos) = check_balance(&receiver, &instrument).await?;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
 
@@ -637,10 +656,7 @@ async fn main() -> Result<(), String> {
                 sender: receiver.party_id.clone(),
                 receiver: sender.party_id.clone(),
                 amount,
-                instrument_id: common::transfer::InstrumentId {
-                    admin: decentralized_party_id.clone(),
-                    id: "CBTC".to_string(),
-                },
+                instrument_id: instrument.clone(),
                 requested_at: chrono::Utc::now().to_rfc3339(),
                 execute_before: chrono::Utc::now()
                     .checked_add_signed(chrono::Duration::hours(168))
@@ -663,6 +679,7 @@ async fn main() -> Result<(), String> {
     run_step!("Accept transfers (sender)", async {
         let result = cbtc::accept::accept_all(cbtc::accept::AcceptAllParams {
             receiver_party: sender.party_id.clone(),
+            instrument_id: instrument.clone(),
             ledger_host: sender.ledger_host.clone(),
             registry_url: registry_url.clone(),
             decentralized_party_id: decentralized_party_id.clone(),
@@ -681,7 +698,7 @@ async fn main() -> Result<(), String> {
 
     // Step 16: Check sender balance (pre-withdraw)
     run_step!("Check sender balance", async {
-        let (balance, utxos) = check_balance(&sender).await?;
+        let (balance, utxos) = check_balance(&sender, &instrument).await?;
         pre_withdraw_balance = balance;
         Ok::<String, String>(format!("({:.8} CBTC, {} UTXOs)", balance, utxos))
     });
@@ -749,7 +766,7 @@ async fn main() -> Result<(), String> {
 
     // Step 18: Check sender balance (post-withdraw)
     run_step!("Check balance (post-withdraw)", async {
-        let (balance, utxos) = check_balance(&sender).await?;
+        let (balance, utxos) = check_balance(&sender, &instrument).await?;
         if balance >= pre_withdraw_balance {
             return Err(format!(
                 "Balance did not decrease after withdrawal: was {:.8}, now {:.8}",
@@ -773,6 +790,7 @@ async fn main() -> Result<(), String> {
             .map_err(|e| format!("Auth failed: {}", e))?;
         match cbtc::consolidate::check_and_consolidate(cbtc::consolidate::CheckConsolidateParams {
             party: sender.party_id.clone(),
+            instrument_id: instrument.clone(),
             threshold,
             ledger_host: sender.ledger_host.clone(),
             access_token: token,
@@ -838,13 +856,7 @@ async fn main() -> Result<(), String> {
 
                 let split_params = cbtc::split::Params {
                     party: sender.party_id.clone(),
-                    // InstrumentId is { admin, id } — Holding only carries `id` as a String,
-                    // so reconstruct using decentralized_party_id as admin (same pattern as
-                    // the existing transfer steps in this file).
-                    instrument_id: common::transfer::InstrumentId {
-                        admin: decentralized_party_id.clone(),
-                        id: "CBTC".to_string(),
-                    },
+                    instrument_id: instrument.clone(),
                     input_holding_cids: vec![holding.contract_id.clone()],
                     amounts: vec![half],
                     ledger_host: sender.ledger_host.clone(),
@@ -863,9 +875,14 @@ async fn main() -> Result<(), String> {
                         passed += 1;
                     }
                     Err(e) => {
-                        print_fail(&e);
+                        print_fail(&format!(
+                            "{} (partial: {} output(s), {} change UTXO(s))",
+                            e.message,
+                            e.partial.output_holding_cids.len(),
+                            e.partial.change_holding_cids.len()
+                        ));
                         print_summary(passed, total_steps, start.elapsed().as_secs_f64());
-                        return Err(format!("Failed at step {}: {}", step, e));
+                        return Err(format!("Failed at step {}: {}", step, e.message));
                     }
                 }
             }

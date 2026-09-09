@@ -10,11 +10,7 @@ use serde_json::{Value, json};
 /// Build a flat-event `CreatedEvent` as a JSON value with required
 /// structural fields filled in with placeholders. Pass `create_argument`
 /// as `json!(null)` if the test doesn't care about it.
-pub fn created_event_value(
-    template_id: &str,
-    contract_id: &str,
-    create_argument: Value,
-) -> Value {
+pub fn created_event_value(template_id: &str, contract_id: &str, create_argument: Value) -> Value {
     json!({
         "CreatedEvent": {
             "offset": 1_i64,
@@ -51,11 +47,7 @@ pub fn created_event_value_with_blob(
 /// Build a flat-event `ExercisedEvent` as a JSON value with required
 /// structural fields filled in with placeholders. Pass `exercise_result`
 /// as `json!(null)` if the test doesn't care about it.
-pub fn exercised_event_value(
-    template_id: &str,
-    choice: &str,
-    exercise_result: Value,
-) -> Value {
+pub fn exercised_event_value(template_id: &str, choice: &str, exercise_result: Value) -> Value {
     json!({
         "ExercisedEvent": {
             "offset": 1_i64,
@@ -98,20 +90,4 @@ pub fn transaction_response(
     });
     let envelope = json!({ "transaction": transaction });
     serde_json::from_value(envelope).expect("test fixture is not a valid response")
-}
-
-/// Variant of `transaction_response` whose `transaction.update_id` is
-/// set to the empty string, for tests that exercise the "missing
-/// updateId" parser branch.
-///
-/// `JsTransaction.update_id` is a required `String` in the typed model,
-/// so we can't literally omit it on the wire and still deserialize.
-/// Empty-string is the closest in-band equivalent and is what the
-/// parser's emptiness check is meant to catch.
-pub fn transaction_response_without_update_id(
-    events: Value,
-) -> JsSubmitAndWaitForTransactionResponse {
-    let mut response = transaction_response("placeholder", events);
-    response.transaction.update_id = String::new();
-    response
 }

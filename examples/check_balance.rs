@@ -42,6 +42,8 @@ async fn main() -> Result<(), String> {
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+    let decentralized_party_id =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
     println!("\n📊 Checking balance for party: {}", party);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
@@ -51,6 +53,13 @@ async fn main() -> Result<(), String> {
         ledger_host,
         party,
         access_token: auth.access_token,
+        instrument_id: common::transfer::InstrumentId {
+            admin: decentralized_party_id,
+            id: "CBTC".to_string(),
+        },
+        // `None` reads every holding the party owns, which is what every
+        // release before 0.7.0 did.
+        account: None,
     };
 
     let holdings = cbtc::active_contracts::get(balance_params).await?;

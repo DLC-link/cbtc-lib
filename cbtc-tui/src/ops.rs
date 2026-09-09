@@ -87,6 +87,19 @@ pub struct OpContext {
     pub dar_dirs: Vec<String>,
 }
 
+impl OpContext {
+    /// The token this TUI operates on.
+    ///
+    /// `cbtc` takes the instrument from its caller, so the ticker lives
+    /// here rather than in the library.
+    pub fn instrument(&self) -> common::transfer::InstrumentId {
+        common::transfer::InstrumentId {
+            admin: self.decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        }
+    }
+}
+
 /// A flattened transfer-offer row extracted from raw contract JSON.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransferRow {
@@ -207,6 +220,8 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                 ledger_host: ctx.ledger_host.clone(),
                 party: ctx.party.clone(),
                 access_token: ctx.access_token.clone(),
+                instrument_id: ctx.instrument(),
+                account: None,
             })
             .await
             .map_err(AppError::Op)?;
@@ -227,6 +242,7 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                 ctx.ledger_host.clone(),
                 ctx.party.clone(),
                 ctx.access_token.clone(),
+                ctx.instrument(),
             )
             .await
             .map_err(AppError::Op)?;
@@ -237,6 +253,7 @@ pub async fn run(op: Operation, ctx: &OpContext) -> Result<OpResult> {
                 ctx.ledger_host.clone(),
                 ctx.party.clone(),
                 ctx.access_token.clone(),
+                ctx.instrument(),
             )
             .await
             .map_err(AppError::Op)?;

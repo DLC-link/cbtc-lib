@@ -305,6 +305,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "token",
  "tokio",
  "uuid",
  "zip",
@@ -432,8 +433,8 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.7.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f#21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f"
 dependencies = [
  "canton-api-client",
  "rust_decimal",
@@ -1436,8 +1437,8 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.7.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f#21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f"
 dependencies = [
  "base64",
  "reqwest 0.12.26",
@@ -1453,8 +1454,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "ledger"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.7.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f#21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f"
 dependencies = [
  "base64",
  "canton-api-client",
@@ -1986,8 +1987,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "registry"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.7.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f#21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f"
 dependencies = [
  "common",
  "reqwest 0.12.26",
@@ -2724,6 +2725,29 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token"
+version = "0.7.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f#21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f"
+dependencies = [
+ "base64",
+ "canton-api-client",
+ "chrono",
+ "common",
+ "csv",
+ "keycloak",
+ "ledger",
+ "log",
+ "registry",
+ "reqwest 0.12.26",
+ "semver",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "zip",
+]
 
 [[package]]
 name = "tokio"

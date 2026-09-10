@@ -9,10 +9,15 @@
 ///
 /// This module carries only what those signatures name. `cbtc` does not
 /// re-export `common` whole, so a `common` change reaches this crate's public
-/// API only where a signature already used it.
+/// API only where a signature already used it. Four `common` modules reach a
+/// caller: `decimal` and `transfer` through the crate root, `allocation` and
+/// `transfer_factory` through this module. `transfer_factory` is here because
+/// `transfer::SequentialChainedParams.registry_response` is an
+/// `Option<transfer_factory::Response>`, on the V1 and the V2 path alike.
 pub mod types {
     pub use common::allocation;
     pub use common::transfer::*;
+    pub use common::transfer_factory;
 }
 pub use common::decimal::DamlDecimal;
 // The three types every call site names, hoisted to the crate root.

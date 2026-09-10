@@ -3,9 +3,7 @@ use crate::mint_redeem::constants::{
     CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_RULES_TEMPLATE_ID,
     WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
 };
-use crate::mint_redeem::models::{
-    Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest,
-};
+use crate::mint_redeem::models::{TokenStandardContracts, WithdrawAccount, WithdrawRequest};
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -14,6 +12,7 @@ use ledger::ledger_end;
 use ledger::models::{JsActiveContract, JsSubmitAndWaitForTransactionResponse};
 use ledger::submit;
 use serde_json::json;
+use token::holding::Holding;
 
 /// Parameters for listing withdraw accounts
 pub struct ListWithdrawAccountsParams {

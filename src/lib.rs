@@ -20,7 +20,7 @@ pub use common::transfer::{InstrumentId, Meta, Transfer, v2::Account};
 pub use token::{
     DistributeParams, KeycloakConfig, SendParams, SplitParams, TokenClient, TokenClientConfig,
     TokenStandardVersion, accept, active_contracts, allocation, batch, cancel_offers, consolidate,
-    credentials, dar_check, distribute, reject, split, transfer, utils,
+    credentials, dar_check, distribute, holding, reject, split, transfer, utils,
 };
 
 mod event_helpers;

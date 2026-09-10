@@ -7,9 +7,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.7.0] - 2026-09-09
 
 `cbtc-lib` now re-exports `canton-lib`'s `token` crate for every Token
-Standard operation. It deletes its own copies of thirteen modules, 4,731
-lines. `mint_redeem` stays, because minting and redeeming are cBTC's own
-bridge operations.
+Standard operation. It deletes its own copies of thirteen modules and one
+struct, 4,794 lines. `mint_redeem` stays, because minting and redeeming are
+cBTC's own bridge operations.
 
 ### Added
 
@@ -70,6 +70,10 @@ bridge operations.
   admin. **This is the filter that closes the reachable route**: a transfer
   offer names its receiver as an observer only, so any registrar can create
   one at any party, and `accept_all` fed the whole list to the registry.
+- This release removes `mint_redeem::models::Holding`. The re-exported
+  `cbtc::holding::Holding` replaces it. The deleted struct copied the `token`
+  one field for field, including both methods, `from_active_contract` and
+  `is_locked_in_contract`. A caller changes the import and nothing else.
 - The four registry routes report one error wording instead of four. A
   caller that matched on the old per-route text stops matching, and it stops
   silently. I searched for such a caller across `cbtc-lib`, `cbtc-tui`,
@@ -81,9 +85,9 @@ bridge operations.
 The two filters above compare `id` and `admin` exactly, and they close the
 transfer-offer route. **They do not cover minting and redeeming.**
 `mint_redeem::redeem::list_holdings` queries the shared utility-registry
-`Holding` template with no instrument filter, and its `Holding` type carries
-`instrument_id` as a bare `String`. That string holds the ticker and no admin,
-**so an admin comparison is not expressible on this type at all.**
+`Holding` template with no instrument filter, and `token::holding::Holding`
+carries `instrument_id` as a bare `String`. That string holds the ticker and
+no admin, **so an admin comparison is not expressible on this type at all.**
 
 The consequence is the same shape as the route this release closes, on a
 different path. A holding with the ticker `CBTC` under a foreign admin reaches

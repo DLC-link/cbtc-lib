@@ -21,13 +21,8 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        // The CBTC Keycloak uses the legacy `/auth` context root, so pass
-        // `{host}/auth` to the (non-deprecated) `token_url` helper.
         url: keycloak::login::token_url(
-            &format!(
-                "{}/auth",
-                env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set")
-            ),
+            &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
     };

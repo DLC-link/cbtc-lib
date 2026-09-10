@@ -70,6 +70,20 @@ cBTC's own bridge operations.
   admin. **This is the filter that closes the reachable route**: a transfer
   offer names its receiver as an observer only, so any registrar can create
   one at any party, and `accept_all` fed the whole list to the registry.
+- `cbtc::types` gained `transfer_factory`.
+  `transfer::SequentialChainedParams.registry_response` is an
+  `Option<common::transfer_factory::Response>`, on the V1 and the V2 path
+  alike. A consumer on the pre-fetched-context path previously needed its own
+  `common` pin, which contradicted what `types` promises. Four `common`
+  modules now reach a caller, and they are the four the public signatures
+  name.
+- `cbtc-tui` rejects an incomplete custom environment instead of resolving it.
+  `Config::resolved_environment` returns `Result<Environment>` and names every
+  empty field. A custom environment name has no built-in to fill from, so
+  `ENVIRONMENT=private` with one variable set produced an empty
+  `decentralized_party_id`. That became the instrument admin, and the exact
+  filters then reported no holdings and no offers. The user now reads the
+  configuration error.
 - This release removes `mint_redeem::models::Holding`. The re-exported
   `cbtc::holding::Holding` replaces it. The deleted struct copied the `token`
   one field for field, including both methods, `from_active_contract` and

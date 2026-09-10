@@ -176,38 +176,82 @@ fn print_summary(passed: usize, total: usize, elapsed: f64) {
     println!();
 }
 
-async fn cleanup_sender_offers(
+/// The single offer the caller's send just created, by difference against
+/// `before`. Returns `None` when the count is not one: another run on the
+/// shared wallet sent at the same time, so no single id is safely this run's,
+/// and withdrawing somebody else's offer is worse than skipping cleanup.
+async fn created_offer(
+    sender: &PartyConfig,
+    instrument: &cbtc::InstrumentId,
+    before: &std::collections::HashSet<String>,
+) -> Result<Option<String>, String> {
+    let after = outgoing_offer_ids(sender, instrument).await?;
+    let created: Vec<&String> = after.difference(before).collect();
+    match created.as_slice() {
+        [cid] => Ok(Some((*cid).clone())),
+        other => {
+            println!(
+                "   [warning] the send produced {} new offers, not 1",
+                other.len()
+            );
+            Ok(None)
+        }
+    }
+}
+
+/// The ids of the sender's pending outgoing offers for `instrument`.
+async fn outgoing_offer_ids(
+    sender: &PartyConfig,
+    instrument: &cbtc::InstrumentId,
+) -> Result<std::collections::HashSet<String>, String> {
+    Ok(cbtc::utils::fetch_outgoing_transfers(
+        sender.ledger_host.clone(),
+        sender.party_id.clone(),
+        authenticate(sender).await?,
+        instrument.clone(),
+    )
+    .await?
+    .into_iter()
+    .map(|c| c.created_event.contract_id)
+    .collect())
+}
+
+async fn cleanup_sender_offer(
     sender: &PartyConfig,
     decentralized_party_id: &str,
     registry_url: &str,
-    instrument: &cbtc::InstrumentId,
+    contract_id: &str,
     version: cbtc::TokenStandardVersion,
 ) {
-    println!("\nAttempting cleanup: canceling pending sender offers...");
-    let withdraw_params = cbtc::cancel_offers::WithdrawAllParams {
+    println!("\nAttempting cleanup: canceling the offer this run created...");
+    let token = match authenticate(sender).await {
+        Ok(token) => token,
+        Err(e) => {
+            println!("Cleanup failed to authenticate: {e}");
+            return;
+        }
+    };
+    let withdraw_params = cbtc::cancel_offers::Params {
+        transfer_offer_contract_id: contract_id.to_string(),
         sender_party: sender.party_id.clone(),
-        instrument_id: instrument.clone(),
         ledger_host: sender.ledger_host.clone(),
+        access_token: token,
         registry_url: registry_url.to_string(),
         decentralized_party_id: decentralized_party_id.to_string(),
-        keycloak_client_id: sender.keycloak_client_id.clone(),
-        keycloak_username: sender.keycloak_username.clone(),
-        keycloak_password: sender.keycloak_password.clone(),
-        keycloak_url: sender.keycloak_url.clone(),
     };
     let result = match version {
         cbtc::TokenStandardVersion::V1 => {
-            println!("   [v1::cancel_offers::withdraw_all]");
-            cbtc::cancel_offers::withdraw_all(withdraw_params).await
+            println!("   [v1::cancel_offers::submit]");
+            cbtc::cancel_offers::submit(withdraw_params).await
         }
         cbtc::TokenStandardVersion::V2 => {
-            println!("   [v2::cancel_offers::withdraw_all]");
-            cbtc::cancel_offers::v2::withdraw_all(withdraw_params).await
+            println!("   [v2::cancel_offers::submit]");
+            cbtc::cancel_offers::v2::submit(withdraw_params).await
         }
     };
     match result {
-        Ok(r) => println!("Cleanup: canceled {} offer(s)", r.successful_count),
-        Err(e) => println!("Cleanup failed: {}", e),
+        Ok(()) => println!("Cleanup: canceled {contract_id}"),
+        Err(e) => println!("Cleanup failed: {e}"),
     }
 }
 
@@ -267,8 +311,10 @@ async fn main() -> Result<(), String> {
     let mut step = 0;
     let mut passed = 0;
     // Track whether we need cleanup on failure
-    let mut sender_has_pending_offer = false;
-    // The offer step 9 creates. Step 9b withdraws this one and no other.
+    // The offer the sender currently holds, as created by step 9 or step 9c.
+    // This doubles as the "has a pending offer" flag: a boolean beside it could
+    // disagree with it, and the failure path would then withdraw the wrong
+    // offer or none at all. The devnet wallets are shared.
     let mut own_offer_cid: Option<String> = None;
     let mut receiver_has_pending_offer = false;
     let mut minter_credential_cids: Vec<String> = Vec::new();
@@ -289,15 +335,20 @@ async fn main() -> Result<(), String> {
                 }
                 Err(e) => {
                     print_fail(&e);
-                    if sender_has_pending_offer {
-                        cleanup_sender_offers(
-                            &sender,
-                            &decentralized_party_id,
-                            &registry_url,
-                            &instrument,
-                            version,
-                        )
-                        .await;
+                    match own_offer_cid.clone() {
+                        Some(cid) => {
+                            cleanup_sender_offer(
+                                &sender,
+                                &decentralized_party_id,
+                                &registry_url,
+                                &cid,
+                                version,
+                            )
+                            .await;
+                        }
+                        None => println!(
+                            "Note: this run holds no offer id to cancel. Any pending sender offer needs a manual check."
+                        ),
                     }
                     if receiver_has_pending_offer {
                         println!(
@@ -611,19 +662,10 @@ async fn main() -> Result<(), String> {
     // Step 9: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;
-        // Record the sender's offers before the send, so step 9b can withdraw
-        // the one this step creates and leave every other offer alone. The
-        // devnet wallets are shared.
-        let before: std::collections::HashSet<String> = cbtc::utils::fetch_outgoing_transfers(
-            sender.ledger_host.clone(),
-            sender.party_id.clone(),
-            token.clone(),
-            instrument.clone(),
-        )
-        .await?
-        .into_iter()
-        .map(|c| c.created_event.contract_id)
-        .collect();
+        // Record the sender's offers before the send, so this run can withdraw
+        // the one it creates and leave every other offer alone. The devnet
+        // wallets are shared.
+        let before = outgoing_offer_ids(&sender, &instrument).await?;
         match version {
             cbtc::TokenStandardVersion::V1 => {
                 println!("   [v1::transfer::submit]");
@@ -672,29 +714,7 @@ async fn main() -> Result<(), String> {
                 .await?
             }
         };
-        sender_has_pending_offer = true;
-        let after = cbtc::utils::fetch_outgoing_transfers(
-            sender.ledger_host.clone(),
-            sender.party_id.clone(),
-            authenticate(&sender).await?,
-            instrument.clone(),
-        )
-        .await?;
-        let created: Vec<String> = after
-            .into_iter()
-            .map(|c| c.created_event.contract_id)
-            .filter(|cid| !before.contains(cid))
-            .collect();
-        own_offer_cid = match created.len() {
-            1 => Some(created[0].clone()),
-            // Another run on the shared wallet sent at the same time. Step 9b
-            // then has no safe single target, and it says so rather than
-            // withdrawing somebody else's offer.
-            n => {
-                println!("   [warning] the send produced {n} new offers, not 1");
-                None
-            }
-        };
+        own_offer_cid = created_offer(&sender, &instrument, &before).await?;
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
@@ -724,7 +744,6 @@ async fn main() -> Result<(), String> {
                 cbtc::cancel_offers::v2::submit(withdraw_params).await?
             }
         };
-        sender_has_pending_offer = false;
         own_offer_cid = None;
         let preview = if cid.len() > 16 { &cid[..16] } else { &cid };
         Ok::<String, String>(format!("({preview})"))
@@ -733,6 +752,7 @@ async fn main() -> Result<(), String> {
     // Step 9c: Send again, so the steps below have a pending offer to accept.
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;
+        let before = outgoing_offer_ids(&sender, &instrument).await?;
         match version {
             cbtc::TokenStandardVersion::V1 => {
                 println!("   [v1::transfer::submit]");
@@ -781,7 +801,7 @@ async fn main() -> Result<(), String> {
                 .await?
             }
         };
-        sender_has_pending_offer = true;
+        own_offer_cid = created_offer(&sender, &instrument, &before).await?;
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
@@ -840,7 +860,7 @@ async fn main() -> Result<(), String> {
                 cbtc::accept::v2::accept_all(accept_params).await?
             }
         };
-        sender_has_pending_offer = false;
+        own_offer_cid = None;
         if result.failed_count > 0 {
             return Err(format!("{} accept(s) failed", result.failed_count));
         }

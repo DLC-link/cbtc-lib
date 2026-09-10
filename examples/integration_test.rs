@@ -860,10 +860,12 @@ async fn main() -> Result<(), String> {
                 cbtc::accept::v2::accept_all(accept_params).await?
             }
         };
-        own_offer_cid = None;
         if result.failed_count > 0 {
+            // Keep the offer id. A partial accept can leave this run's offer
+            // pending, and the failure path below can still cancel it.
             return Err(format!("{} accept(s) failed", result.failed_count));
         }
+        own_offer_cid = None;
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 
@@ -951,10 +953,11 @@ async fn main() -> Result<(), String> {
                 cbtc::accept::v2::accept_all(accept_params).await?
             }
         };
-        receiver_has_pending_offer = false;
         if result.failed_count > 0 {
+            // Keep the flag, so the failure path still prints the note.
             return Err(format!("{} accept(s) failed", result.failed_count));
         }
+        receiver_has_pending_offer = false;
         Ok::<String, String>(format!("({} accepted)", result.successful_count))
     });
 

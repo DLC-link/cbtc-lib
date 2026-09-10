@@ -177,7 +177,7 @@ the API that `TOKEN_STANDARD_VERSION` selects, and prints the path it took.
 **Step 24: Consolidate UTXOs (sender)**
 - **Given** the sender may have accumulated multiple UTXOs during the test
 - **When** checking the UTXO count against `CONSOLIDATION_THRESHOLD`
-- **Then** UTXOs are consolidated if the count exceeds the threshold, otherwise skipped
+- **Then** UTXOs are consolidated if the count reaches or exceeds the threshold, otherwise skipped
 
 **Step 25: Split sender holding**
 - **Given** the sender owns at least one CBTC holding

@@ -493,8 +493,12 @@ applies it to every write method and to `holdings`, `balance` and
 `active_contracts` reaches V2 through its `account` field, and `allocation`,
 `credentials`, `dar_check` and `utils` have no V2 form.
 
-Every entry point takes the instrument from the caller. The library supplies
-no ticker, because Bitsafe plans to support instruments other than CBTC.
+The library supplies no ticker. Where an operation needs an instrument, it
+takes one from the caller, because Bitsafe plans to support instruments other
+than CBTC. An operation that acts on one named contract needs none, as
+`accept::submit` and `reject::submit` show, and `credentials` and `dar_check`
+name no instrument either. `mint_redeem::list_holdings` filters on none at
+all, which issue #74 tracks.
 `cbtc` re-exports `InstrumentId`, `Transfer`, `Meta` and `Account` at its
 root, and the parameter types those signatures name as `cbtc::types`, so a
 consumer needs no `canton-lib` dependency to name them.

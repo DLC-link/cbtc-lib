@@ -268,6 +268,8 @@ async fn main() -> Result<(), String> {
     let mut passed = 0;
     // Track whether we need cleanup on failure
     let mut sender_has_pending_offer = false;
+    // The offer step 9 creates. Step 9b withdraws this one and no other.
+    let mut own_offer_cid: Option<String> = None;
     let mut receiver_has_pending_offer = false;
     let mut minter_credential_cids: Vec<String> = Vec::new();
     let mut account_rules: Option<cbtc::mint_redeem::models::AccountContractRuleSet> = None;
@@ -609,6 +611,19 @@ async fn main() -> Result<(), String> {
     // Step 9: Send CBTC sender -> receiver
     run_step!("Send CBTC to receiver", async {
         let token = authenticate(&sender).await?;
+        // Record the sender's offers before the send, so step 9b can withdraw
+        // the one this step creates and leave every other offer alone. The
+        // devnet wallets are shared.
+        let before: std::collections::HashSet<String> = cbtc::utils::fetch_outgoing_transfers(
+            sender.ledger_host.clone(),
+            sender.party_id.clone(),
+            token.clone(),
+            instrument.clone(),
+        )
+        .await?
+        .into_iter()
+        .map(|c| c.created_event.contract_id)
+        .collect();
         match version {
             cbtc::TokenStandardVersion::V1 => {
                 println!("   [v1::transfer::submit]");
@@ -658,39 +673,61 @@ async fn main() -> Result<(), String> {
             }
         };
         sender_has_pending_offer = true;
+        let after = cbtc::utils::fetch_outgoing_transfers(
+            sender.ledger_host.clone(),
+            sender.party_id.clone(),
+            authenticate(&sender).await?,
+            instrument.clone(),
+        )
+        .await?;
+        let created: Vec<String> = after
+            .into_iter()
+            .map(|c| c.created_event.contract_id)
+            .filter(|cid| !before.contains(cid))
+            .collect();
+        own_offer_cid = match created.len() {
+            1 => Some(created[0].clone()),
+            // Another run on the shared wallet sent at the same time. Step 9b
+            // then has no safe single target, and it says so rather than
+            // withdrawing somebody else's offer.
+            n => {
+                println!("   [warning] the send produced {n} new offers, not 1");
+                None
+            }
+        };
         Ok::<String, String>(format!("({} CBTC)", amount))
     });
 
-    // Step 9b: Withdraw the offer the previous step created, then send it again.
-    // This is the only place cancel_offers::withdraw_all runs on a passing run;
-    // cleanup_sender_offers calls it solely from a failure path.
+    // Step 9b: Withdraw the offer step 9 created, and only that one. The
+    // devnet wallets are shared, so withdraw_all would cancel offers this run
+    // never created. A single withdraw also has no partial-success state.
     run_step!("Withdraw own pending offer", async {
-        let withdraw_params = cbtc::cancel_offers::WithdrawAllParams {
+        let cid = own_offer_cid
+            .clone()
+            .ok_or("step 9 did not identify exactly one new offer to withdraw")?;
+        let token = authenticate(&sender).await?;
+        let withdraw_params = cbtc::cancel_offers::Params {
+            transfer_offer_contract_id: cid.clone(),
             sender_party: sender.party_id.clone(),
-            instrument_id: instrument.clone(),
             ledger_host: sender.ledger_host.clone(),
+            access_token: token,
             registry_url: registry_url.clone(),
             decentralized_party_id: decentralized_party_id.clone(),
-            keycloak_client_id: sender.keycloak_client_id.clone(),
-            keycloak_username: sender.keycloak_username.clone(),
-            keycloak_password: sender.keycloak_password.clone(),
-            keycloak_url: sender.keycloak_url.clone(),
         };
-        let result = match version {
+        match version {
             cbtc::TokenStandardVersion::V1 => {
-                println!("   [v1::cancel_offers::withdraw_all]");
-                cbtc::cancel_offers::withdraw_all(withdraw_params).await?
+                println!("   [v1::cancel_offers::submit]");
+                cbtc::cancel_offers::submit(withdraw_params).await?
             }
             cbtc::TokenStandardVersion::V2 => {
-                println!("   [v2::cancel_offers::withdraw_all]");
-                cbtc::cancel_offers::v2::withdraw_all(withdraw_params).await?
+                println!("   [v2::cancel_offers::submit]");
+                cbtc::cancel_offers::v2::submit(withdraw_params).await?
             }
         };
-        if result.successful_count == 0 {
-            return Err("withdrew no offer, so this step proved nothing".to_string());
-        }
         sender_has_pending_offer = false;
-        Ok::<String, String>(format!("({} withdrawn)", result.successful_count))
+        own_offer_cid = None;
+        let preview = if cid.len() > 16 { &cid[..16] } else { &cid };
+        Ok::<String, String>(format!("({preview})"))
     });
 
     // Step 9c: Send again, so the steps below have a pending offer to accept.

@@ -207,9 +207,8 @@ Add this to your `Cargo.toml`:
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
 ```
 
-`canton-lib` v0.7.0 is released, so the `keycloak` pin above names the tag.
-**`cbtc-lib` itself is not tagged yet** — that waits for its own pull request
-to merge, so until then pin the commit at the head of
+**`cbtc-lib` is not tagged yet** — that waits for its own pull request to
+merge, so until then pin the commit at the head of
 `feature/token-crate-adoption`.
 
 Or for local development:
@@ -483,16 +482,16 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 Every module below is a re-export of `canton-lib`'s `token` crate. `cbtc`
 adds `mint_redeem` and nothing else.
 
-Each operation has a Token Standard V2 counterpart in a `v2` submodule, for
-example `cbtc::transfer::v2::submit` beside `cbtc::transfer::submit`.
+Eight of the thirteen operations carry a Token Standard V2 counterpart in a
+`v2` submodule, for example `cbtc::transfer::v2::submit` beside
+`cbtc::transfer::submit`.
 Alternatively `cbtc::TokenClient` takes the version in its config and
 applies it to every write method and to `holdings`, `balance` and
 `utxo_count`, so a caller names the version once. `incoming_offers` and
 `outgoing_offers` read the same contracts under either version.
 
-Eight of the thirteen operations carry a `v2` submodule. `active_contracts`
-reaches V2 through its `account` field, and `allocation`, `credentials`,
-`dar_check` and `utils` have no V2 form.
+`active_contracts` reaches V2 through its `account` field, and `allocation`,
+`credentials`, `dar_check` and `utils` have no V2 form.
 
 Every entry point takes the instrument from the caller. The library supplies
 no ticker, because Bitsafe plans to support instruments other than CBTC.

@@ -93,28 +93,21 @@ cBTC's own bridge operations.
   silently. I searched for such a caller across `cbtc-lib`, `cbtc-tui`,
   `cbtc-faucet`, `vault-ui`, `cBTC-Canton-App` and `cbtc-doc` on 8 September
   2026 and found none.
-
-### Known gap — the mint and redeem path still matches on the ticker alone
-
-The two filters above compare `id` and `admin` exactly, and they close the
-transfer-offer route. **They do not cover minting and redeeming.**
-`mint_redeem::redeem::list_holdings` queries the shared utility-registry
-`Holding` template with no instrument filter, and `token::holding::Holding`
-carries `instrument_id` as a bare `String`. That string holds the ticker and
-no admin, **so an admin comparison is not expressible on this type at all.**
-
-The consequence is the same shape as the route this release closes, on a
-different path. A holding with the ticker `CBTC` under a foreign admin reaches
-the sender's active contracts, `submit_withdraw` and `split::submit` then
-receive it while naming the correct admin, and the registry rejects the whole
-request with `400 Given holdings are invalid`. That halts a burn or a split.
-There is no fund loss and no unauthorised change to anyone's holdings.
-
-Closing it means selecting holdings through `active_contracts::get`, which
-filters on the `Holding` **interface** rather than the concrete
-utility-registry template. That could admit a holding the cBTC burn factory
-then rejects, so it needs a devnet run to settle rather than a code reading.
-Tracked separately; this release does not attempt it.
+- `mint_redeem::redeem::list_holdings` filters by instrument, and
+  `ListHoldingsParams` gains `instrument_id` to say which. It returned every
+  `Holding` contract the party owned, and each of five callers compared the
+  ticker alone. A foreign registrar can issue the ticker `CBTC`, so that
+  filter admitted holdings the registry then rejects with
+  `400 Given holdings are invalid`, halting a burn or a split. This closes the
+  gap on the mint and redeem path, which an earlier draft of this entry
+  recorded as open.
+- `token::holding::Holding` carries the instrument admin and the account id,
+  through `canton-lib` `0.8.0`. `instrument_id` changes type from `String`,
+  which held the ticker alone, to `InstrumentId`. The new `account_id` field
+  holds the payload's `label`.
+- The two standalone examples `test_burn_cbtc` and `redeem_cbtc_flow` read
+  `DECENTRALIZED_PARTY_ID`. Every other example already reads it, and
+  `examples/README.md` already lists it as required.
 
 ### Changed — behaviour
 

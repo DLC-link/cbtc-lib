@@ -91,10 +91,13 @@ Add to your `Cargo.toml`:
 # same revision: a different pin makes Cargo build two `common` packages, and
 # then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.7.0" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
 ```
 
-`canton-lib` v0.7.0 is released, so the `keycloak` pin above names the tag.
+`cbtc` pins `canton-lib` by revision, not by tag, so the `keycloak` pin above
+names that same revision. The revision is `canton-lib` PR 50, which is open;
+its code resolves as version `0.8.0`. Both pins become `tag = "v0.8.0"` once
+that PR merges. Pinning the `v0.7.0` tag here builds two `common` packages.
 **`cbtc-lib` itself is not tagged yet** — that waits for its own pull request
 to merge, so until then pin the commit at the head of
 `feature/token-crate-adoption`.

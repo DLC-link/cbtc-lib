@@ -261,13 +261,15 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
                     ledger_host: ctx.ledger_host.clone(),
                     party: ctx.party.clone(),
                     access_token: ctx.access_token.clone(),
+                    instrument_id: ctx.instrument(),
                 },
             )
             .await?;
-            // Coin-select CBTC holdings until they cover the amount.
+            // Coin-select holdings until they cover the amount. list_holdings
+            // already compared the whole instrument, admin included.
             let mut holding_contract_ids = Vec::new();
             let mut total = cbtc::DamlDecimal::ZERO;
-            for h in holdings.iter().filter(|h| h.instrument_id == "CBTC") {
+            for h in holdings.iter() {
                 holding_contract_ids.push(h.contract_id.clone());
                 total += h.amount;
                 if total >= amount_dec {

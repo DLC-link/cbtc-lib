@@ -979,14 +979,12 @@ async fn main() -> Result<(), String> {
                 ledger_host: sender.ledger_host.clone(),
                 party: sender.party_id.clone(),
                 access_token: token.clone(),
+                instrument_id: instrument.clone(),
             },
         )
         .await?;
 
-        let cbtc_holdings: Vec<_> = holdings
-            .iter()
-            .filter(|h| h.instrument_id == "CBTC")
-            .collect();
+        let cbtc_holdings: Vec<_> = holdings.iter().collect();
 
         // Greedy select holdings to cover withdraw_amount
         let mut selected = Vec::new();
@@ -1122,17 +1120,17 @@ async fn main() -> Result<(), String> {
                 ledger_host: sender.ledger_host.clone(),
                 party: sender.party_id.clone(),
                 access_token: token.clone(),
+                instrument_id: instrument.clone(),
             },
         )
         .await
         .map_err(|e| format!("Failed to list holdings for split: {}", e))?;
 
-        // Pick a CBTC holding. list_holdings returns every Holding-template contract the
-        // sender owns, which on devnet includes legacy `CBTCV0RC8` instruments alongside
-        // `CBTC`. Splitting a non-CBTC holding while asserting `instrument_id = "CBTC"`
-        // below would make the registry reject the request with 400 "Given holdings are
-        // invalid".
-        match holdings.iter().find(|h| h.instrument_id == "CBTC") {
+        // list_holdings compares the whole instrument, so devnet's legacy
+        // `CBTCV0RC8` holdings no longer reach here. Splitting one of those
+        // while naming `CBTC` made the registry reject the request with
+        // 400 "Given holdings are invalid".
+        match holdings.first() {
             None => {
                 print_skip("(no CBTC holdings available to split)");
                 passed += 1;

@@ -4,7 +4,7 @@
 //! `createdAt`, `packageName`, `offset`, `synchronizerId`, etc. — these
 //! helpers stamp in dummy values for those so each test fixture only
 //! has to specify the fields it actually exercises.
-use ledger::models::JsSubmitAndWaitForTransactionResponse;
+use ledger::models::{CreatedEvent, JsActiveContract, JsSubmitAndWaitForTransactionResponse};
 use serde_json::{Value, json};
 
 /// Build a flat-event `CreatedEvent` as a JSON value with required
@@ -90,4 +90,18 @@ pub fn transaction_response(
     });
     let envelope = json!({ "transaction": transaction });
     serde_json::from_value(envelope).expect("test fixture is not a valid response")
+}
+
+/// Build a typed `JsActiveContract` carrying a utility-registry `Holding`
+/// payload. `Holding::from_active_contract` reads `createArgument`, so a test
+/// only has to name the payload fields it exercises.
+pub fn active_contract(contract_id: &str, create_argument: Value) -> JsActiveContract {
+    JsActiveContract {
+        created_event: Box::new(CreatedEvent {
+            contract_id: contract_id.to_string(),
+            create_argument: Some(create_argument),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
 }

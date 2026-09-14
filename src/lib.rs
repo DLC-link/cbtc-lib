@@ -21,7 +21,8 @@ pub mod types {
 }
 pub use common::decimal::DamlDecimal;
 // The three types every call site names, hoisted to the crate root.
-pub use common::transfer::{InstrumentId, Meta, Transfer, v2::Account};
+pub use common::instrument::InstrumentId;
+pub use common::transfer::{Meta, Transfer, v2::Account};
 pub use token::{
     DistributeParams, KeycloakConfig, SendParams, SplitParams, TokenClient, TokenClientConfig,
     TokenStandardVersion, accept, active_contracts, allocation, batch, cancel_offers, consolidate,

@@ -9,9 +9,11 @@
 ///
 /// This module carries only what those signatures name. `cbtc` does not
 /// re-export `common` whole, so a `common` change reaches this crate's public
-/// API only where a signature already used it. Four `common` modules reach a
-/// caller: `decimal` and `transfer` through the crate root, `allocation` and
-/// `transfer_factory` through this module. `transfer_factory` is here because
+/// API only where a signature already used it. Five `common` modules reach a
+/// caller: `decimal`, `transfer` and `instrument` through the crate root, and
+/// `allocation` and `transfer_factory` through this module. `instrument` is
+/// here because `InstrumentId` lives there, and `common::transfer` imports
+/// that type privately rather than re-exporting it. `transfer_factory` is here because
 /// `transfer::SequentialChainedParams.registry_response` is an
 /// `Option<transfer_factory::Response>`, on the V1 and the V2 path alike.
 pub mod types {

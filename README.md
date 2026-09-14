@@ -500,8 +500,8 @@ The library supplies no ticker. Where an operation needs an instrument, it
 takes one from the caller, because Bitsafe plans to support instruments other
 than CBTC. An operation that acts on one named contract needs none, as
 `accept::submit` and `reject::submit` show, and `credentials` and `dar_check`
-name no instrument either. `mint_redeem::list_holdings` filters on none at
-all, which issue #74 tracks.
+name no instrument either. `mint_redeem::list_holdings` takes one and filters
+on it, which closed issue #74's defect.
 `cbtc` re-exports `InstrumentId`, `Transfer`, `Meta` and `Account` at its
 root, and the parameter types those signatures name as `cbtc::types`, so a
 consumer needs no `canton-lib` dependency to name them.

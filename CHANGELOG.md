@@ -74,8 +74,8 @@ cBTC's own bridge operations.
   `transfer::SequentialChainedParams.registry_response` is an
   `Option<common::transfer_factory::Response>`, on the V1 and the V2 path
   alike. A consumer on the pre-fetched-context path previously needed its own
-  `common` pin, which contradicted what `types` promises. Four `common`
-  modules now reach a caller, and they are the four the public signatures
+  `common` pin, which contradicted what `types` promises. Five `common`
+  modules now reach a caller, and they are the five the public signatures
   name.
 - `cbtc-tui` rejects an incomplete custom environment instead of resolving it.
   `Config::resolved_environment` returns `Result<Environment>` and names every

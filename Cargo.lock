@@ -426,8 +426,8 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "0.7.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.7.0#2805997dd16ebd2b6cea2c8be67afc6d640b77ce"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "canton-api-client",
  "rust_decimal",
@@ -1402,8 +1402,8 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "0.7.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.7.0#2805997dd16ebd2b6cea2c8be67afc6d640b77ce"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "base64",
  "reqwest 0.12.26",
@@ -1419,8 +1419,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "ledger"
-version = "0.7.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.7.0#2805997dd16ebd2b6cea2c8be67afc6d640b77ce"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "base64",
  "canton-api-client",
@@ -1952,8 +1952,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "registry"
-version = "0.7.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.7.0#2805997dd16ebd2b6cea2c8be67afc6d640b77ce"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "common",
  "reqwest 0.12.26",
@@ -2693,8 +2693,8 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token"
-version = "0.7.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.7.0#2805997dd16ebd2b6cea2c8be67afc6d640b77ce"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "base64",
  "canton-api-client",

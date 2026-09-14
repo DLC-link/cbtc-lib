@@ -17,7 +17,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: keycloak::login::password_url(
+        url: keycloak::login::token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
@@ -39,14 +39,20 @@ async fn main() -> Result<(), String> {
     println!("   Party: {}", party);
     println!("   Threshold: {} UTXOs\n", threshold);
 
+    let decentralized_party_id =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+
     let consolidate_params = cbtc::consolidate::CheckConsolidateParams {
         party,
+        instrument_id: cbtc::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
         threshold,
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
         access_token: auth.access_token,
         registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
-        decentralized_party_id: env::var("DECENTRALIZED_PARTY_ID")
-            .expect("DECENTRALIZED_PARTY_ID must be set"),
+        decentralized_party_id,
     };
 
     let result = cbtc::consolidate::check_and_consolidate(consolidate_params).await?;

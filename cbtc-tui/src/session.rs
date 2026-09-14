@@ -55,10 +55,7 @@ pub fn parse_party_rights(resp: &ListUserRightsResponse) -> Vec<PartyRight> {
 /// # Errors
 /// Returns `AppError::Auth` on login or token-decode failure.
 pub async fn login(profile: &Profile) -> Result<Session> {
-    let url = token_url(
-        &format!("{}/auth", profile.keycloak_host.trim_end_matches('/')),
-        &profile.keycloak_realm,
-    );
+    let url = token_url(&profile.keycloak_host, &profile.keycloak_realm);
     let resp = password(PasswordParams {
         client_id: profile.keycloak_client_id.clone(),
         username: profile.keycloak_username.clone(),

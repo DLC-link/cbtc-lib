@@ -24,7 +24,7 @@ use cbtc::mint_redeem::redeem::{
 /// 1. Make sure you have .env configured with your credentials
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
 /// 3. cargo run -p examples --bin redeem_cbtc_flow
-use keycloak::login::{PasswordParams, password, password_url};
+use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
 
 #[tokio::main]
@@ -41,7 +41,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: password_url(
+        url: token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
@@ -52,6 +52,8 @@ async fn main() -> Result<(), String> {
     // Common parameters
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+    let decentralized_party_id =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
     let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
@@ -81,13 +83,14 @@ async fn main() -> Result<(), String> {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         access_token: access_token.clone(),
+        instrument_id: cbtc::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
     })
     .await?;
 
-    let cbtc_holdings: Vec<_> = holdings
-        .iter()
-        .filter(|h| h.instrument_id == "CBTC")
-        .collect();
+    let cbtc_holdings: Vec<_> = holdings.iter().collect();
 
     let total_cbtc: cbtc::DamlDecimal = cbtc_holdings
         .iter()

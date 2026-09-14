@@ -18,7 +18,7 @@
 /// look up Bitcoin addresses. For older accounts where this field is null, the
 /// `contract_id` is used instead. The `account_id()` method handles this automatically.
 use cbtc::mint_redeem::mint::{GetBitcoinAddressParams, ListDepositAccountsParams};
-use keycloak::login::{PasswordParams, password_url};
+use keycloak::login::{PasswordParams, token_url};
 use std::env;
 
 #[tokio::main]
@@ -33,7 +33,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: password_url(
+        url: token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),

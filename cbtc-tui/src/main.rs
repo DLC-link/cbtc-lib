@@ -196,25 +196,23 @@ async fn run(
                         event::spawn_login(tx.clone(), profile);
                     }
                 }
-                Effect::RunOp(op) => {
-                    if let Some(ctx) = build_context(&app) {
-                        event::spawn_op(tx.clone(), op, ctx);
-                    } else {
-                        let err_effects =
-                            app.update(Event::OpResult(Err("no active party/session".to_string())));
+                Effect::RunOp(op) => match build_context(&app) {
+                    Ok(ctx) => event::spawn_op(tx.clone(), op, ctx),
+                    Err(message) => {
+                        let err_effects = app.update(Event::OpResult(Err(message)));
                         if !err_effects.is_empty() {
-                            tracing::warn!("unexpected effects from synthetic error: {err_effects:?}");
+                            tracing::warn!(
+                                "unexpected effects from synthetic error: {err_effects:?}"
+                            );
                         }
                     }
-                }
-                Effect::RunCommand(command) => {
-                    if let Some(ctx) = build_context(&app) {
-                        event::spawn_command(tx.clone(), command, ctx);
-                    } else {
-                        let _ = app
-                            .update(Event::CommandResult(Err("no active party/session".to_string())));
+                },
+                Effect::RunCommand(command) => match build_context(&app) {
+                    Ok(ctx) => event::spawn_command(tx.clone(), command, ctx),
+                    Err(message) => {
+                        let _ = app.update(Event::CommandResult(Err(message)));
                     }
-                }
+                },
                 Effect::FetchParties => {
                     if let Some(idx) = app.active_profile
                         && let Some(profile) = app.config.profiles.get(idx).cloned()
@@ -233,13 +231,21 @@ async fn run(
 }
 
 /// Assemble an `OpContext` from the active profile, environment, party, token.
-fn build_context(app: &App) -> Option<OpContext> {
-    let idx = app.active_profile?;
-    let profile = app.config.profiles.get(idx)?;
-    let env = app.config.resolved_environment(&profile.environment)?;
-    let party = app.active_party.clone()?;
-    let token = app.access_token.clone()?;
-    Some(OpContext {
+///
+/// A missing profile, party or token is the ordinary not-signed-in state. A
+/// broken environment is a configuration error, and it carries its own message
+/// so the user reads the real cause rather than the session one.
+fn build_context(app: &App) -> std::result::Result<OpContext, String> {
+    let session = || "no active party/session".to_string();
+    let idx = app.active_profile.ok_or_else(session)?;
+    let profile = app.config.profiles.get(idx).ok_or_else(session)?;
+    let env = app
+        .config
+        .resolved_environment(&profile.environment)
+        .map_err(|e| e.to_string())?;
+    let party = app.active_party.clone().ok_or_else(session)?;
+    let token = app.access_token.clone().ok_or_else(session)?;
+    Ok(OpContext {
         ledger_host: profile.ledger_host.clone(),
         party,
         access_token: token,

@@ -3,9 +3,8 @@ use crate::mint_redeem::constants::{
     CREATE_WITHDRAW_ACCOUNT_CHOICE, HOLDING_TEMPLATE_ID, WITHDRAW_ACCOUNT_RULES_TEMPLATE_ID,
     WITHDRAW_ACCOUNT_TEMPLATE_ID, WITHDRAW_CHOICE, WITHDRAW_REQUEST_TEMPLATE_ID,
 };
-use crate::mint_redeem::models::{
-    Holding, TokenStandardContracts, WithdrawAccount, WithdrawRequest,
-};
+use crate::mint_redeem::models::{TokenStandardContracts, WithdrawAccount, WithdrawRequest};
+use common::instrument::InstrumentId;
 use common::submission;
 use common::transfer::DisclosedContract;
 use ledger::active_contracts;
@@ -14,6 +13,7 @@ use ledger::ledger_end;
 use ledger::models::{JsActiveContract, JsSubmitAndWaitForTransactionResponse};
 use ledger::submit;
 use serde_json::json;
+use token::holding::Holding;
 
 /// Parameters for listing withdraw accounts
 pub struct ListWithdrawAccountsParams {
@@ -40,6 +40,9 @@ pub struct ListHoldingsParams {
     pub ledger_host: String,
     pub party: String,
     pub access_token: String,
+    /// The instrument whose holdings to list. `cbtc-lib` never supplies this:
+    /// other tickers are coming, and two registrars can both issue `CBTC`.
+    pub instrument_id: InstrumentId,
 }
 
 /// Parameters for submitting a withdrawal (burning CBTC)
@@ -131,13 +134,12 @@ fn parse_created_withdraw_account_cid(
     let events = &response.transaction.events;
 
     for event in events {
-        if let Some(created) = crate::event_helpers::as_created_event(event) {
-            if created
+        if let Some(created) = crate::event_helpers::as_created_event(event)
+            && created
                 .template_id
                 .ends_with(":CBTC.WithdrawAccount:CBTCWithdrawAccount")
-            {
-                return Ok(created.contract_id.clone());
-            }
+        {
+            return Ok(created.contract_id.clone());
         }
     }
 
@@ -275,7 +277,11 @@ pub async fn create_withdraw_account(
         })
 }
 
-/// List all CBTC holdings (token contracts) for a party
+/// List a party's unlocked holdings of one instrument
+///
+/// The filter compares the whole instrument, admin included. A holding with
+/// the ticker `CBTC` under a foreign registrar is a different instrument, and
+/// the registry rejects a burn that names it.
 ///
 /// # Example
 /// ```ignore
@@ -283,13 +289,15 @@ pub async fn create_withdraw_account(
 ///     ledger_host: "https://participant.example.com".to_string(),
 ///     party: "party::1220...".to_string(),
 ///     access_token: "your-token".to_string(),
+///     instrument_id: InstrumentId {
+///         admin: decentralized_party_id.clone(),
+///         id: "CBTC".to_string(),
+///     },
 /// }).await?;
 ///
-/// let total_cbtc: common::decimal::DamlDecimal = holdings.iter()
-///     .filter(|h| h.instrument_id == "CBTC")
-///     .map(|h| h.amount)
-///     .sum();
-/// log::debug!("Total CBTC holdings: {}", total_cbtc);
+/// let total: common::decimal::DamlDecimal =
+///     holdings.iter().map(|h| h.amount).sum();
+/// log::debug!("Total holdings: {}", total);
 /// ```
 pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, String> {
     // Get ledger end offset
@@ -321,15 +329,34 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
     })
     .await?;
 
-    // Filter out locked holdings (those being used in other transactions)
-    // and parse the remaining ones
-    let holdings: Result<Vec<Holding>, String> = contracts
+    select_holdings(&contracts, &params.instrument_id)
+}
+
+/// Parse the party's Holding contracts, then keep the unlocked ones belonging
+/// to `instrument`.
+///
+/// Split out of [`list_holdings`], which opens a websocket and so cannot be
+/// reached by a unit test. `canton-lib` splits `active_contracts::wanted` out
+/// of `get` for the same reason; see the comment at `active_contracts.rs:82`.
+///
+/// One unparseable holding fails the whole call, even under an instrument the
+/// caller did not request. Every `Holding` contract comes from one template,
+/// and all 519,386 active mainnet holdings carried every field the parser
+/// reads on 11 Sep 2026. A loud error beats a silently short list.
+fn select_holdings(
+    contracts: &[JsActiveContract],
+    instrument: &InstrumentId,
+) -> Result<Vec<Holding>, String> {
+    let holdings: Vec<Holding> = contracts
         .iter()
         .filter(|contract| !Holding::is_locked_in_contract(contract))
         .map(Holding::from_active_contract)
-        .collect();
+        .collect::<Result<Vec<_>, String>>()?;
 
-    holdings
+    Ok(holdings
+        .into_iter()
+        .filter(|holding| holding.instrument_id == *instrument)
+        .collect())
 }
 
 /// Submit a withdrawal by burning CBTC holdings
@@ -348,11 +375,11 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///     ledger_host: ledger_host.clone(),
 ///     party: party_id.clone(),
 ///     access_token: access_token.clone(),
+///     instrument_id: instrument_id.clone(),
 /// }).await?;
 ///
-/// // Select holdings to burn (must have enough CBTC)
+/// // list_holdings already filtered by instrument, so take what you need.
 /// let holding_ids: Vec<String> = holdings.iter()
-///     .filter(|h| h.instrument_id == "CBTC")
 ///     .take(1) // Simplest case: use one holding
 ///     .map(|h| h.contract_id.clone())
 ///     .collect();
@@ -580,10 +607,11 @@ pub async fn list_withdraw_requests(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use keycloak::login::{PasswordParams, password, password_url};
+    use keycloak::login::{PasswordParams, password, token_url};
     use std::env;
 
     #[tokio::test]
+    #[ignore = "needs live devnet credentials; run with --ignored"]
     async fn test_create_withdraw_account_with_credentials() {
         dotenvy::dotenv().ok();
 
@@ -595,7 +623,7 @@ mod tests {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
             username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-            url: password_url(
+            url: token_url(
                 &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
                 &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
             ),
@@ -653,6 +681,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "needs live devnet credentials; run with --ignored"]
     async fn test_list_withdraw_accounts() {
         dotenvy::dotenv().ok();
 
@@ -663,7 +692,7 @@ mod tests {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
             username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
             password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-            url: password_url(
+            url: token_url(
                 &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
                 &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
             ),
@@ -691,7 +720,7 @@ mod parser_tests {
     //! `parse_submit_withdraw_response`.
 
     use super::*;
-    use crate::utils::test_fixtures::{
+    use crate::test_fixtures::{
         created_event_value, created_event_value_with_blob, exercised_event_value,
         transaction_response,
     };
@@ -823,5 +852,134 @@ mod parser_tests {
             err.contains("No updated WithdrawAccount was found"),
             "unexpected error: {err}"
         );
+    }
+}
+
+#[cfg(test)]
+mod holding_selection_tests {
+    //! `list_holdings` opens a websocket, so no unit test reaches its body.
+    //! `select_holdings` holds the rules it applies — drop locked holdings,
+    //! keep the requested instrument — and these tests reach that.
+    //! `canton-lib`'s `active_contracts::wanted` is split out for the same
+    //! reason: `wanted()` is declared at `active_contracts.rs:84` and the
+    //! comment at `:82` says why.
+
+    use super::*;
+    use crate::test_fixtures::active_contract;
+    use serde_json::json;
+
+    const ADMIN: &str = "cbtc-network::1220ab";
+    const OTHER_ADMIN: &str = "attacker::1220ff";
+
+    fn cbtc() -> InstrumentId {
+        InstrumentId {
+            admin: ADMIN.to_string(),
+            id: "CBTC".to_string(),
+        }
+    }
+
+    fn holding_payload(admin: &str, ticker: &str, lock: serde_json::Value) -> serde_json::Value {
+        json!({
+            "operator": "operator::1220aa",
+            "provider": "provider::1220bb",
+            "registrar": admin,
+            "owner": "alice::1220cc",
+            "instrument": {
+                "source": admin,
+                "id": ticker,
+                "scheme": "RegistrarInternalScheme",
+            },
+            "label": "",
+            "amount": "1.0",
+            "lock": lock,
+        })
+    }
+
+    #[test]
+    fn keeps_an_unlocked_holding_of_the_requested_instrument() {
+        let contracts = vec![active_contract(
+            "00keep",
+            holding_payload(ADMIN, "CBTC", json!(null)),
+        )];
+
+        let selected = select_holdings(&contracts, &cbtc()).unwrap();
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].contract_id, "00keep");
+    }
+
+    /// The defect this change fixes. A foreign registrar can issue the ticker
+    /// `CBTC`, and the old filter compared the ticker alone.
+    #[test]
+    fn drops_a_holding_with_the_right_ticker_under_a_foreign_admin() {
+        let contracts = vec![active_contract(
+            "00foreign",
+            holding_payload(OTHER_ADMIN, "CBTC", json!(null)),
+        )];
+
+        let selected = select_holdings(&contracts, &cbtc()).unwrap();
+
+        assert!(selected.is_empty());
+    }
+
+    #[test]
+    fn drops_a_holding_of_another_ticker_under_the_right_admin() {
+        let contracts = vec![active_contract(
+            "00legacy",
+            holding_payload(ADMIN, "CBTCV0RC8", json!(null)),
+        )];
+
+        let selected = select_holdings(&contracts, &cbtc()).unwrap();
+
+        assert!(selected.is_empty());
+    }
+
+    #[test]
+    fn drops_a_locked_holding_of_the_requested_instrument() {
+        let contracts = vec![active_contract(
+            "00locked",
+            holding_payload(ADMIN, "CBTC", json!({ "holders": ["bob::1220dd"] })),
+        )];
+
+        let selected = select_holdings(&contracts, &cbtc()).unwrap();
+
+        assert!(selected.is_empty());
+    }
+
+    #[test]
+    fn keeps_only_the_matching_holding_out_of_a_mixed_set() {
+        let contracts = vec![
+            active_contract(
+                "00foreign",
+                holding_payload(OTHER_ADMIN, "CBTC", json!(null)),
+            ),
+            active_contract("00keep", holding_payload(ADMIN, "CBTC", json!(null))),
+            active_contract("00legacy", holding_payload(ADMIN, "CBTCV0RC8", json!(null))),
+        ];
+
+        let selected = select_holdings(&contracts, &cbtc()).unwrap();
+
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].contract_id, "00keep");
+    }
+
+    /// The design's accepted gap, in section 4.7. One unparseable holding
+    /// fails the whole call, even for an instrument the caller did not
+    /// request. The pilot accepted this on 11 Sep 2026, choosing a loud error
+    /// over a silent empty list. This test pins the behaviour so a later
+    /// change to it is deliberate.
+    #[test]
+    fn one_unparseable_holding_fails_the_whole_call() {
+        let mut broken = holding_payload(OTHER_ADMIN, "CBTC", json!(null));
+        broken.as_object_mut().unwrap().remove("label");
+
+        let contracts = vec![
+            active_contract("00keep", holding_payload(ADMIN, "CBTC", json!(null))),
+            active_contract("00broken", broken),
+        ];
+
+        let error = select_holdings(&contracts, &cbtc()).unwrap_err();
+
+        assert_eq!(error, "Missing 'label' field");
     }
 }

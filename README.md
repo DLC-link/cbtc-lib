@@ -85,9 +85,22 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", branch = "main" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", branch = "main" }
+# cbtc re-exports DamlDecimal, InstrumentId, Transfer, Meta and Account, and
+# the parameter types as `cbtc::types`, so a consumer needs no
+# canton-lib dependency for the Token Standard types. If you add one, pin the
+# same revision: a different pin makes Cargo build two `common` packages, and
+# then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
 ```
+
+`cbtc` pins `canton-lib` by revision, not by tag, so the `keycloak` pin above
+names that same revision. The revision is `canton-lib` PR 50, which is open;
+its code resolves as version `0.8.0`. Both pins become `tag = "v0.8.0"` once
+that PR merges. Pinning the `v0.7.0` tag here builds two `common` packages.
+**`cbtc-lib` itself is not tagged yet** — that waits for its own pull request
+to merge, so until then pin the commit at the head of
+`feature/token-crate-adoption`.
 
 Or for local development:
 
@@ -107,7 +120,7 @@ let auth = login::password(login::PasswordParams {
     client_id: "your-client-id".to_string(),
     username: "your-username".to_string(),
     password: "your-password".to_string(),
-    url: login::password_url("https://your-keycloak-host", "your-realm"),
+    url: login::token_url("https://your-keycloak-host", "your-realm"),
 }).await?;
 
 // Send CBTC
@@ -194,8 +207,12 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", branch = "main" }
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
 ```
+
+**`cbtc-lib` is not tagged yet** — that waits for its own pull request to
+merge, so until then pin the commit at the head of
+`feature/token-crate-adoption`.
 
 Or for local development:
 
@@ -465,18 +482,47 @@ See [batch_distribute.rs](examples/batch_distribute.rs) and [batch_with_callback
 
 ## API Reference
 
+Every module below is a re-export of `canton-lib`'s `token` crate. `cbtc`
+adds `mint_redeem` and nothing else.
+
+Eight of the thirteen operations carry a Token Standard V2 counterpart in a
+`v2` submodule, for example `cbtc::transfer::v2::submit` beside
+`cbtc::transfer::submit`.
+Alternatively `cbtc::TokenClient` takes the version in its config and
+applies it to every write method and to `holdings`, `balance` and
+`utxo_count`, so a caller names the version once. `incoming_offers` and
+`outgoing_offers` read the same contracts under either version.
+
+`active_contracts` reaches V2 through its `account` field, and `allocation`,
+`credentials`, `dar_check` and `utils` have no V2 form.
+
+The library supplies no ticker. Where an operation needs an instrument, it
+takes one from the caller, because Bitsafe plans to support instruments other
+than CBTC. An operation that acts on one named contract needs none, as
+`accept::submit` and `reject::submit` show, and `credentials` and `dar_check`
+name no instrument either. `mint_redeem::list_holdings` takes one and filters
+on it, which closed issue #74's defect.
+`cbtc` re-exports `InstrumentId`, `Transfer`, `Meta` and `Account` at its
+root, and the parameter types those signatures name as `cbtc::types`, so a
+consumer needs no `canton-lib` dependency to name them.
+`transfer::Params.transfer` and `transfer::v2::Params.transfer` are
+`cbtc::Transfer` and `cbtc::types::v2::Transfer`. `cbtc` does not re-export
+`common` whole. The reads — `active_contracts::get`,
+`utils::fetch_incoming_transfers`, `utils::fetch_outgoing_transfers` and
+`TokenClient::holdings` — return `Vec<JsActiveContract>`, which comes from
+the crates.io crate `canton-api-client`, not from `canton-lib`.
+
 ### Core Modules
 
 #### `cbtc::transfer`
 
 - `submit(Params)` - Send CBTC to a single recipient
-- `submit_multi(MultiParams)` - Send CBTC to multiple recipients in one transaction
 
 #### `cbtc::accept`
 
 - `submit(Params)` - Accept an incoming CBTC transfer
 
-#### `cbtc::withdraw`
+#### `cbtc::cancel_offers`
 
 - `withdraw_all(WithdrawAllParams)` - Withdraw all pending outgoing transfers
 - `submit(Params)` - Withdraw a specific transfer offer

@@ -287,27 +287,22 @@ dependencies = [
 
 [[package]]
 name = "cbtc"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
- "base64",
  "canton-api-client",
  "chrono",
  "common",
  "csv",
  "dotenvy",
  "env_logger",
- "futures",
  "keycloak",
  "ledger",
- "log",
- "registry",
  "reqwest 0.12.26",
- "semver",
  "serde",
  "serde_json",
+ "token",
  "tokio",
  "uuid",
- "zip",
 ]
 
 [[package]]
@@ -319,7 +314,6 @@ dependencies = [
  "cbtc",
  "chrono",
  "clap",
- "common",
  "dirs",
  "keycloak",
  "ledger",
@@ -432,8 +426,8 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "canton-api-client",
  "rust_decimal",
@@ -857,28 +851,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
-name = "futures"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-io",
- "futures-sink",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
 dependencies = [
  "futures-core",
- "futures-sink",
 ]
 
 [[package]]
@@ -886,17 +864,6 @@ name = "futures-core"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
-
-[[package]]
-name = "futures-executor"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
-dependencies = [
- "futures-core",
- "futures-task",
- "futures-util",
-]
 
 [[package]]
 name = "futures-io"
@@ -933,7 +900,6 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
- "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -1436,8 +1402,8 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "base64",
  "reqwest 0.12.26",
@@ -1453,8 +1419,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "ledger"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "base64",
  "canton-api-client",
@@ -1986,8 +1952,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "registry"
-version = "0.6.1"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.6.1#a9fd267c1ef49ce720c553a1bf51dd874460ff06"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
 dependencies = [
  "common",
  "reqwest 0.12.26",
@@ -2724,6 +2690,29 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token"
+version = "0.8.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?rev=d33514e5cd551a27fbb7fe32da3073347e422854#d33514e5cd551a27fbb7fe32da3073347e422854"
+dependencies = [
+ "base64",
+ "canton-api-client",
+ "chrono",
+ "common",
+ "csv",
+ "keycloak",
+ "ledger",
+ "log",
+ "registry",
+ "reqwest 0.12.26",
+ "semver",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+ "zip",
+]
 
 [[package]]
 name = "tokio"

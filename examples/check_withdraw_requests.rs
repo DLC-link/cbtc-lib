@@ -17,7 +17,7 @@ use cbtc::mint_redeem::redeem::{ListWithdrawAccountsParams, ListWithdrawRequests
 /// 2. Submit a withdrawal first using redeem_cbtc_flow
 /// 3. cargo run -p examples --bin check_withdraw_requests
 /// 4. Press Ctrl+C to stop
-use keycloak::login::{PasswordParams, password, password_url};
+use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -37,7 +37,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: password_url(
+        url: token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),

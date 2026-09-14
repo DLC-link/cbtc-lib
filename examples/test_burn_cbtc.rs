@@ -7,7 +7,7 @@ use cbtc::mint_redeem;
 ///
 /// Usage:
 /// cargo run -p examples --bin test_burn_cbtc
-use keycloak::login::{PasswordParams, password, password_url};
+use keycloak::login::{PasswordParams, password, token_url};
 use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, SubmitWithdrawParams};
 use std::env;
 
@@ -20,7 +20,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: password_url(
+        url: token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
@@ -29,6 +29,8 @@ async fn main() -> Result<(), String> {
 
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
+    let decentralized_party_id =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
     let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
 
@@ -75,13 +77,16 @@ async fn main() -> Result<(), String> {
         ledger_host: ledger_host.clone(),
         party: party_id.clone(),
         access_token: access_token.clone(),
+        instrument_id: cbtc::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
     })
     .await?;
 
-    let cbtc_holdings: Vec<_> = holdings
-        .iter()
-        .filter(|h| h.instrument_id == "CBTC" && h.owner == party_id)
-        .collect();
+    // list_holdings filtered the instrument. The owner test stays: it is a
+    // separate condition, and this example burns only the caller's own tokens.
+    let cbtc_holdings: Vec<_> = holdings.iter().filter(|h| h.owner == party_id).collect();
 
     if cbtc_holdings.is_empty() {
         return Err("No CBTC holdings found to burn".to_string());

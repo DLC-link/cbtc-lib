@@ -22,7 +22,7 @@ async fn main() -> Result<(), String> {
         env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
     let keycloak_username = env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set");
     let keycloak_password = env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set");
-    let keycloak_url = keycloak::login::password_url(
+    let keycloak_url = keycloak::login::token_url(
         &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
         &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
     );
@@ -36,6 +36,10 @@ async fn main() -> Result<(), String> {
     // Withdraw all pending transfers
     let result = cbtc::cancel_offers::withdraw_all(cbtc::cancel_offers::WithdrawAllParams {
         sender_party,
+        instrument_id: cbtc::InstrumentId {
+            admin: decentralized_party_id.clone(),
+            id: "CBTC".to_string(),
+        },
         ledger_host,
         registry_url,
         decentralized_party_id,

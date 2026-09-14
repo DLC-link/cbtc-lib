@@ -10,7 +10,7 @@
 /// Required environment variables:
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 /// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
-/// - LEDGER_HOST, PARTY_ID
+/// - LEDGER_HOST, PARTY_ID, DECENTRALIZED_PARTY_ID
 ///
 /// Understanding UTXOs:
 /// Each CBTC holding is a separate UTXO (like Bitcoin). Canton has a soft
@@ -30,7 +30,7 @@ async fn main() -> Result<(), String> {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        url: keycloak::login::password_url(
+        url: keycloak::login::token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
@@ -42,6 +42,8 @@ async fn main() -> Result<(), String> {
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
+    let decentralized_party_id =
+        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
     println!("\n📊 Checking balance for party: {}", party);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
@@ -51,6 +53,13 @@ async fn main() -> Result<(), String> {
         ledger_host,
         party,
         access_token: auth.access_token,
+        instrument_id: cbtc::InstrumentId {
+            admin: decentralized_party_id,
+            id: "CBTC".to_string(),
+        },
+        // `None` reads every holding the party owns, which is what every
+        // release before 0.7.0 did.
+        account: None,
     };
 
     let holdings = cbtc::active_contracts::get(balance_params).await?;

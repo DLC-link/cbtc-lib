@@ -78,11 +78,54 @@ impl Config {
 
     /// The environment for `env_name`: a config override if present, else the
     /// built-in default.
-    pub fn resolved_environment(&self, env_name: &str) -> Option<Environment> {
-        if let Some(env) = self.environments.get(env_name) {
-            return Some(env.clone());
+    ///
+    /// An override fills each field it leaves empty from the built-in default,
+    /// because `env_import` writes an override as soon as the `.env` carries
+    /// any one of the three variables and defaults the rest to `""`.
+    ///
+    /// # Errors
+    /// Returns `AppError::Config` when `env_name` names neither a built-in nor
+    /// an override, and when the resolved environment still carries an empty
+    /// field. A custom environment name has no built-in to fill from, so it can
+    /// resolve incomplete. An empty `decentralized_party_id` becomes the
+    /// instrument admin that every holding and offer filter compares exactly,
+    /// so the caller would show a zero balance and no offers rather than a
+    /// configuration error.
+    pub fn resolved_environment(&self, env_name: &str) -> Result<Environment> {
+        let builtin = Self::builtin_environments().get(env_name).cloned();
+        let Some(override_env) = self.environments.get(env_name) else {
+            return builtin.ok_or_else(|| {
+                AppError::Config(format!("environment {env_name:?} is not configured"))
+            });
+        };
+        let mut env = override_env.clone();
+        if let Some(builtin) = builtin {
+            if env.registry_url.is_empty() {
+                env.registry_url = builtin.registry_url;
+            }
+            if env.decentralized_party_id.is_empty() {
+                env.decentralized_party_id = builtin.decentralized_party_id;
+            }
+            if env.bitsafe_api_url.is_empty() {
+                env.bitsafe_api_url = builtin.bitsafe_api_url;
+            }
         }
-        Self::builtin_environments().get(env_name).cloned()
+        let missing: Vec<&str> = [
+            ("registry_url", &env.registry_url),
+            ("decentralized_party_id", &env.decentralized_party_id),
+            ("bitsafe_api_url", &env.bitsafe_api_url),
+        ]
+        .into_iter()
+        .filter(|(_, value)| value.is_empty())
+        .map(|(field, _)| field)
+        .collect();
+        if !missing.is_empty() {
+            return Err(AppError::Config(format!(
+                "environment {env_name:?} is missing {}",
+                missing.join(", ")
+            )));
+        }
+        Ok(env)
     }
 
     /// Load config from `path`.
@@ -252,5 +295,89 @@ mod tests {
         let env = cfg.resolved_environment("devnet").unwrap();
         // Assert
         assert_eq!(env.registry_url, "https://override");
+    }
+
+    #[test]
+    fn resolved_environment_fills_an_empty_override_field_from_the_builtin() {
+        // Arrange: `env_import` writes an override as soon as the .env carries
+        // any one of the three variables, and defaults the rest to "". An empty
+        // decentralized_party_id becomes the instrument admin, and every
+        // holding and offer filter compares that admin exactly, so the TUI
+        // would report a zero balance and no offers instead of a bad config.
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "devnet".to_string(),
+            Environment {
+                registry_url: "https://override".to_string(),
+                decentralized_party_id: String::new(),
+                bitsafe_api_url: String::new(),
+            },
+        );
+        // Act
+        let env = cfg.resolved_environment("devnet").unwrap();
+        // Assert
+        let builtin = Config::builtin_environments();
+        let devnet = builtin.get("devnet").unwrap();
+        assert_eq!(env.registry_url, "https://override");
+        assert_eq!(env.decentralized_party_id, devnet.decentralized_party_id);
+        assert_eq!(env.bitsafe_api_url, devnet.bitsafe_api_url);
+    }
+
+    #[test]
+    fn an_incomplete_custom_environment_is_a_configuration_error() {
+        // Arrange
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "private".to_string(),
+            Environment {
+                registry_url: "https://override".to_string(),
+                decentralized_party_id: String::new(),
+                bitsafe_api_url: String::new(),
+            },
+        );
+        // Act
+        let error = cfg.resolved_environment("private").unwrap_err();
+        // Assert
+        let message = error.to_string();
+        assert!(message.contains("private"), "unexpected error: {message}");
+        assert!(
+            message.contains("decentralized_party_id"),
+            "the error must name the missing field: {message}"
+        );
+        assert!(
+            message.contains("bitsafe_api_url"),
+            "the error must name every missing field: {message}"
+        );
+    }
+
+    #[test]
+    fn a_complete_custom_environment_resolves() {
+        // Arrange
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "private".to_string(),
+            Environment {
+                registry_url: "https://override".to_string(),
+                decentralized_party_id: "party::1220ab".to_string(),
+                bitsafe_api_url: "https://api.private".to_string(),
+            },
+        );
+        // Act
+        let env = cfg.resolved_environment("private").unwrap();
+        // Assert
+        assert_eq!(env.decentralized_party_id, "party::1220ab");
+    }
+
+    #[test]
+    fn an_unknown_environment_with_no_override_is_a_configuration_error() {
+        // Arrange
+        let cfg = Config::default();
+        // Act
+        let error = cfg.resolved_environment("nowhere").unwrap_err();
+        // Assert
+        assert!(
+            error.to_string().contains("nowhere"),
+            "unexpected error: {error}"
+        );
     }
 }

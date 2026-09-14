@@ -60,15 +60,20 @@ fn load_sender_config() -> PartyConfig {
 }
 
 fn load_receiver_config() -> PartyConfig {
-    let keycloak_host = env::var("RECEIVER_KEYCLOAK_HOST")
-        .unwrap_or_else(|_| env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"));
-    let keycloak_realm = env::var("RECEIVER_KEYCLOAK_REALM")
-        .unwrap_or_else(|_| env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"));
+    // An empty override is not an override. `.env` files assign rather than
+    // unset, so a copied template leaves these set to "" and the fallback
+    // would never fire.
+    let receiver_var = |name: &str| env::var(name).ok().filter(|s| !s.is_empty());
+
+    let keycloak_host = receiver_var("RECEIVER_KEYCLOAK_HOST")
+        .unwrap_or_else(|| env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"));
+    let keycloak_realm = receiver_var("RECEIVER_KEYCLOAK_REALM")
+        .unwrap_or_else(|| env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"));
 
     PartyConfig {
         party_id: env::var("RECEIVER_PARTY_ID").expect("RECEIVER_PARTY_ID must be set"),
-        ledger_host: env::var("RECEIVER_LEDGER_HOST")
-            .unwrap_or_else(|_| env::var("LEDGER_HOST").expect("LEDGER_HOST must be set")),
+        ledger_host: receiver_var("RECEIVER_LEDGER_HOST")
+            .unwrap_or_else(|| env::var("LEDGER_HOST").expect("LEDGER_HOST must be set")),
         keycloak_client_id: env::var("RECEIVER_KEYCLOAK_CLIENT_ID")
             .expect("RECEIVER_KEYCLOAK_CLIENT_ID must be set"),
         keycloak_username: env::var("RECEIVER_KEYCLOAK_USERNAME")
@@ -190,13 +195,28 @@ async fn created_offer(
     match created.as_slice() {
         [cid] => Ok(Some((*cid).clone())),
         other => {
+            // A concurrent run against the shared wallet also creates offers,
+            // so the difference can hold more than ours. Cancelling one at
+            // random would cancel a stranger's, which is worse than leaking.
+            // Name the candidates instead, so the manual clean-up is possible.
             println!(
                 "   [warning] the send produced {} new offers, not 1",
                 other.len()
             );
+            if !other.is_empty() {
+                println!("   [warning] candidate offer ids: {}", join_ids(other));
+            }
             Ok(None)
         }
     }
+}
+
+/// Render contract ids for an operator who has to clean up by hand.
+fn join_ids(ids: &[&String]) -> String {
+    ids.iter()
+        .map(|id| id.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The ids of the sender's pending outgoing offers for `instrument`.
@@ -293,7 +313,7 @@ async fn main() -> Result<(), String> {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
     let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.to_string());
-    let faucet_url = env::var("FAUCET_URL").ok();
+    let faucet_url = env::var("FAUCET_URL").ok().filter(|s| !s.is_empty());
     let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
 
     let base_steps: usize = 22;
@@ -347,7 +367,7 @@ async fn main() -> Result<(), String> {
                             .await;
                         }
                         None => println!(
-                            "Note: this run holds no offer id to cancel. Any pending sender offer needs a manual check."
+                            "Note: this run holds no offer id to cancel. Step 9 or 16 logged the candidate ids if it saw any; otherwise no offer was created. Any pending sender offer needs a manual check."
                         ),
                     }
                     if receiver_has_pending_offer {
@@ -984,7 +1004,15 @@ async fn main() -> Result<(), String> {
         )
         .await?;
 
-        let cbtc_holdings: Vec<_> = holdings.iter().collect();
+        // Burn only from the unlabelled account. Under V2 `check_balance`
+        // reads `Account::basic`, which is the unlabelled account, so burning
+        // a labelled holding would leave that balance unchanged and step 18
+        // would fail with "Balance did not decrease". `list_holdings` filters
+        // by instrument, not by account.
+        let cbtc_holdings: Vec<_> = holdings
+            .iter()
+            .filter(|h| h.account_label.is_empty())
+            .collect();
 
         // Greedy select holdings to cover withdraw_amount
         let mut selected = Vec::new();

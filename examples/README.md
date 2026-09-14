@@ -120,9 +120,10 @@ the API that `TOKEN_STANDARD_VERSION` selects, and prints the path it took.
 
 **Step 13: Withdraw own pending offer**
 - **Given** the offer step 12 created
-- **When** calling `cancel_offers::withdraw_all` for the sender party
-- **Then** at least one offer is withdrawn. This is the only step that runs
-  `withdraw_all` on a passing run; the failure-path cleanup calls it otherwise.
+- **When** calling `cancel_offers::submit` for the one offer step 12 created
+- **Then** that offer is withdrawn. The run never calls `withdraw_all`: the
+  devnet wallets are shared, so it would cancel offers this run never made.
+  The failure-path cleanup calls `submit` on the same single id.
 
 **Step 14: Send CBTC to receiver**
 - **Given** step 13 withdrew the first offer

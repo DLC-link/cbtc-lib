@@ -7,8 +7,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.7.0] - 2026-09-10
 
 `cbtc-lib` now re-exports `canton-lib`'s `token` crate for every Token
-Standard operation. It deletes its own copies of thirteen modules and one
-struct, 4,794 lines. `mint_redeem` stays, because minting and redeeming are
+Standard operation. It deletes its own copies of thirteen modules, 4,851
+lines measured at `origin/main`, and one struct. `mint_redeem` stays, because minting and redeeming are
 cBTC's own bridge operations.
 
 ### Added

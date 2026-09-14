@@ -103,8 +103,8 @@ cBTC's own bridge operations.
   recorded as open.
 - `token::holding::Holding` carries the instrument admin and the account id,
   through `canton-lib` `0.8.0`. `instrument_id` changes type from `String`,
-  which held the ticker alone, to `InstrumentId`. The new `account_id` field
-  holds the payload's `label`.
+  which held the ticker alone, to `InstrumentId`. The new `account_label`
+  field holds the payload's `label` verbatim.
 - The two standalone examples `test_burn_cbtc` and `redeem_cbtc_flow` read
   `DECENTRALIZED_PARTY_ID`. Every other example already reads it, and
   `examples/README.md` already lists it as required.

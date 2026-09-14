@@ -144,10 +144,16 @@ cBTC's own bridge operations.
 ### Dependencies
 
 - `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
-  `canton-lib` at `tag = "v0.7.0"`. **A consumer must pin the same tag.**
-  Mixing a tag and a revision across manifests makes Cargo build two `common`
-  packages, and then `cbtc::DamlDecimal` and `common::decimal::DamlDecimal`
-  are different types.
+  `canton-lib` at `rev = "d33514e5cd551a27fbb7fe32da3073347e422854"`, and
+  `cbtc-tui` pins `keycloak` and `ledger` at the same revision.
+  **A consumer must pin that same revision.** Mixing a tag and a revision
+  across manifests makes Cargo build two `common` packages, and then
+  `cbtc::DamlDecimal` and `common::decimal::DamlDecimal` are different types.
+
+  The revision is `canton-lib` PR 50, which is open and not yet approved. It
+  resolves as version `0.8.0`. When that PR merges and `v0.8.0` ships, all six
+  pins move to `tag = "v0.8.0"` and the lock is refreshed. A revision is
+  reversible where a tag is not, which is why the pin reads this way today.
 
   This release originally pinned revision `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`,
   because no `canton-lib` tag then contained the `token` crate. `canton-lib`

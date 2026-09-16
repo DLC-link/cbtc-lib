@@ -337,7 +337,8 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 ///
 /// Split out of [`list_holdings`], which opens a websocket and so cannot be
 /// reached by a unit test. `canton-lib` splits `active_contracts::wanted` out
-/// of `get` for the same reason; see the comment at `active_contracts.rs:82`.
+/// of `get` for the same reason; see the doc comment on `wanted` in
+/// `canton-lib`'s `crates/token/src/active_contracts.rs`.
 ///
 /// One unparseable holding fails the whole call, even under an instrument the
 /// caller did not request. Every `Holding` contract comes from one template,
@@ -861,8 +862,10 @@ mod holding_selection_tests {
     //! `select_holdings` holds the rules it applies — drop locked holdings,
     //! keep the requested instrument — and these tests reach that.
     //! `canton-lib`'s `active_contracts::wanted` is split out for the same
-    //! reason: `wanted()` is declared at `active_contracts.rs:84` and the
-    //! comment at `:82` says why.
+    //! reason: `canton-lib` declares `wanted` in
+    //! `crates/token/src/active_contracts.rs`, and its doc comment says why.
+    //! Name the crate: `canton-lib` has three files called
+    //! `active_contracts.rs`, and `wanted` lives in only one of them.
 
     use super::*;
     use crate::test_fixtures::active_contract;

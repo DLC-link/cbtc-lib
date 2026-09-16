@@ -144,7 +144,7 @@ cBTC's own bridge operations.
 ### Dependencies
 
 - `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
-  `canton-lib` at `rev = "d33514e5cd551a27fbb7fe32da3073347e422854"`, and
+  `canton-lib` at `rev = "9049bd71088f4eff1645944dc7001322a6903c18"`, and
   `cbtc-tui` pins `keycloak` and `ledger` at the same revision.
   **A consumer must pin that same revision.** Mixing a tag and a revision
   across manifests makes Cargo build two `common` packages, and then

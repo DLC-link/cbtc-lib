@@ -91,7 +91,7 @@ Add to your `Cargo.toml`:
 # same revision: a different pin makes Cargo build two `common` packages, and
 # then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9049bd71088f4eff1645944dc7001322a6903c18" }
 ```
 
 `cbtc` pins `canton-lib` by revision, not by tag, so the `keycloak` pin above

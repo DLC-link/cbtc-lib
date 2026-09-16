@@ -8,10 +8,10 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
-token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "d33514e5cd551a27fbb7fe32da3073347e422854" }
+token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9049bd71088f4eff1645944dc7001322a6903c18" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9049bd71088f4eff1645944dc7001322a6903c18" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9049bd71088f4eff1645944dc7001322a6903c18" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9049bd71088f4eff1645944dc7001322a6903c18" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"

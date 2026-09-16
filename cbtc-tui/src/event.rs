@@ -279,6 +279,11 @@ async fn run_command(command: &Command, ctx: &OpContext) -> Result<String, Strin
             if holding_contract_ids.is_empty() {
                 return Err("No CBTC holdings available to withdraw".to_string());
             }
+            if total < amount_dec {
+                return Err(format!(
+                    "Insufficient CBTC: {total} available, {amount_dec} requested"
+                ));
+            }
             cbtc::mint_redeem::redeem::submit_withdraw(
                 cbtc::mint_redeem::redeem::SubmitWithdrawParams {
                     ledger_host: ctx.ledger_host.clone(),

@@ -280,10 +280,14 @@ async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
     env_logger::init();
 
-    let version = match env::var("TOKEN_STANDARD_VERSION").as_deref() {
-        Ok("V2") | Ok("v2") => cbtc::TokenStandardVersion::V2,
-        Ok("V1") | Ok("v1") | Err(_) => cbtc::TokenStandardVersion::V1,
-        Ok(other) => {
+    // An empty value is not a value: a copied .env template assigns rather
+    // than unsets, so every optional variable here reads "" as absent.
+    let optional = |name: &str| env::var(name).ok().filter(|s| !s.is_empty());
+
+    let version = match optional("TOKEN_STANDARD_VERSION").as_deref() {
+        Some("V2") | Some("v2") => cbtc::TokenStandardVersion::V2,
+        Some("V1") | Some("v1") | None => cbtc::TokenStandardVersion::V1,
+        Some(other) => {
             return Err(format!(
                 "TOKEN_STANDARD_VERSION must be V1 or V2, not {other:?}"
             ));
@@ -300,21 +304,19 @@ async fn main() -> Result<(), String> {
         id: "CBTC".to_string(),
     };
     let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
-    let amount_str = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.00001".to_string());
+    let amount_str = optional("TRANSFER_AMOUNT").unwrap_or_else(|| "0.00001".to_string());
     let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
-    let threshold: usize = env::var("CONSOLIDATION_THRESHOLD")
-        .unwrap_or_else(|_| "10".to_string())
+    let threshold: usize = optional("CONSOLIDATION_THRESHOLD")
+        .unwrap_or_else(|| "10".to_string())
         .parse()
         .expect("CONSOLIDATION_THRESHOLD must be a valid number");
 
     let bitsafe_api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
-    let destination_btc_address = env::var("DESTINATION_BTC_ADDRESS")
-        .ok()
-        .filter(|s| !s.is_empty())
+    let destination_btc_address = optional("DESTINATION_BTC_ADDRESS")
         .unwrap_or_else(|| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
-    let withdraw_amount = env::var("WITHDRAW_AMOUNT").unwrap_or_else(|_| amount.to_string());
-    let faucet_url = env::var("FAUCET_URL").ok().filter(|s| !s.is_empty());
-    let faucet_network = env::var("FAUCET_NETWORK").unwrap_or_else(|_| "devnet".to_string());
+    let withdraw_amount = optional("WITHDRAW_AMOUNT").unwrap_or_else(|| amount.to_string());
+    let faucet_url = optional("FAUCET_URL");
+    let faucet_network = optional("FAUCET_NETWORK").unwrap_or_else(|| "devnet".to_string());
 
     let base_steps: usize = 22;
     let total_steps = base_steps + if faucet_url.is_some() { 3 } else { 0 };
@@ -367,7 +369,7 @@ async fn main() -> Result<(), String> {
                             .await;
                         }
                         None => println!(
-                            "Note: this run holds no offer id to cancel. Step 9 or 16 logged the candidate ids if it saw any; otherwise no offer was created. Any pending sender offer needs a manual check."
+                            "Note: this run holds no offer id to cancel. Either \"Send CBTC to receiver\" step logged the candidate ids if it saw any; otherwise no offer was created. Any pending sender offer needs a manual check."
                         ),
                     }
                     if receiver_has_pending_offer {
@@ -1158,7 +1160,12 @@ async fn main() -> Result<(), String> {
         // `CBTCV0RC8` holdings no longer reach here. Splitting one of those
         // while naming `CBTC` made the registry reject the request with
         // 400 "Given holdings are invalid".
-        match holdings.first() {
+        //
+        // Split only from the unlabelled account, for the reason step 17 gives:
+        // `list_holdings` filters by instrument, not by account, and the V2
+        // call below names `Account::basic`. A labelled holding under a basic
+        // account is the same mismatch the registry rejects.
+        match holdings.iter().find(|h| h.account_label.is_empty()) {
             None => {
                 print_skip("(no CBTC holdings available to split)");
                 passed += 1;

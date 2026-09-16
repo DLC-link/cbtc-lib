@@ -90,16 +90,13 @@ async fn main() -> Result<(), String> {
     })
     .await?;
 
-    let cbtc_holdings: Vec<_> = holdings.iter().collect();
+    // list_holdings already filtered by instrument, so every holding here is
+    // one this flow can redeem.
+    let total_cbtc: cbtc::DamlDecimal = holdings.iter().map(|h| h.amount).sum();
 
-    let total_cbtc: cbtc::DamlDecimal = cbtc_holdings
-        .iter()
-        .map(|h| h.amount)
-        .sum();
-
-    println!("✓ Found {} CBTC holding(s)", cbtc_holdings.len());
+    println!("✓ Found {} CBTC holding(s)", holdings.len());
     println!("  Total CBTC balance: {} BTC", total_cbtc);
-    for holding in &cbtc_holdings {
+    for holding in &holdings {
         println!(
             "    - {} BTC (CID: {})",
             holding.amount, holding.contract_id
@@ -107,7 +104,7 @@ async fn main() -> Result<(), String> {
     }
     println!();
 
-    if cbtc_holdings.is_empty() {
+    if holdings.is_empty() {
         println!("⚠ You don't have any CBTC holdings to redeem.");
         println!("  Run 'mint_cbtc_flow' example first to mint some CBTC.");
         return Ok(());
@@ -228,7 +225,7 @@ async fn main() -> Result<(), String> {
     let mut selected_holdings = Vec::new();
     let mut selected_total = cbtc::DamlDecimal::ZERO;
 
-    for holding in &cbtc_holdings {
+    for holding in &holdings {
         selected_holdings.push(holding.contract_id.clone());
         selected_total += holding.amount;
 

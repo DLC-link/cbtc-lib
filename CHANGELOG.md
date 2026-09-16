@@ -86,8 +86,11 @@ cBTC's own bridge operations.
   configuration error.
 - This release removes `mint_redeem::models::Holding`. The re-exported
   `cbtc::holding::Holding` replaces it. The deleted struct copied the `token`
-  one field for field, including both methods, `from_active_contract` and
-  `is_locked_in_contract`. A caller changes the import and nothing else.
+  one field for field at the time, including both methods,
+  `from_active_contract` and `is_locked_in_contract`. A caller changes the
+  import, and then changes any comparison on `instrument_id`: the replacement
+  types that field as `InstrumentId` rather than `String`, and adds
+  `account_label`. The two entries above describe both.
 - The four registry routes report one error wording instead of four. A
   caller that matched on the old per-route text stops matching, and it stops
   silently. I searched for such a caller across `cbtc-lib`, `cbtc-tui`,

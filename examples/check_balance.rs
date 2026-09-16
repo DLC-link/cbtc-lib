@@ -58,7 +58,7 @@ async fn main() -> Result<(), String> {
             id: "CBTC".to_string(),
         },
         // `None` reads every holding the party owns, which is what every
-        // release before 0.7.0 did.
+        // release before this one did.
         account: None,
     };
 

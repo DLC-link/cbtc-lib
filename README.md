@@ -90,7 +90,7 @@ Add to your `Cargo.toml`:
 # canton-lib dependency for the Token Standard types. If you add one, pin the
 # same revision: a different pin makes Cargo build two `common` packages, and
 # then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the merge commit>" }
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
 ```
 
@@ -206,7 +206,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the 0.7.0 commit>" }
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the merge commit>" }
 ```
 
 **`cbtc-lib` is not tagged yet** — that waits for its own pull request to

@@ -563,8 +563,9 @@ the crates.io crate `canton-api-client`, not from `canton-lib`.
 
 - `list_withdraw_accounts(Params)` - Get all withdraw accounts
 - `create_withdraw_account(Params)` - Create withdraw account with BTC destination
-- `list_holdings(Params)` - Get CBTC holdings for burning
-- `request_withdraw(Params)` - Burn CBTC and request BTC withdrawal
+- `list_holdings(ListHoldingsParams)` - Get holdings of one instrument, for
+  burning. `instrument_id` is required: the library supplies no ticker.
+- `submit_withdraw(SubmitWithdrawParams)` - Burn CBTC and request BTC withdrawal
 - `list_withdraw_requests(Params)` - Monitor withdrawal status
 
 ### Helper Modules
@@ -578,11 +579,6 @@ the crates.io crate `canton-api-client`, not from `canton-lib`.
 
 - Low-level ledger API operations
 - WebSocket streaming for real-time updates
-
-#### `registry`
-
-- Registry service integration
-- Factory contract queries
 
 ---
 
@@ -803,11 +799,12 @@ This library includes integration tests that validate real-world interactions wi
 
 ### Running Tests
 
-Tests require:
+`cargo test` needs no credentials and no network. It runs the unit tests only.
 
-- Access to a Canton participant node
-- Valid Keycloak credentials
-- Network connectivity
+The live tests carry `#[ignore]`, so they run only with
+`cargo test -- --ignored`. Those need a Canton participant node, valid
+Keycloak credentials and network access. The hosts in `.env` do not resolve
+today, so they fail against a stock checkout; #68 tracks repairing them.
 
 Set up your environment:
 

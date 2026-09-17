@@ -198,9 +198,9 @@ pub async fn create_deposit_account(
 
     let contract_id = parse_created_deposit_account_cid(&response)?;
 
-    // Re-fetch from active contracts for the canonical DepositAccount shape.
-    // (The flat submit response does include createArgument and createdEventBlob, so
-    // this round-trip could be optimized away in a follow-up; see credentials.rs.)
+    // Re-fetch from active contracts for the canonical DepositAccount shape. The
+    // flat submit response carries createArgument and createdEventBlob, so
+    // this round-trip is avoidable.
     let accounts = list_deposit_accounts(ListDepositAccountsParams {
         ledger_host: params.ledger_host,
         party: params.party,
@@ -292,7 +292,7 @@ mod tests {
     use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet credentials; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
     async fn test_create_deposit_account_with_credentials() {
         dotenvy::dotenv().ok();
 
@@ -359,7 +359,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet credentials; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
     async fn test_list_deposit_accounts() {
         dotenvy::dotenv().ok();
 

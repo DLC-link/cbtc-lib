@@ -90,7 +90,7 @@ cBTC's own bridge operations.
   `from_active_contract` and `is_locked_in_contract`. A caller changes the
   import, and then changes any comparison on `instrument_id`: the replacement
   types that field as `InstrumentId` rather than `String`, and adds
-  `account_label`. The two entries above describe both.
+  `account_label`. The two entries below describe both.
 - The four registry routes report one error wording instead of four. A
   caller that matched on the old per-route text stops matching, and it stops
   silently. I searched for such a caller across `cbtc-lib`, `cbtc-tui`,
@@ -104,6 +104,11 @@ cBTC's own bridge operations.
   `400 Given holdings are invalid`, halting a burn or a split. This closes the
   gap on the mint and redeem path, which an earlier draft of this entry
   recorded as open.
+- `Holding::from_active_contract` now fails on a payload with no `registrar`
+  or no `label`, and `list_holdings` fails the whole call when one holding
+  fails to parse. Version 0.6.4 ignored both fields. The choice is deliberate,
+  because a loud error beats a silently short holdings list, and the test
+  `one_unparseable_holding_fails_the_whole_call` pins it.
 - `token::holding::Holding` carries the instrument admin and the account id,
   through `canton-lib` `0.8.0`. `instrument_id` changes type from `String`,
   which held the ticker alone, to `InstrumentId`. The new `account_label`

@@ -256,9 +256,9 @@ pub async fn create_withdraw_account(
 
     let contract_id = parse_created_withdraw_account_cid(&response)?;
 
-    // Re-fetch from active contracts for the canonical WithdrawAccount shape.
-    // (The flat submit response does include createArgument and createdEventBlob, so
-    // this round-trip could be optimized away in a follow-up; see credentials.rs.)
+    // Re-fetch from active contracts for the canonical WithdrawAccount shape. The
+    // flat submit response carries createArgument and createdEventBlob, so
+    // this round-trip is avoidable.
     let accounts = list_withdraw_accounts(ListWithdrawAccountsParams {
         ledger_host: params.ledger_host,
         party: params.party,
@@ -336,14 +336,11 @@ pub async fn list_holdings(params: ListHoldingsParams) -> Result<Vec<Holding>, S
 /// to `instrument`.
 ///
 /// Split out of [`list_holdings`], which opens a websocket and so cannot be
-/// reached by a unit test. `canton-lib` splits `active_contracts::wanted` out
-/// of `get` for the same reason; see the doc comment on `wanted` in
-/// `canton-lib`'s `crates/token/src/active_contracts.rs`.
+/// reached by a unit test. `canton-lib` splits `wanted` out of
+/// `active_contracts::get` for the same reason.
 ///
-/// One unparseable holding fails the whole call, even under an instrument the
-/// caller did not request. Every `Holding` contract comes from one template,
-/// and all 519,386 active mainnet holdings carried every field the parser
-/// reads on 11 Sep 2026. A loud error beats a silently short list.
+/// One unparseable holding fails the whole call: a loud error beats a
+/// silently short holdings list.
 fn select_holdings(
     contracts: &[JsActiveContract],
     instrument: &InstrumentId,
@@ -612,7 +609,7 @@ mod tests {
     use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet credentials; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
     async fn test_create_withdraw_account_with_credentials() {
         dotenvy::dotenv().ok();
 
@@ -682,7 +679,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet credentials; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
     async fn test_list_withdraw_accounts() {
         dotenvy::dotenv().ok();
 
@@ -861,11 +858,6 @@ mod holding_selection_tests {
     //! `list_holdings` opens a websocket, so no unit test reaches its body.
     //! `select_holdings` holds the rules it applies — drop locked holdings,
     //! keep the requested instrument — and these tests reach that.
-    //! `canton-lib`'s `active_contracts::wanted` is split out for the same
-    //! reason: `canton-lib` declares `wanted` in
-    //! `crates/token/src/active_contracts.rs`, and its doc comment says why.
-    //! Name the crate: `canton-lib` has three files called
-    //! `active_contracts.rs`, and `wanted` lives in only one of them.
 
     use super::*;
     use crate::test_fixtures::active_contract;
@@ -911,8 +903,8 @@ mod holding_selection_tests {
         assert_eq!(selected[0].contract_id, "00keep");
     }
 
-    /// The defect this change fixes. A foreign registrar can issue the ticker
-    /// `CBTC`, and the old filter compared the ticker alone.
+    /// A foreign registrar can issue the ticker `CBTC`, so the ticker alone
+    /// does not identify an instrument.
     #[test]
     fn drops_a_holding_with_the_right_ticker_under_a_foreign_admin() {
         let contracts = vec![active_contract(
@@ -966,11 +958,8 @@ mod holding_selection_tests {
         assert_eq!(selected[0].contract_id, "00keep");
     }
 
-    /// The design's accepted gap, in section 4.7. One unparseable holding
-    /// fails the whole call, even for an instrument the caller did not
-    /// request. The pilot accepted this on 11 Sep 2026, choosing a loud error
-    /// over a silent empty list. This test pins the behaviour so a later
-    /// change to it is deliberate.
+    /// One unparseable holding fails the whole call, even under an instrument
+    /// the caller did not request. A loud error beats a silent empty list.
     #[test]
     fn one_unparseable_holding_fails_the_whole_call() {
         let mut broken = holding_payload(OTHER_ADMIN, "CBTC", json!(null));

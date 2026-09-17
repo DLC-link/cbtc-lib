@@ -57,8 +57,7 @@ async fn main() -> Result<(), String> {
             admin: decentralized_party_id,
             id: "CBTC".to_string(),
         },
-        // `None` reads every holding the party owns, which is what every
-        // release before this one did.
+        // `None` reads every holding the party owns.
         account: None,
     };
 

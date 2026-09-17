@@ -332,7 +332,6 @@ async fn main() -> Result<(), String> {
 
     let mut step = 0;
     let mut passed = 0;
-    // Track whether we need cleanup on failure
     // The offer the sender currently holds, as created by step 9 or step 9c.
     // This doubles as the "has a pending offer" flag: a boolean beside it could
     // disagree with it, and the failure path would then withdraw the wrong
@@ -430,8 +429,8 @@ async fn main() -> Result<(), String> {
     });
 
     // Step 4: Accept free credential offer (gated by RUN_CREDENTIAL_ACCEPT)
-    // Exercises credentials.rs:411 parser path. Off by default — accepting a free
-    // credential creates a persistent on-ledger contract with no archive choice,
+    // Off by default — accepting a free credential creates a persistent
+    // on-ledger contract with no archive choice,
     // so repeated test runs would accumulate state. Set RUN_CREDENTIAL_ACCEPT=1
     // to opt in (same pattern as FAUCET_URL for the optional faucet steps).
     {
@@ -1136,7 +1135,7 @@ async fn main() -> Result<(), String> {
         }
     }
 
-    // Step 20: Split sender holding (exercises split.rs parser path end-to-end)
+    // Step 20: Split sender holding
     {
         step += 1;
         print_step(step, total_steps, "Split sender holding");
@@ -1156,11 +1155,6 @@ async fn main() -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to list holdings for split: {}", e))?;
 
-        // list_holdings compares the whole instrument, so devnet's legacy
-        // `CBTCV0RC8` holdings no longer reach here. Splitting one of those
-        // while naming `CBTC` made the registry reject the request with
-        // 400 "Given holdings are invalid".
-        //
         // Split only from the unlabelled account, for the reason step 17 gives:
         // `list_holdings` filters by instrument, not by account, and the V2
         // call below names `Account::basic`. A labelled holding under a basic

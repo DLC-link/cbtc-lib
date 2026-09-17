@@ -1,6 +1,11 @@
-/// Example: Send CBTC to another party
+/// Example: Send CBTC to another party over the Token Standard V2 API
 ///
-/// Run with: cargo run -p examples --bin send_cbtc
+/// Run with: cargo run --example send_cbtc_v2
+///
+/// This is `send_cbtc.rs` on the V2 entry point. The only difference is
+/// that V2 addresses accounts rather than bare parties, so `sender` and
+/// `receiver` are `Account`s. `Account::basic` builds the account every
+/// party owns: no provider, empty id.
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;
@@ -36,7 +41,7 @@ async fn main() -> Result<(), String> {
     let amount_str = env::var("TRANSFER_AMOUNT").unwrap_or_else(|_| "0.1".to_string());
     let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
 
-    println!("\nSending {} CBTC", amount);
+    println!("\nSending {} CBTC over the V2 API", amount);
     println!("From: {}", sender_party);
     println!("To: {}", receiver_party);
 
@@ -44,10 +49,10 @@ async fn main() -> Result<(), String> {
     let decentralized_party =
         env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
 
-    let transfer_params = cbtc::transfer::Params {
-        transfer: cbtc::Transfer {
-            sender: sender_party,
-            receiver: receiver_party,
+    let transfer_params = cbtc::transfer::v2::Params {
+        transfer: cbtc::types::v2::Transfer {
+            sender: cbtc::Account::basic(sender_party),
+            receiver: cbtc::Account::basic(receiver_party),
             amount,
             instrument_id: cbtc::InstrumentId {
                 admin: decentralized_party.clone(),
@@ -69,7 +74,7 @@ async fn main() -> Result<(), String> {
 
     // Submit transfer
     println!("\nSubmitting transfer...");
-    cbtc::transfer::submit(transfer_params).await?;
+    cbtc::transfer::v2::submit(transfer_params).await?;
 
     println!("✅ Transfer submitted successfully!");
     println!("\nNote: The receiver must accept the transfer for it to complete.");

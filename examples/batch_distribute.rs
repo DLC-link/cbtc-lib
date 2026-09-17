@@ -37,7 +37,7 @@ async fn main() -> Result<(), String> {
     let batch_params = cbtc::batch::Params {
         csv_path: csv_path.clone(),
         sender: sender_party.clone(),
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party.clone(),
             id: "CBTC".to_string(),
         },
@@ -47,7 +47,7 @@ async fn main() -> Result<(), String> {
         keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         keycloak_username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         keycloak_password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
-        keycloak_url: keycloak::login::password_url(
+        keycloak_url: keycloak::login::token_url(
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),

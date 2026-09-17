@@ -9,10 +9,9 @@ canton-api-client = "3.6.0-0.1.0"
 cbtc = { path = ".." }
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
 dirs = "5"
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
 ratatui = "0.29"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

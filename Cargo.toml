@@ -8,24 +8,19 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
-registry = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.6.1" }
+token = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"
 uuid = { version = "1.18", features = ["v4"] }
 csv = "1.3"
 serde = { version = "1.0", features = ["derive"] }
-futures = "0.3"
 dotenvy = "0.15"
-base64 = "0.22"
-log = "0.4"
 canton-api-client = "3.6.0-0.1.0"
 reqwest = { version = "0.12.24", features = ["json"] }
-zip = "2"
-semver = "1"
 
 [dev-dependencies]
 env_logger = "0.11"
@@ -61,6 +56,10 @@ path = "examples/redeem_cbtc_flow.rs"
 [[example]]
 name = "send_cbtc"
 path = "examples/send_cbtc.rs"
+
+[[example]]
+name = "send_cbtc_v2"
+path = "examples/send_cbtc_v2.rs"
 
 [[example]]
 name = "test_burn_cbtc"

@@ -27,7 +27,7 @@ async fn main() -> Result<(), String> {
         std::env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set");
     let keycloak_password =
         std::env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set");
-    let keycloak_url = keycloak::login::password_url(
+    let keycloak_url = keycloak::login::token_url(
         &std::env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
         &std::env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
     );
@@ -100,7 +100,7 @@ async fn main() -> Result<(), String> {
     let result = cbtc::distribute::submit(cbtc::distribute::Params {
         recipients,
         sender,
-        instrument_id: common::transfer::InstrumentId {
+        instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
             id: "CBTC".to_string(),
         },

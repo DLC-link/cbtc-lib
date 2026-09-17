@@ -128,7 +128,7 @@ mod tests {
     use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
     async fn test_get_account_contract_rules() {
         dotenvy::dotenv().ok();
 
@@ -143,7 +143,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
     async fn test_get_token_standard_contracts() {
         dotenvy::dotenv().ok();
 

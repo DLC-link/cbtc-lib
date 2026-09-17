@@ -609,7 +609,7 @@ mod tests {
     use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
     async fn test_create_withdraw_account_with_credentials() {
         dotenvy::dotenv().ok();
 
@@ -679,7 +679,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts are dead, see #68; run with --ignored"]
+    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
     async fn test_list_withdraw_accounts() {
         dotenvy::dotenv().ok();
 

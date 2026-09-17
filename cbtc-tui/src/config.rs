@@ -100,13 +100,13 @@ impl Config {
         };
         let mut env = override_env.clone();
         if let Some(builtin) = builtin {
-            if env.registry_url.is_empty() {
+            if env.registry_url.trim().is_empty() {
                 env.registry_url = builtin.registry_url;
             }
-            if env.decentralized_party_id.is_empty() {
+            if env.decentralized_party_id.trim().is_empty() {
                 env.decentralized_party_id = builtin.decentralized_party_id;
             }
-            if env.bitsafe_api_url.is_empty() {
+            if env.bitsafe_api_url.trim().is_empty() {
                 env.bitsafe_api_url = builtin.bitsafe_api_url;
             }
         }
@@ -116,7 +116,7 @@ impl Config {
             ("bitsafe_api_url", &env.bitsafe_api_url),
         ]
         .into_iter()
-        .filter(|(_, value)| value.is_empty())
+        .filter(|(_, value)| value.trim().is_empty())
         .map(|(field, _)| field)
         .collect();
         if !missing.is_empty() {
@@ -299,11 +299,6 @@ mod tests {
 
     #[test]
     fn resolved_environment_fills_an_empty_override_field_from_the_builtin() {
-        // Arrange: `env_import` writes an override as soon as the .env carries
-        // any one of the three variables, and defaults the rest to "". An empty
-        // decentralized_party_id becomes the instrument admin, and every
-        // holding and offer filter compares that admin exactly, so the TUI
-        // would report a zero balance and no offers instead of a bad config.
         let mut cfg = Config::default();
         cfg.environments.insert(
             "devnet".to_string(),
@@ -311,6 +306,30 @@ mod tests {
                 registry_url: "https://override".to_string(),
                 decentralized_party_id: String::new(),
                 bitsafe_api_url: String::new(),
+            },
+        );
+        // Act
+        let env = cfg.resolved_environment("devnet").unwrap();
+        // Assert
+        let builtin = Config::builtin_environments();
+        let devnet = builtin.get("devnet").unwrap();
+        assert_eq!(env.registry_url, "https://override");
+        assert_eq!(env.decentralized_party_id, devnet.decentralized_party_id);
+        assert_eq!(env.bitsafe_api_url, devnet.bitsafe_api_url);
+    }
+
+    /// A hand-edited config.toml can carry a space. Whitespace is not a
+    /// value: an admin of " " matches no holding, and the TUI would report a
+    /// zero balance rather than a bad configuration.
+    #[test]
+    fn resolved_environment_fills_a_whitespace_override_field_from_the_builtin() {
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "devnet".to_string(),
+            Environment {
+                registry_url: "https://override".to_string(),
+                decentralized_party_id: "   ".to_string(),
+                bitsafe_api_url: "\t".to_string(),
             },
         );
         // Act

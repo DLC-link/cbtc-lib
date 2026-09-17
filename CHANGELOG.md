@@ -4,7 +4,7 @@ All notable changes to `cbtc-lib` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-09-17
 
 `cbtc-lib` now re-exports `canton-lib`'s `token` crate for every Token
 Standard operation. It deletes its own copies of thirteen modules, 4,851

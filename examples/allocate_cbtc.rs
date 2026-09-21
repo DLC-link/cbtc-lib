@@ -8,6 +8,7 @@
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -41,8 +42,7 @@ async fn main() -> Result<(), String> {
         .expect("EXECUTOR_PARTY_ID must be set (the settlement executor / venue)");
     let amount_str = env::var("ALLOCATE_AMOUNT").unwrap_or_else(|_| "0.1".to_string());
     let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid ALLOCATE_AMOUNT");
-    let decentralized_party =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party = shared::resolve_party_id();
     let settlement_ref_id =
         env::var("SETTLEMENT_REF_ID").unwrap_or_else(|_| "cbtc-dvp-example".to_string());
 
@@ -82,7 +82,7 @@ async fn main() -> Result<(), String> {
             amount,
             instrument_id: cbtc::InstrumentId {
                 admin: decentralized_party.clone(),
-                id: "CBTC".to_string(),
+                id: cbtc::CBTC_TICKER.to_string(),
             },
             meta: cbtc::types::allocation::Metadata::default(),
         },
@@ -94,7 +94,7 @@ async fn main() -> Result<(), String> {
         input_holding_cids: Vec::new(), // Library auto-selects the sender's holdings
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
         access_token: auth.access_token,
-        registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
+        registry_url: shared::resolve_registry_url(),
         decentralized_party_id: decentralized_party,
     };
 

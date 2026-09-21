@@ -10,13 +10,18 @@
 /// Required environment variables:
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 /// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
-/// - LEDGER_HOST, PARTY_ID, DECENTRALIZED_PARTY_ID
+/// - LEDGER_HOST, PARTY_ID
+/// - ENVIRONMENT (devnet, testnet or mainnet)
+///
+/// Optional override: DECENTRALIZED_PARTY_ID, for a network ENVIRONMENT
+/// cannot name.
 ///
 /// Understanding UTXOs:
 /// Each CBTC holding is a separate UTXO (like Bitcoin). Canton has a soft
 /// limit of 10 UTXOs per party per token type. Regular consolidation keeps
 /// your account healthy and operations efficient.
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -42,8 +47,7 @@ async fn main() -> Result<(), String> {
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party_id = shared::resolve_party_id();
 
     println!("\n📊 Checking balance for party: {}", party);
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
@@ -55,7 +59,7 @@ async fn main() -> Result<(), String> {
         access_token: auth.access_token,
         instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id,
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
         // `None` reads every holding the party owns.
         account: None,

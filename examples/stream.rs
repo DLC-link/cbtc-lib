@@ -12,6 +12,7 @@
 use std::env;
 use std::future::Future;
 use std::pin::Pin;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -29,9 +30,8 @@ async fn main() -> Result<(), String> {
     let transfer_amount = cbtc::DamlDecimal::parse(&transfer_amount_str).expect("TRANSFER_AMOUNT must be a valid decimal");
 
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-    let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let registry_url = shared::resolve_registry_url();
+    let decentralized_party_id = shared::resolve_party_id();
 
     let keycloak_client_id =
         env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
@@ -116,7 +116,7 @@ async fn main() -> Result<(), String> {
         sender: sender.clone(),
         instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
         ledger_host: ledger_host.clone(),
         registry_url: registry_url.clone(),

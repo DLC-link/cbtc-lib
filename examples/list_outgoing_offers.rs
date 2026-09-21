@@ -5,6 +5,7 @@
 ///
 /// Run with: cargo run -p examples --bin list_outgoing_offers
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -46,8 +47,8 @@ async fn main() -> Result<(), String> {
         party.clone(),
         auth.access_token,
         cbtc::InstrumentId {
-            admin: env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set"),
-            id: "CBTC".to_string(),
+            admin: shared::resolve_party_id(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
     )
     .await?;

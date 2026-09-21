@@ -7,6 +7,13 @@
 /// This example writes nothing. It reads the balance, the UTXO count and
 /// the incoming transfer offers.
 ///
+/// It reads one account, not the whole party. A `TokenStandardVersion::V2`
+/// client filters holdings to the party's basic account, which carries no
+/// provider and an empty id. A party whose holdings sit under a labelled
+/// account sees zero here, while `check_balance` passes no account filter and
+/// reports the party's full total. The two examples answer different
+/// questions.
+///
 /// Run with: cargo run --example token_client
 ///
 /// Required environment variables:

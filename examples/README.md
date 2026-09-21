@@ -540,7 +540,11 @@ Required for all examples:
 - `LEDGER_HOST` - Canton participant node URL
 - `PARTY_ID` - Your party ID
 - `ENVIRONMENT` - `devnet`, `testnet` or `mainnet`, which supplies the CBTC
-  decentralized party ID, the registry URL and the Bitsafe API URL
+  decentralized party ID, the registry URL and the Bitsafe API URL. Four
+  examples read none of those three and need no network: `check_dars`,
+  `credentials`, `list_withdraw_accounts` and `check_withdraw_requests`. An
+  existing `.env` that sets all three variables explicitly needs no network
+  either.
 
 Optional:
 

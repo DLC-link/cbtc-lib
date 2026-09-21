@@ -841,6 +841,12 @@ cp .env.example .env
 # Edit .env with your Canton credentials
 ```
 
+The `--ignored` tests in `src/mint_redeem` read `BITSAFE_API_URL` from the
+environment themselves. `ENVIRONMENT` does not supply it for them: they live
+in the library, and only the examples resolve values through
+`examples/shared.rs`. So uncomment `BITSAFE_API_URL` in your `.env` before you
+run them, or they stop with `BITSAFE_API_URL must be set`.
+
 Run tests:
 
 ```bash

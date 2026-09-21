@@ -297,6 +297,7 @@ dependencies = [
  "env_logger",
  "keycloak",
  "ledger",
+ "registry",
  "reqwest 0.12.26",
  "serde",
  "serde_json",

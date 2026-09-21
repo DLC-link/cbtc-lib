@@ -28,10 +28,15 @@ pub fn parse_env(content: &str) -> BTreeMap<String, String> {
 pub fn import(content: &str, profile_name: &str) -> (Profile, Option<(String, Environment)>) {
     let map = parse_env(content);
     let get = |k: &str| map.get(k).cloned().unwrap_or_default();
+    // The binary chooses devnet for its own import path, and the
+    // library still makes every caller choose: `Network` has no
+    // `Default`. Naming the variant rather than the string keeps this
+    // fallback from drifting from the map keys
+    // `Config::builtin_environments` produces.
     let env_name = map
         .get("ENVIRONMENT")
         .cloned()
-        .unwrap_or_else(|| "devnet".to_string());
+        .unwrap_or_else(|| cbtc::Network::Devnet.to_string());
 
     let profile = Profile {
         name: profile_name.to_string(),
@@ -107,5 +112,43 @@ BITSAFE_API_URL=https://api.example
         assert_eq!(env_name, "devnet");
         assert_eq!(ov.registry_url, "https://reg.example");
         assert_eq!(ov.bitsafe_api_url, "https://api.example");
+    }
+
+    /// The shipped `.env.example` comments out all three per-network
+    /// variables, so importing a copy of it writes no environment override.
+    ///
+    /// Before this change the template assigned all three and an import
+    /// wrote one. The effect is the same on the day of the change, because
+    /// that override carried the built-in values anyway. It differs once a
+    /// value moves: a user then uncomments the one variable that moved and
+    /// re-imports, `get` fills the other two with `""`, and
+    /// `resolved_environment` fills those from the built-in.
+    ///
+    /// This test is an addition to the design's eight testing items. The
+    /// design records this behaviour change and asks the implementer to
+    /// document it; nothing else detects it.
+    #[test]
+    fn importing_the_shipped_env_example_writes_no_override() {
+        let (profile, override_env) = import(include_str!("../../.env.example"), "imported");
+        assert_eq!(profile.environment, "devnet");
+        assert!(
+            override_env.is_none(),
+            "the shipped template must pin no per-network value"
+        );
+    }
+
+    /// A `.env` with no `ENVIRONMENT` key falls back to devnet.
+    ///
+    /// **This is the only test that reaches the line this task edits.**
+    /// `SAMPLE` sets `ENVIRONMENT=devnet` at `env_import.rs:73`, so
+    /// `map.get("ENVIRONMENT")` returns `Some` and
+    /// `import_builds_profile_and_env_override` never evaluates the
+    /// `unwrap_or_else`. The shipped `.env.example` now sets the key too,
+    /// so the test above does not reach it either.
+    #[test]
+    fn an_env_without_the_environment_key_falls_back_to_devnet() {
+        let (profile, override_env) = import("LEDGER_HOST=https://ledger.example\n", "imported");
+        assert_eq!(profile.environment, "devnet");
+        assert!(override_env.is_none());
     }
 }

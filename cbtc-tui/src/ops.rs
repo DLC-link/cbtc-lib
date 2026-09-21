@@ -90,12 +90,13 @@ pub struct OpContext {
 impl OpContext {
     /// The token this TUI operates on.
     ///
-    /// `cbtc` takes the instrument from its caller, so the ticker lives
-    /// here rather than in the library.
+    /// `cbtc` takes the instrument from its caller, so this function
+    /// chooses it. `cbtc::CBTC_TICKER` names the ticker; naming it is
+    /// not defaulting it.
     pub fn instrument(&self) -> cbtc::InstrumentId {
         cbtc::InstrumentId {
             admin: self.decentralized_party_id.clone(),
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         }
     }
 }

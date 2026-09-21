@@ -260,4 +260,32 @@ mod tests {
             );
         }
     }
+
+    /// Testing item 8, the inverse of item 5: `.env.example` documents no
+    /// per-network value.
+    ///
+    /// `Network` owns these nine values now. A copy left in this file gets
+    /// copied into a `.env`, `dotenvy::dotenv()` loads it into the process
+    /// environment, and the precedence rule in `examples/shared.rs` makes it
+    /// win. A stale party ID then becomes the instrument admin, and the
+    /// caller reads a zero balance rather than an error.
+    ///
+    /// `include_str!` runs in the compiler, so this check needs no read
+    /// access to the file from any tool. It couples the crate's build to the
+    /// file's presence, which is acceptable: the file is committed, and the
+    /// README tells a user to copy it.
+    #[test]
+    fn env_example_carries_no_per_network_value() {
+        let example = include_str!("../.env.example");
+        for value in nine_values() {
+            assert!(
+                !example.contains(value),
+                ".env.example still carries {value}; Network owns it now"
+            );
+        }
+        assert!(
+            example.contains("ENVIRONMENT="),
+            ".env.example must tell the user which network to pick"
+        );
+    }
 }

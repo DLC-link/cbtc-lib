@@ -40,6 +40,17 @@ cBTC's own bridge operations.
 - `examples/send_cbtc_v2.rs`, the V2 counterpart of `send_cbtc.rs`.
 - `examples/integration_test.rs` reads `TOKEN_STANDARD_VERSION`, `V1` or
   `V2`, and drives the whole flow on either.
+- `cbtc::Network` and `cbtc::CBTC_TICKER`. `Network` is a three-variant
+  enum — `Devnet`, `Testnet`, `Mainnet` — whose methods return the
+  registrar party ID, the registry URL and the Bitsafe API URL for that
+  network. It also carries `Network::ALL`, `Display` and `FromStr`. A
+  crate that depends only on `cbtc` can now name every per-network value
+  without a `canton-lib` dependency and without a string literal.
+  `CBTC_TICKER` names the ticker; the library still supplies no default,
+  and every operation takes its instrument from the caller.
+- `examples/token_client.rs`, the first example that uses `TokenClient`.
+  It reads a party's balance, UTXO count and incoming offers, and writes
+  nothing.
 
 ### Changed — breaking
 
@@ -135,6 +146,15 @@ cBTC's own bridge operations.
   repeating the call would hide it. `allocation_factory::get` and
   `allocation_context::get` do not retry.
 - A Keycloak token expiry no longer underflows below a 60-second lifetime.
+- `.env.example` takes one `ENVIRONMENT` key instead of
+  `DECENTRALIZED_PARTY_ID`, `REGISTRY_URL` and `BITSAFE_API_URL`. Those
+  three stay available as overrides, and an explicit value still wins, so
+  an existing `.env` needs no edit. The file previously carried each of
+  the three values four times.
+- `cbtc-tui --import-env` writes no environment override when the `.env`
+  names none of the three variables. A fresh copy of `.env.example` is
+  now such a file. The override it used to write carried the built-in
+  values anyway.
 
 ### Fixed
 

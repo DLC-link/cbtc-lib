@@ -24,7 +24,8 @@ The mint/redeem examples require a Minter credential issued by the CBTC registra
 2. **`mint_cbtc_flow`** — Create a deposit account and get a BTC address (requires Minter credential)
 3. **`redeem_cbtc_flow`** — Create a withdraw account and burn CBTC (requires Minter credential + CBTC balance)
 
-These also require `BITSAFE_API_URL` in your `.env`.
+These also require `ENVIRONMENT` in your `.env`, which supplies the Bitsafe
+API URL. `BITSAFE_API_URL` overrides it.
 
 ### Integration Test
 
@@ -38,7 +39,8 @@ Requires two parties (sender + receiver) with separate Keycloak credentials. The
 
 Additional env vars for this example:
 
-- `BITSAFE_API_URL` (required) — Bitsafe API base URL
+- `ENVIRONMENT` (required) — `devnet`, `testnet` or `mainnet`, which supplies
+  the Bitsafe API base URL. `BITSAFE_API_URL` overrides it.
 - `RECEIVER_KEYCLOAK_USERNAME`, `RECEIVER_KEYCLOAK_PASSWORD`, `RECEIVER_KEYCLOAK_CLIENT_ID`, `RECEIVER_PARTY_ID` (required)
 - `RECEIVER_LEDGER_HOST`, `RECEIVER_KEYCLOAK_HOST`, `RECEIVER_KEYCLOAK_REALM` (optional, falls back to sender values)
 - `DESTINATION_BTC_ADDRESS` (optional, default: testnet address)
@@ -537,11 +539,13 @@ Required for all examples:
 - `KEYCLOAK_PASSWORD` - Password
 - `LEDGER_HOST` - Canton participant node URL
 - `PARTY_ID` - Your party ID
-- `DECENTRALIZED_PARTY_ID` - CBTC decentralized party ID
-- `REGISTRY_URL` - Canton registry URL
+- `ENVIRONMENT` - `devnet`, `testnet` or `mainnet`, which supplies the CBTC
+  decentralized party ID, the registry URL and the Bitsafe API URL
 
 Optional:
 
+- `DECENTRALIZED_PARTY_ID` - Overrides the CBTC decentralized party ID
+- `REGISTRY_URL` - Overrides the Canton registry URL
 - `TRANSFER_AMOUNT` - Amount to send (default: 0.1)
 - `LIB_TEST_RECEIVER_PARTY_ID` - Receiver party for transfers
 - `CONSOLIDATION_THRESHOLD` - UTXO threshold for consolidation (default: 10)

@@ -110,6 +110,10 @@ path = "examples/check_dars.rs"
 name = "allocate_cbtc"
 path = "examples/allocate_cbtc.rs"
 
+[[example]]
+name = "token_client"
+path = "examples/token_client.rs"
+
 [workspace]
 members = ["cbtc-tui"]
 

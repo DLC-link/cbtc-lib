@@ -14,7 +14,10 @@
 #[path = "../examples/shared.rs"]
 mod shared;
 
-use shared::{resolve_bitsafe_api_url, resolve_party_id, resolve_registry_url};
+use cbtc::Network;
+use shared::{
+    cross_network_warning, resolve_bitsafe_api_url, resolve_party_id, resolve_registry_url,
+};
 
 /// Run `f` and return the message it panicked with.
 ///
@@ -132,6 +135,64 @@ fn resolution_prefers_the_variable_then_the_network() {
         let message = panic_message(resolve_party_id);
         assert!(message.contains("DECENTRALIZED_PARTY_ID"), "{message}");
         assert!(message.contains("ENVIRONMENT"), "{message}");
+
+        // A value that is padded resolves trimmed. dotenvy strips trailing
+        // whitespace from a .env line, but a shell `export` does not, and a
+        // party ID with a trailing space matches no holding. `cbtc-tui`'s own
+        // `parse_env` trims, so the two paths must agree.
+        clear();
+        std::env::set_var("DECENTRALIZED_PARTY_ID", "  explicit::1220ab  ");
+        assert_eq!(resolve_party_id(), "explicit::1220ab");
+
+        // A mixed configuration names two networks at once, and nothing else
+        // reports it. The precedence rule works one variable at a time, so an
+        // override can hold mainnet's value while ENVIRONMENT says devnet.
+        // cross_network_warning fires only when the override holds another
+        // *named* network's value, so a custom deployment stays silent.
+
+        std::env::remove_var("ENVIRONMENT");
+
+        // With no ENVIRONMENT there is nothing to disagree with.
+        assert_eq!(
+            cross_network_warning(
+                "DECENTRALIZED_PARTY_ID",
+                Network::Mainnet.decentralized_party_id()
+            ),
+            None
+        );
+
+        std::env::set_var("ENVIRONMENT", "devnet");
+
+        // The override names the network ENVIRONMENT already names.
+        assert_eq!(
+            cross_network_warning("REGISTRY_URL", Network::Devnet.registry_url()),
+            None
+        );
+
+        // A genuinely custom value names no network, so it is not a
+        // mistake and draws no warning.
+        assert_eq!(
+            cross_network_warning("REGISTRY_URL", "https://registry.internal"),
+            None
+        );
+
+        // The two cases worth catching. A stale party ID left behind
+        // after switching ENVIRONMENT, and a half-finished switch that
+        // set some variables and not others.
+        let warning = cross_network_warning(
+            "DECENTRALIZED_PARTY_ID",
+            Network::Mainnet.decentralized_party_id(),
+        )
+        .expect("a mainnet party ID under ENVIRONMENT=devnet must warn");
+        assert!(warning.contains("DECENTRALIZED_PARTY_ID"), "{warning}");
+        assert!(warning.contains("mainnet"), "{warning}");
+        assert!(warning.contains("devnet"), "{warning}");
+
+        let warning = cross_network_warning("BITSAFE_API_URL", Network::Testnet.bitsafe_api_url())
+            .expect("a testnet API URL under ENVIRONMENT=devnet must warn");
+        assert!(warning.contains("testnet"), "{warning}");
+
+        std::env::remove_var("ENVIRONMENT");
 
         clear();
     }

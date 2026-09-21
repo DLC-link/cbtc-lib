@@ -33,9 +33,13 @@ pub fn import(content: &str, profile_name: &str) -> (Profile, Option<(String, En
     // `Default`. Naming the variant rather than the string keeps this
     // fallback from drifting from the map keys
     // `Config::builtin_environments` produces.
+    // A blank value counts as unset, as it does in `examples/shared.rs`.
+    // `ENVIRONMENT=` would otherwise name an environment no table holds, and
+    // `Config::resolved_environment` fails on it.
     let env_name = map
         .get("ENVIRONMENT")
-        .cloned()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
         .unwrap_or_else(|| cbtc::Network::Devnet.to_string());
 
     let profile = Profile {
@@ -150,5 +154,20 @@ BITSAFE_API_URL=https://api.example
         let (profile, override_env) = import("LEDGER_HOST=https://ledger.example\n", "imported");
         assert_eq!(profile.environment, "devnet");
         assert!(override_env.is_none());
+    }
+
+    /// A blank `ENVIRONMENT` falls back too, rather than naming an
+    /// environment no table holds.
+    ///
+    /// `ENVIRONMENT=` parses to an empty value, and an empty name reaches
+    /// `Config::resolved_environment`, which then fails with
+    /// `environment "" is not configured`. The examples' helper already treats
+    /// a blank value as unset, so this keeps the two paths in agreement.
+    #[test]
+    fn a_blank_environment_falls_back_to_devnet() {
+        for content in ["ENVIRONMENT=\n", "ENVIRONMENT=   \n"] {
+            let (profile, _) = import(content, "imported");
+            assert_eq!(profile.environment, "devnet", "for {content:?}");
+        }
     }
 }

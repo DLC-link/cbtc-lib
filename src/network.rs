@@ -24,7 +24,11 @@ pub enum Network {
 }
 
 impl Network {
-    /// Every network, in the order a user interface should list them.
+    /// Every network, in declaration order: devnet, testnet, mainnet.
+    ///
+    /// This is an iteration order, not a display order. `cbtc-tui` collects
+    /// it into a `BTreeMap`, which sorts the keys and yields devnet, mainnet,
+    /// testnet. A caller that wants this order must iterate `ALL` itself.
     pub const ALL: [Network; 3] = [Self::Devnet, Self::Testnet, Self::Mainnet];
 
     /// The registrar that administers the CBTC instrument on this

@@ -688,7 +688,7 @@ impl App {
     pub fn is_mainnet(&self) -> bool {
         self.active_profile
             .and_then(|i| self.config.profiles.get(i))
-            .map(|p| p.environment == "mainnet")
+            .map(|p| p.environment == cbtc::Network::Mainnet.to_string())
             .unwrap_or(false)
     }
 }

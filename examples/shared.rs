@@ -47,6 +47,9 @@ pub fn resolve_bitsafe_api_url() -> String {
 /// this falls through to the network without saying so.
 fn resolve(variable: &str, from_network: fn(Network) -> &'static str) -> String {
     if let Some(value) = non_blank(variable) {
+        if let Some(warning) = cross_network_warning(variable, &value) {
+            eprintln!("{warning}");
+        }
         return value;
     }
     let name = non_blank("ENVIRONMENT").unwrap_or_else(|| {
@@ -58,8 +61,46 @@ fn resolve(variable: &str, from_network: fn(Network) -> &'static str) -> String 
     from_network(network).to_string()
 }
 
-/// `variable`'s value, treating whitespace and the empty string as
+/// A warning when `value` is another named network's value, and
+/// `ENVIRONMENT` names a different one.
+///
+/// The precedence rule works one variable at a time, so a `.env` can name two
+/// networks at once and resolve without complaint. Two ways in: a user sets
+/// `ENVIRONMENT=mainnet` on an existing devnet `.env`, and the stale party ID
+/// still wins; or a user sets the party ID and registry URL to mainnet,
+/// forgets the API URL, and leaves `ENVIRONMENT=devnet`. Both read a wrong
+/// value with no error, because a wrong registrar yields a zero balance and a
+/// wrong API URL reaches the wrong service.
+///
+/// This fires only when the override holds another *named* network's value.
+/// A custom deployment's own URL matches none of the nine, so a deliberate
+/// override stays silent.
+pub fn cross_network_warning(variable: &str, value: &str) -> Option<String> {
+    let chosen: Network = non_blank("ENVIRONMENT")?.parse().ok()?;
+    let named = Network::ALL.into_iter().find(|network| {
+        network.decentralized_party_id() == value
+            || network.registry_url() == value
+            || network.bitsafe_api_url() == value
+    })?;
+    if named == chosen {
+        return None;
+    }
+    Some(format!(
+        "warning: {variable} holds {named}'s value, but ENVIRONMENT is {chosen}. \
+         The explicit variable wins, so this run mixes two networks."
+    ))
+}
+
+/// `variable`'s value, trimmed, treating whitespace and the empty string as
 /// unset.
+///
+/// It returns the trimmed value, not the raw one. `dotenvy` strips trailing
+/// whitespace from a `.env` line, but a shell `export` does not, and a party
+/// ID with a trailing space matches no holding. `cbtc-tui`'s `parse_env`
+/// trims, so this keeps the two paths in agreement.
 fn non_blank(variable: &str) -> Option<String> {
-    env::var(variable).ok().filter(|v| !v.trim().is_empty())
+    env::var(variable)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }

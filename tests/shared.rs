@@ -70,7 +70,10 @@ fn resolution_prefers_the_variable_then_the_network() {
         assert_eq!(resolve_party_id(), "explicit::1220ab");
 
         // ENVIRONMENT supplies a value whose own variable is unset.
-        assert_eq!(resolve_registry_url(), cbtc::Network::Mainnet.registry_url());
+        assert_eq!(
+            resolve_registry_url(),
+            cbtc::Network::Mainnet.registry_url()
+        );
         assert_eq!(
             resolve_bitsafe_api_url(),
             cbtc::Network::Mainnet.bitsafe_api_url()

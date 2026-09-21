@@ -54,9 +54,7 @@ impl Config {
                     network.to_string(),
                     Environment {
                         registry_url: network.registry_url().to_string(),
-                        decentralized_party_id: network
-                            .decentralized_party_id()
-                            .to_string(),
+                        decentralized_party_id: network.decentralized_party_id().to_string(),
                         bitsafe_api_url: network.bitsafe_api_url().to_string(),
                     },
                 )

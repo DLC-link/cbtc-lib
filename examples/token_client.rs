@@ -20,8 +20,7 @@
 use std::env;
 
 use cbtc::{
-    CBTC_TICKER, InstrumentId, KeycloakConfig, TokenClient, TokenClientConfig,
-    TokenStandardVersion,
+    CBTC_TICKER, InstrumentId, KeycloakConfig, TokenClient, TokenClientConfig, TokenStandardVersion,
 };
 
 mod shared;
@@ -31,8 +30,7 @@ async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
     env_logger::init();
 
-    let required =
-        |name: &str| env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
+    let required = |name: &str| env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
 
     let mut client = TokenClient::connect(TokenClientConfig {
         ledger_host: required("LEDGER_HOST"),

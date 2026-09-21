@@ -176,7 +176,8 @@ mod tests {
         for network in Network::ALL {
             let name = network.to_string();
             assert_eq!(
-                name.parse::<Network>().expect("Display's output must parse"),
+                name.parse::<Network>()
+                    .expect("Display's output must parse"),
                 network
             );
         }

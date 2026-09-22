@@ -24,6 +24,17 @@ pub fn parse_env(content: &str) -> BTreeMap<String, String> {
     map
 }
 
+/// The profile name to use when the caller names none.
+/// A blank value counts as unset, as it does when resolving the environment
+/// itself, so a profile never takes an empty name.
+pub fn default_profile_name(content: &str) -> String {
+    parse_env(content)
+        .get("ENVIRONMENT")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "imported".to_string())
+}
+
 /// Build a `Profile` (and an optional environment override) from `.env` content.
 pub fn import(content: &str, profile_name: &str) -> (Profile, Option<(String, Environment)>) {
     let map = parse_env(content);
@@ -153,6 +164,25 @@ BITSAFE_API_URL=https://api.example
     /// `Config::resolved_environment`, which then fails with
     /// `environment "" is not configured`. The examples' helper already treats
     /// a blank value as unset, so this keeps the two paths in agreement.
+    /// A blank `ENVIRONMENT` names no profile, so the name falls back too.
+    ///
+    /// `parse_env` trims, so `ENVIRONMENT=` and `ENVIRONMENT=   ` both reach
+    /// here as an empty value. Saving a profile under that name stores an
+    /// empty key, and `--set-default` then points at it.
+    #[test]
+    fn a_blank_environment_does_not_name_the_profile() {
+        for content in ["ENVIRONMENT=\n", "ENVIRONMENT=   \n"] {
+            assert_eq!(default_profile_name(content), "imported", "for {content:?}");
+        }
+    }
+
+    /// A named `ENVIRONMENT` names the profile.
+    #[test]
+    fn the_environment_names_the_profile() {
+        assert_eq!(default_profile_name("ENVIRONMENT=mainnet\n"), "mainnet");
+        assert_eq!(default_profile_name("LEDGER_HOST=x\n"), "imported");
+    }
+
     #[test]
     fn a_blank_environment_falls_back_to_devnet() {
         for content in ["ENVIRONMENT=\n", "ENVIRONMENT=   \n"] {

@@ -539,12 +539,16 @@ Required for all examples:
 - `KEYCLOAK_PASSWORD` - Password
 - `LEDGER_HOST` - Canton participant node URL
 - `PARTY_ID` - Your party ID
+
+Required for every example that touches a network:
+
 - `ENVIRONMENT` - `devnet`, `testnet` or `mainnet`, which supplies the CBTC
-  decentralized party ID, the registry URL and the Bitsafe API URL. Four
-  examples read none of those three and need no network: `check_dars`,
-  `credentials`, `list_withdraw_accounts` and `check_withdraw_requests`. An
-  existing `.env` that sets all three variables explicitly needs no network
-  either.
+  decentralized party ID, the registry URL and the Bitsafe API URL.
+
+Four examples read none of those three and need no network: `check_dars`,
+`credentials`, `list_withdraw_accounts` and `check_withdraw_requests`. An
+existing `.env` that sets all three variables explicitly needs no network
+either.
 
 Optional:
 

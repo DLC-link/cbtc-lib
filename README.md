@@ -844,6 +844,20 @@ cp .env.example .env
 The `--ignored` tests in `src/mint_redeem` take the Bitsafe API URL from
 `ENVIRONMENT`, exactly as the examples do. `BITSAFE_API_URL` overrides it.
 
+Run the `--ignored` tests one at a time:
+
+```bash
+cargo test -- --ignored --test-threads=1
+```
+
+Every live test calls `dotenvy::dotenv()`, which writes the process
+environment. The harness runs tests in parallel, so one test can read a
+variable while another writes it. The run then fails with
+`invalid_grant: Invalid user credentials` although the credentials are
+correct. Measured on 22 September 2026: three parallel runs passed 2, 3 and 3
+of 6, and two runs with `--test-threads=1` both passed 4 of 6. #80 tracks the
+fix.
+
 Run tests:
 
 ```bash

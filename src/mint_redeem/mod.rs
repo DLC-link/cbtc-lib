@@ -7,9 +7,7 @@ pub mod redeem;
 /// Bitsafe's API URL for the `--ignored` live tests in this module tree.
 ///
 /// These tests live in the library, so `examples/shared.rs` does not reach
-/// them. Without this they read `BITSAFE_API_URL` alone, and a fresh
-/// `cp .env.example .env` stopped them with `BITSAFE_API_URL must be set`.
-/// They now follow the same rule the examples do: the variable wins, and
+/// them. They follow the same rule it does: the variable wins, and
 /// `ENVIRONMENT` supplies the value otherwise.
 ///
 /// Call this after `dotenvy::dotenv()`, as every caller does. It does not

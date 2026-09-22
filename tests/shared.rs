@@ -7,9 +7,8 @@
 //! `examples/shared.rs` would never run.
 //!
 //! Pulling the file in by path gives it a real test target.
-//! `autoexamples = false` at `Cargo.toml:5` keeps `examples/shared.rs`
-//! from becoming an example binary of its own, and no `[[example]]`
-//! block names it.
+//! `autoexamples = false` keeps `examples/shared.rs` from becoming an
+//! example binary of its own, and no `[[example]]` block names it.
 
 #[path = "../examples/shared.rs"]
 mod shared;
@@ -58,8 +57,7 @@ unsafe fn clear() {
 ///
 /// The `Network` methods appear on the right-hand side of several
 /// assertions below. That is correct here: this test covers the
-/// resolution rule, and testing item 1 in `src/network.rs` pins the nine
-/// values themselves.
+/// resolution rule, and `src/network.rs` pins the values themselves.
 #[test]
 fn resolution_prefers_the_variable_then_the_network() {
     // SAFETY: one test, one thread. Every set and remove below runs in
@@ -102,9 +100,7 @@ fn resolution_prefers_the_variable_then_the_network() {
         }
 
         // One variable set and ENVIRONMENT unset: that function returns,
-        // and the other two panic. This is the partial-.env case a
-        // single resolve() returning all three would have broken, so it
-        // is the case most worth pinning.
+        // and the other two panic.
         clear();
         std::env::set_var("DECENTRALIZED_PARTY_ID", "explicit::1220ab");
         assert_eq!(resolve_party_id(), "explicit::1220ab");

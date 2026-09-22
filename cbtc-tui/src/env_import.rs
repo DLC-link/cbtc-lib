@@ -121,16 +121,9 @@ BITSAFE_API_URL=https://api.example
     /// The shipped `.env.example` comments out all three per-network
     /// variables, so importing a copy of it writes no environment override.
     ///
-    /// Before this change the template assigned all three and an import
-    /// wrote one. The effect is the same on the day of the change, because
-    /// that override carried the built-in values anyway. It differs once a
-    /// value moves: a user then uncomments the one variable that moved and
-    /// re-imports, `get` fills the other two with `""`, and
-    /// `resolved_environment` fills those from the built-in.
-    ///
-    /// This test is an addition to the design's eight testing items. The
-    /// design records this behaviour change and asks the implementer to
-    /// document it; nothing else detects it.
+    /// It matters once a value moves. A user then uncomments the one
+    /// variable that moved and re-imports, `get` fills the other two with
+    /// `""`, and `resolved_environment` fills those from the built-in.
     #[test]
     fn importing_the_shipped_env_example_writes_no_override() {
         let (profile, override_env) = import(include_str!("../../.env.example"), "imported");
@@ -143,12 +136,9 @@ BITSAFE_API_URL=https://api.example
 
     /// A `.env` with no `ENVIRONMENT` key falls back to devnet.
     ///
-    /// **This is the only test that reaches the line this task edits.**
-    /// `SAMPLE` sets `ENVIRONMENT=devnet` at `env_import.rs:73`, so
-    /// `map.get("ENVIRONMENT")` returns `Some` and
-    /// `import_builds_profile_and_env_override` never evaluates the
-    /// `unwrap_or_else`. The shipped `.env.example` now sets the key too,
-    /// so the test above does not reach it either.
+    /// This is the only test that reaches the `unwrap_or_else`. `SAMPLE`
+    /// and the shipped template both set the key, so neither other test
+    /// evaluates it.
     #[test]
     fn an_env_without_the_environment_key_falls_back_to_devnet() {
         let (profile, override_env) = import("LEDGER_HOST=https://ledger.example\n", "imported");

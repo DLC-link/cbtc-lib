@@ -43,9 +43,7 @@ impl Config {
     /// The three built-in environments, from `cbtc::Network`.
     ///
     /// `BTreeMap` sorts its keys, so this comes out devnet, mainnet,
-    /// testnet rather than in `Network::ALL`'s order. That is the order
-    /// this function returned before it read the enum, so nothing
-    /// regresses.
+    /// testnet rather than in `Network::ALL`'s order.
     pub fn builtin_environments() -> BTreeMap<String, Environment> {
         cbtc::Network::ALL
             .into_iter()
@@ -205,18 +203,11 @@ mod tests {
         );
     }
 
-    /// Testing item 6. Each built-in entry carries its own network's three
-    /// values.
+    /// Each built-in entry carries its own network's three values.
     ///
-    /// No existing test pinned any of them. `builtin_environments_present`
-    /// asserts three keys and one registry URL, which is one value of nine.
-    /// The two `resolved_environment` tests compare `builtin_environments()`
-    /// against itself, so both sides move together. This suite passed with
-    /// the devnet and testnet party IDs transposed.
-    ///
-    /// This catches a transposed mapping, not a wrong value: the right-hand
-    /// side is the source `builtin_environments` now reads. Testing item 1
-    /// in `cbtc`'s `src/network.rs` pins the nine values themselves.
+    /// This catches a transposed mapping, not a wrong value, because the
+    /// right-hand side is the source `builtin_environments` reads. The
+    /// tests in `cbtc`'s `src/network.rs` pin the values themselves.
     #[test]
     fn every_builtin_environment_carries_its_own_networks_values() {
         let envs = Config::builtin_environments();

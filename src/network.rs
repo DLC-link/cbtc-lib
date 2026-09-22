@@ -105,8 +105,7 @@ impl std::error::Error for ParseNetworkError {}
 impl FromStr for Network {
     type Err = ParseNetworkError;
 
-    /// Exact, lowercase match, following `cbtc-tui`'s own exact `get` at
-    /// `config.rs:95`.
+    /// Exact, lowercase match, following `cbtc-tui`'s own exact `get`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::ALL
             .into_iter()
@@ -121,14 +120,10 @@ impl FromStr for Network {
 mod tests {
     use super::*;
 
-    /// Testing item 1. Nine assertions, each against a literal spelled
-    /// out here.
+    /// Nine assertions, each against a literal spelled out here.
     ///
-    /// Six of the nine values are re-exports from `canton-lib`.
-    /// Comparing a method against the constant it returns —
-    /// `Network::Devnet.registry_url() ==
-    /// registry::consts::DEVNET_REGISTRY_URL` — calls the thing under
-    /// test and cannot fail. Every literal below is written out instead.
+    /// Comparing a method against the constant it returns calls the thing
+    /// under test and cannot fail, so every literal is written out.
     #[test]
     fn each_network_returns_its_own_three_values() {
         assert_eq!(
@@ -173,8 +168,7 @@ mod tests {
         assert_eq!(CBTC_TICKER, "CBTC");
     }
 
-    /// Testing item 2. `Display` and `FromStr` are inverses over all
-    /// three variants, in both directions.
+    /// `Display` and `FromStr` are inverses over all three variants.
     #[test]
     fn display_and_from_str_round_trip() {
         for network in Network::ALL {
@@ -193,9 +187,8 @@ mod tests {
         assert_eq!(Network::Mainnet.to_string(), "mainnet");
     }
 
-    /// Testing item 3. `"Devnet"` pins the case-sensitivity decision, so
-    /// a later reader cannot relax it by accident: these three names are
-    /// `config.toml` table names.
+    /// `"Devnet"` pins the case-sensitivity decision. These three names
+    /// are `config.toml` table names, so relaxing it breaks saved files.
     #[test]
     fn from_str_rejects_a_name_that_is_not_one_of_the_three() {
         for name in ["", "Devnet", "DEVNET", "local", "dev", "devnet "] {
@@ -209,20 +202,14 @@ mod tests {
         }
     }
 
-    /// Testing item 4. `ALL` holds three distinct variants.
+    /// `ALL` holds three distinct variants.
     ///
-    /// The compiler, not this test, catches a variant added to
-    /// `Network`. All four methods match on `self` exhaustively, so a
-    /// fourth variant stops the crate compiling.
+    /// The compiler catches a variant added to `Network`, because every
+    /// method matches on `self` exhaustively. Nothing catches a variant
+    /// added and `ALL` left alone, since `ALL` is typed `[Network; 3]`.
     ///
-    /// What nothing catches is a variant added, all four methods
-    /// updated, and `ALL` left alone. `ALL` is typed `[Network; 3]`, so
-    /// no assertion here can see a variant outside it.
-    ///
-    /// So this test guards the two things it can. A duplicated entry
-    /// would shrink `cbtc-tui`'s environment table, because
-    /// `builtin_environments` collects into a `BTreeMap` and a repeated
-    /// key overwrites.
+    /// A duplicated entry would shrink `cbtc-tui`'s environment table,
+    /// which collects into a `BTreeMap` where a repeated key overwrites.
     #[test]
     fn all_holds_every_variant_once() {
         assert_eq!(Network::ALL.len(), 3);
@@ -246,15 +233,15 @@ mod tests {
             .collect()
     }
 
-    /// Testing item 5. `README.md` documents each of the nine values.
+    /// `README.md` documents each of the nine values.
     ///
     /// One direction only: each value must appear somewhere in the file.
     /// That catches a value edited in one place and not the other. It
     /// does not prove the value sits in the right per-network block, and
     /// it does not prove either copy matches the ledger.
     ///
-    /// It does not assert `CBTC_TICKER`. `README.md` holds the string
-    /// `CBTC` 58 times as prose, so that assertion could never fail.
+    /// It does not assert `CBTC_TICKER`. `README.md` holds that string
+    /// throughout as prose, so the assertion could never fail.
     #[test]
     fn the_readme_documents_every_per_network_value() {
         let readme = include_str!("../README.md");
@@ -266,7 +253,7 @@ mod tests {
         }
     }
 
-    /// Testing item 8, the inverse of item 5: `.env.example` documents no
+    /// The inverse of the check above: `.env.example` documents no
     /// per-network value.
     ///
     /// `Network` owns these nine values now. A copy left in this file gets

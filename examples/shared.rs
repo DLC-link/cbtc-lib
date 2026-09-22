@@ -2,11 +2,8 @@
 //! The per-network values the examples need.
 //!
 //! `mod shared;` makes this a private module of each example crate, so a
-//! function that example does not call is dead code *in that crate*.
-//! Seventeen of the eighteen adopters use fewer than three values —
-//! `integration_test` uses all three, twelve use two and five use one —
-//! so seventeen would warn without the attribute above, and
-//! `cargo clippy --workspace --all-targets` could not come back clean.
+//! function that example does not call is dead code in that crate. Most
+//! examples need fewer than three, hence the attribute above.
 
 use std::env;
 
@@ -32,15 +29,11 @@ pub fn resolve_bitsafe_api_url() -> String {
 /// `variable`'s value when it holds one, and `ENVIRONMENT`'s network
 /// value otherwise.
 ///
-/// The variable wins for two reasons. It keeps every existing `.env`
-/// working unchanged. And it stops a moved URL from blocking anyone: on
-/// 9 April 2026 the mainnet Bitsafe endpoint moved, and with this order
-/// that stays a one-line `.env` fix rather than a release, a tag and a
-/// repin in five repositories.
+/// The variable wins, so an existing `.env` keeps working and a moved URL
+/// stays a one-line fix rather than a release and a repin.
 ///
-/// A blank value counts as unset. `DECENTRALIZED_PARTY_ID=` in a copied
-/// template must fall through to the network rather than yield an empty
-/// party ID, which the ledger accepts and no holding matches.
+/// A blank value counts as unset. An empty party ID would otherwise reach
+/// the ledger, which accepts it, and no holding matches.
 ///
 /// Call this after `dotenvy::dotenv()`. Before it, `.env` has not
 /// reached the process environment, so every variable reads as unset and
@@ -64,17 +57,13 @@ fn resolve(variable: &str, from_network: fn(Network) -> &'static str) -> String 
 /// A warning when `value` is another named network's value, and
 /// `ENVIRONMENT` names a different one.
 ///
-/// The precedence rule works one variable at a time, so a `.env` can name two
-/// networks at once and resolve without complaint. Two ways in: a user sets
-/// `ENVIRONMENT=mainnet` on an existing devnet `.env`, and the stale party ID
-/// still wins; or a user sets the party ID and registry URL to mainnet,
-/// forgets the API URL, and leaves `ENVIRONMENT=devnet`. Both read a wrong
-/// value with no error, because a wrong registrar yields a zero balance and a
-/// wrong API URL reaches the wrong service.
+/// The precedence rule works one variable at a time, so a `.env` can name
+/// two networks at once and resolve without complaint. A wrong registrar
+/// then yields a zero balance, and a wrong API URL reaches the wrong
+/// service. Neither raises an error.
 ///
-/// This fires only when the override holds another *named* network's value.
-/// A custom deployment's own URL matches none of the nine, so a deliberate
-/// override stays silent.
+/// It fires only when the override holds another named network's value, so
+/// a custom deployment stays silent.
 pub fn cross_network_warning(variable: &str, value: &str) -> Option<String> {
     let chosen: Network = non_blank("ENVIRONMENT")?.parse().ok()?;
     let named = Network::ALL.into_iter().find(|network| {
@@ -94,10 +83,9 @@ pub fn cross_network_warning(variable: &str, value: &str) -> Option<String> {
 /// `variable`'s value, trimmed, treating whitespace and the empty string as
 /// unset.
 ///
-/// It returns the trimmed value, not the raw one. `dotenvy` strips trailing
-/// whitespace from a `.env` line, but a shell `export` does not, and a party
-/// ID with a trailing space matches no holding. `cbtc-tui`'s `parse_env`
-/// trims, so this keeps the two paths in agreement.
+/// `dotenvy` strips trailing whitespace from a `.env` line, but a shell
+/// `export` does not, and a party ID with a trailing space matches no
+/// holding.
 fn non_blank(variable: &str) -> Option<String> {
     env::var(variable)
         .ok()

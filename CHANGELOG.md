@@ -158,6 +158,12 @@ cBTC's own bridge operations.
 
 ### Fixed
 
+- **`cp .env.example .env` left the `--ignored` tests unable to start.** The
+  four live tests in `src/mint_redeem` read `BITSAFE_API_URL` themselves.
+  They live in the library, so `examples/shared.rs` does not reach them, and
+  a fresh template stopped them with `BITSAFE_API_URL must be set`. They now
+  follow the same rule the examples do: `ENVIRONMENT` supplies the URL, and
+  `BITSAFE_API_URL` overrides it.
 - **The library could not authenticate against any Keycloak Bitsafe runs.**
   Every call built its token endpoint with `keycloak::login::password_url`,
   deprecated since `canton-lib` 0.5.1, which emits

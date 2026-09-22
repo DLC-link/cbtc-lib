@@ -298,7 +298,7 @@ mod tests {
 
         let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
         let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
-        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+        let api_url = crate::mint_redeem::test_api_url();
 
         let params = PasswordParams {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),

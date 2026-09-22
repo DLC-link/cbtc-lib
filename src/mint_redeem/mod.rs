@@ -11,11 +11,16 @@ pub mod redeem;
 /// `cp .env.example .env` stopped them with `BITSAFE_API_URL must be set`.
 /// They now follow the same rule the examples do: the variable wins, and
 /// `ENVIRONMENT` supplies the value otherwise.
+///
+/// Call this after `dotenvy::dotenv()`, as every caller does. It does not
+/// load the `.env` itself. That call writes the process environment, the
+/// harness runs tests in parallel, and a second writer widens the race that
+/// #80 tracks. Before the `.env` loads, both variables read as unset and this
+/// panics naming them, so a caller that forgets fails loudly.
 #[cfg(test)]
 fn test_api_url() -> String {
     use std::env;
 
-    dotenvy::dotenv().ok();
     resolve_api_url(
         env::var("BITSAFE_API_URL").ok(),
         env::var("ENVIRONMENT").ok(),

@@ -13,10 +13,8 @@ pub mod redeem;
 /// `ENVIRONMENT` supplies the value otherwise.
 ///
 /// Call this after `dotenvy::dotenv()`, as every caller does. It does not
-/// load the `.env` itself. That call writes the process environment, the
-/// harness runs tests in parallel, and a second writer widens the race that
-/// #80 tracks. Before the `.env` loads, both variables read as unset and this
-/// panics naming them, so a caller that forgets fails loudly.
+/// load the `.env` itself. Before the `.env` loads, both variables read as
+/// unset and this panics naming them, so a caller that forgets fails loudly.
 #[cfg(test)]
 fn test_api_url() -> String {
     use std::env;

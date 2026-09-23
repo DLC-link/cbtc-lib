@@ -1,14 +1,8 @@
 //! Tests for `examples/shared.rs`.
 //!
-//! `cargo test` compiles every example and runs no test inside one. The
-//! Cargo Book states it: "Examples are built by `cargo test` by default
-//! to ensure they continue to compile, but they are not *tested* by
-//! default." So a `#[cfg(test)] mod tests` written inside
-//! `examples/shared.rs` would never run.
-//!
-//! Pulling the file in by path gives it a real test target.
-//! `autoexamples = false` keeps `examples/shared.rs` from becoming an
-//! example binary of its own, and no `[[example]]` block names it.
+//! `cargo test` compiles every example but runs no test inside one, so a
+//! `#[cfg(test)] mod tests` written there would never run. Pulling the file
+//! in by path gives it a real test target.
 
 #[path = "../examples/shared.rs"]
 mod shared;
@@ -18,10 +12,8 @@ use shared::{
     cross_network_warning, resolve_bitsafe_api_url, resolve_party_id, resolve_registry_url,
 };
 
-/// Run `f` and return the message it panicked with.
-///
-/// The panic hook is silenced for the call, so an expected panic does
-/// not print a backtrace into the test output, and restored afterwards.
+/// Run `f` and return the message it panicked with, with the panic hook
+/// silenced so an expected panic prints no backtrace.
 fn panic_message(f: fn() -> String) -> String {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
@@ -60,9 +52,7 @@ unsafe fn clear() {
 /// resolution rule, and `src/network.rs` pins the values themselves.
 #[test]
 fn resolution_prefers_the_variable_then_the_network() {
-    // SAFETY: one test, one thread. Every set and remove below runs in
-    // sequence inside this function, and no other test in this target
-    // reads or writes the environment.
+    // SAFETY: one test, one thread, every call below in sequence.
     unsafe {
         // An explicit variable wins over the network.
         clear();
@@ -80,10 +70,7 @@ fn resolution_prefers_the_variable_then_the_network() {
             cbtc::Network::Mainnet.bitsafe_api_url()
         );
 
-        // A blank variable counts as unset, so it falls through to the
-        // network. A copied template assigns rather than unsets, and an
-        // empty party ID becomes an instrument admin that matches no
-        // holding.
+        // A blank variable counts as unset.
         std::env::set_var("DECENTRALIZED_PARTY_ID", "   ");
         assert_eq!(
             resolve_party_id(),
@@ -99,8 +86,7 @@ fn resolution_prefers_the_variable_then_the_network() {
             assert_eq!(resolve_bitsafe_api_url(), network.bitsafe_api_url());
         }
 
-        // One variable set and ENVIRONMENT unset: that function returns,
-        // and the other two panic.
+        // One variable set, ENVIRONMENT unset: the other two panic.
         clear();
         std::env::set_var("DECENTRALIZED_PARTY_ID", "explicit::1220ab");
         assert_eq!(resolve_party_id(), "explicit::1220ab");
@@ -109,8 +95,7 @@ fn resolution_prefers_the_variable_then_the_network() {
         let message = panic_message(resolve_bitsafe_api_url);
         assert!(message.contains("BITSAFE_API_URL"), "{message}");
 
-        // An unknown ENVIRONMENT panics, and the message names the three
-        // valid values. "Devnet" pins the case-sensitivity decision.
+        // An unknown ENVIRONMENT panics and names the three valid values.
         clear();
         std::env::set_var("ENVIRONMENT", "Devnet");
         let message = panic_message(resolve_party_id);
@@ -118,8 +103,7 @@ fn resolution_prefers_the_variable_then_the_network() {
         assert!(message.contains("testnet"), "{message}");
         assert!(message.contains("mainnet"), "{message}");
 
-        // A blank ENVIRONMENT counts as unset too, so the message says
-        // what to set rather than reporting an empty name as invalid.
+        // A blank ENVIRONMENT counts as unset too.
         clear();
         std::env::set_var("ENVIRONMENT", "  ");
         let message = panic_message(resolve_party_id);
@@ -132,19 +116,12 @@ fn resolution_prefers_the_variable_then_the_network() {
         assert!(message.contains("DECENTRALIZED_PARTY_ID"), "{message}");
         assert!(message.contains("ENVIRONMENT"), "{message}");
 
-        // A value that is padded resolves trimmed. dotenvy strips trailing
-        // whitespace from a .env line, but a shell `export` does not, and a
-        // party ID with a trailing space matches no holding. `cbtc-tui`'s own
-        // `parse_env` trims, so the two paths must agree.
+        // A padded value resolves trimmed.
         clear();
         std::env::set_var("DECENTRALIZED_PARTY_ID", "  explicit::1220ab  ");
         assert_eq!(resolve_party_id(), "explicit::1220ab");
 
-        // A mixed configuration names two networks at once, and nothing else
-        // reports it. The precedence rule works one variable at a time, so an
-        // override can hold mainnet's value while ENVIRONMENT says devnet.
-        // cross_network_warning fires only when the override holds another
-        // *named* network's value, so a custom deployment stays silent.
+        // A mixed configuration names two networks at once.
 
         std::env::remove_var("ENVIRONMENT");
 
@@ -165,16 +142,13 @@ fn resolution_prefers_the_variable_then_the_network() {
             None
         );
 
-        // A genuinely custom value names no network, so it is not a
-        // mistake and draws no warning.
+        // A custom value names no network, so it draws no warning.
         assert_eq!(
             cross_network_warning("REGISTRY_URL", "https://registry.internal"),
             None
         );
 
-        // The two cases worth catching. A stale party ID left behind
-        // after switching ENVIRONMENT, and a half-finished switch that
-        // set some variables and not others.
+        // A stale party ID left behind after switching ENVIRONMENT.
         let warning = cross_network_warning(
             "DECENTRALIZED_PARTY_ID",
             Network::Mainnet.decentralized_party_id(),

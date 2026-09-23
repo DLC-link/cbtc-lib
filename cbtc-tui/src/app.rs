@@ -691,14 +691,127 @@ impl App {
             .map(|p| p.environment == cbtc::Network::Mainnet.to_string())
             .unwrap_or(false)
     }
+
+    /// A warning when the active profile's resolved values belong to another
+    /// network.
+    ///
+    /// `is_mainnet` reads the profile's label, and `resolved_environment`
+    /// never checks a non-blank override, so a profile labelled devnet can
+    /// carry mainnet's party ID and send every call there unannounced.
+    pub fn cross_network_warning(&self) -> Option<String> {
+        let profile = self
+            .active_profile
+            .and_then(|i| self.config.profiles.get(i))?;
+        let chosen: cbtc::Network = profile.environment.parse().ok()?;
+        let env = self
+            .config
+            .resolved_environment(&profile.environment)
+            .ok()?;
+
+        let named = |value: &str| {
+            cbtc::Network::ALL.into_iter().find(|network| {
+                network.decentralized_party_id() == value
+                    || network.registry_url() == value
+                    || network.bitsafe_api_url() == value
+            })
+        };
+
+        let mut offenders = Vec::new();
+        for (field, value) in [
+            ("party ID", env.decentralized_party_id.as_str()),
+            ("registry URL", env.registry_url.as_str()),
+            ("API URL", env.bitsafe_api_url.as_str()),
+        ] {
+            match named(value) {
+                Some(network) if network != chosen => {
+                    offenders.push(format!("{field} is {network}'s"));
+                }
+                _ => {}
+            }
+        }
+        if offenders.is_empty() {
+            return None;
+        }
+        Some(format!(
+            "profile says {chosen}, but its {} — this run mixes two networks",
+            offenders.join(", ")
+        ))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Config, Profile};
+    use crate::config::{Config, Environment, Profile};
     use crate::ops::{Operation, OpResult};
     use crate::session::PartyRight;
+
+    /// A profile whose override holds another network's value warns.
+    #[test]
+    fn an_override_from_another_network_warns() {
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "devnet".to_string(),
+            Environment {
+                registry_url: cbtc::Network::Devnet.registry_url().to_string(),
+                decentralized_party_id: cbtc::Network::Mainnet.decentralized_party_id().to_string(),
+                bitsafe_api_url: cbtc::Network::Devnet.bitsafe_api_url().to_string(),
+            },
+        );
+        cfg.profiles = vec![Profile {
+            name: "p1".into(),
+            environment: "devnet".into(),
+            ..Default::default()
+        }];
+        let mut app = App::new(cfg);
+        app.active_profile = Some(0);
+
+        let warning = app
+            .cross_network_warning()
+            .expect("a mainnet party ID under a devnet profile must warn");
+        assert!(warning.contains("mainnet"), "{warning}");
+        assert!(warning.contains("devnet"), "{warning}");
+    }
+
+    /// A profile whose values all match its label stays silent.
+    #[test]
+    fn a_consistent_profile_does_not_warn() {
+        let cfg = Config {
+            profiles: vec![Profile {
+                name: "p1".into(),
+                environment: "devnet".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let mut app = App::new(cfg);
+        app.active_profile = Some(0);
+
+        assert_eq!(app.cross_network_warning(), None);
+    }
+
+    /// A custom value names no network, so it draws no warning.
+    #[test]
+    fn a_custom_value_does_not_warn() {
+        let mut cfg = Config::default();
+        cfg.environments.insert(
+            "devnet".to_string(),
+            Environment {
+                registry_url: "https://registry.internal".to_string(),
+                decentralized_party_id: "custom::1220ff".to_string(),
+                bitsafe_api_url: "https://api.internal".to_string(),
+            },
+        );
+        cfg.profiles = vec![Profile {
+            name: "p1".into(),
+            environment: "devnet".into(),
+            ..Default::default()
+        }];
+        let mut app = App::new(cfg);
+        app.active_profile = Some(0);
+
+        assert_eq!(app.cross_network_warning(), None);
+    }
 
     fn app_with_one_profile() -> App {
         let cfg = Config {

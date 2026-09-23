@@ -39,14 +39,10 @@ pub fn default_profile_name(content: &str) -> String {
 pub fn import(content: &str, profile_name: &str) -> (Profile, Option<(String, Environment)>) {
     let map = parse_env(content);
     let get = |k: &str| map.get(k).cloned().unwrap_or_default();
-    // The binary chooses devnet for its own import path, and the
-    // library still makes every caller choose: `Network` has no
-    // `Default`. Naming the variant rather than the string keeps this
-    // fallback from drifting from the map keys
-    // `Config::builtin_environments` produces.
-    // A blank value counts as unset, as it does in `examples/shared.rs`.
-    // `ENVIRONMENT=` would otherwise name an environment no table holds, and
-    // `Config::resolved_environment` fails on it.
+    // The binary chooses devnet; the library still makes every caller
+    // choose, because `Network` has no `Default`. Naming the variant keeps
+    // this from drifting from `Config::builtin_environments`' keys. A blank
+    // value counts as unset, or it would name an environment no table holds.
     let env_name = map
         .get("ENVIRONMENT")
         .map(|value| value.trim().to_string())
@@ -131,10 +127,6 @@ BITSAFE_API_URL=https://api.example
 
     /// The shipped `.env.example` comments out all three per-network
     /// variables, so importing a copy of it writes no environment override.
-    ///
-    /// It matters once a value moves. A user then uncomments the one
-    /// variable that moved and re-imports, `get` fills the other two with
-    /// `""`, and `resolved_environment` fills those from the built-in.
     #[test]
     fn importing_the_shipped_env_example_writes_no_override() {
         let (profile, override_env) = import(include_str!("../../.env.example"), "imported");
@@ -147,9 +139,7 @@ BITSAFE_API_URL=https://api.example
 
     /// A `.env` with no `ENVIRONMENT` key falls back to devnet.
     ///
-    /// This is the only test that reaches the `unwrap_or_else`. `SAMPLE`
-    /// and the shipped template both set the key, so neither other test
-    /// evaluates it.
+    /// This is the only test that reaches the `unwrap_or_else`.
     #[test]
     fn an_env_without_the_environment_key_falls_back_to_devnet() {
         let (profile, override_env) = import("LEDGER_HOST=https://ledger.example\n", "imported");
@@ -159,11 +149,6 @@ BITSAFE_API_URL=https://api.example
 
     /// A blank `ENVIRONMENT` falls back too, rather than naming an
     /// environment no table holds.
-    ///
-    /// `ENVIRONMENT=` parses to an empty value, and an empty name reaches
-    /// `Config::resolved_environment`, which then fails with
-    /// `environment "" is not configured`. The examples' helper already treats
-    /// a blank value as unset, so this keeps the two paths in agreement.
     /// A blank `ENVIRONMENT` names no profile, so the name falls back too.
     ///
     /// `parse_env` trims, so `ENVIRONMENT=` and `ENVIRONMENT=   ` both reach

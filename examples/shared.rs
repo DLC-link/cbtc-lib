@@ -2,21 +2,19 @@
 //! The per-network values the examples need.
 //!
 //! `mod shared;` makes this a private module of each example crate, so a
-//! function that example does not call is dead code in that crate. Most
-//! examples need fewer than three, hence the attribute above.
+//! function that example does not call is dead code there, hence the
+//! attribute above.
 
 use std::env;
 
 use cbtc::Network;
 
-/// The CBTC registrar, from `DECENTRALIZED_PARTY_ID` or the
-/// `ENVIRONMENT` network.
+/// The CBTC registrar, from `DECENTRALIZED_PARTY_ID` or `ENVIRONMENT`.
 pub fn resolve_party_id() -> String {
     resolve("DECENTRALIZED_PARTY_ID", Network::decentralized_party_id)
 }
 
-/// Digital Asset's utility registry, from `REGISTRY_URL` or the
-/// `ENVIRONMENT` network.
+/// Digital Asset's utility registry, from `REGISTRY_URL` or `ENVIRONMENT`.
 pub fn resolve_registry_url() -> String {
     resolve("REGISTRY_URL", Network::registry_url)
 }
@@ -35,9 +33,8 @@ pub fn resolve_bitsafe_api_url() -> String {
 /// A blank value counts as unset. An empty party ID would otherwise reach
 /// the ledger, which accepts it, and no holding matches.
 ///
-/// Call this after `dotenvy::dotenv()`. Before it, `.env` has not
-/// reached the process environment, so every variable reads as unset and
-/// this falls through to the network without saying so.
+/// Call this after `dotenvy::dotenv()`. Before it every variable reads as
+/// unset and this falls through to the network without saying so.
 fn resolve(variable: &str, from_network: fn(Network) -> &'static str) -> String {
     if let Some(value) = non_blank(variable) {
         if let Some(warning) = cross_network_warning(variable, &value) {

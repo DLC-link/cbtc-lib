@@ -13,8 +13,7 @@
 /// - LEDGER_HOST, PARTY_ID
 /// - ENVIRONMENT (devnet, testnet or mainnet)
 ///
-/// Optional override: DECENTRALIZED_PARTY_ID, for a network ENVIRONMENT
-/// cannot name.
+/// Optional override: DECENTRALIZED_PARTY_ID.
 ///
 /// Understanding UTXOs:
 /// Each CBTC holding is a separate UTXO (like Bitcoin). Canton has a soft

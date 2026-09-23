@@ -177,7 +177,7 @@ cBTC's own bridge operations.
 
 ### Dependencies
 
-- `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
+- `token`, `common`, `ledger`, `keycloak` and `registry` — five crates — pin
   `canton-lib` at `tag = "v0.8.0"`, and `cbtc-tui` pins `keycloak` and
   `ledger` at the same tag. **A consumer must pin that same tag.** Mixing a
   tag and a revision across manifests makes Cargo build two `common`
@@ -198,7 +198,11 @@ cBTC's own bridge operations.
   one commit over that revision, `a0f46ae`, which extracts `wanted_transfer`
   from a closure and tests it. **So the swap adds those tests and changes no
   behaviour.**
-- `registry`, `zip`, `semver`, `base64`, `futures` and `log` are removed.
-  Nothing in the crate uses them once the thirteen modules go.
+- `zip`, `semver`, `base64`, `futures` and `log` are removed. Nothing in the
+  crate uses them once the thirteen modules go.
+- `registry` returns. It was removed earlier in this release, and
+  `Network::registry_url` brings it back, because that method returns
+  `registry::consts::DEVNET_REGISTRY_URL` and its two siblings rather than a
+  literal. `Cargo.lock` gains one line for it.
 - `cbtc-tui` no longer declares `common` itself. It names `cbtc::InstrumentId`
   instead, so it cannot drift from `cbtc`'s pin.

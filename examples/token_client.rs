@@ -1,29 +1,18 @@
 /// Example: read a party's CBTC position through `TokenClient`
 ///
-/// `TokenClient` stores the configuration that otherwise repeats on
-/// every call, and it authenticates itself, so this example makes no
-/// Keycloak call of its own.
+/// `TokenClient` stores the configuration that otherwise repeats on every
+/// call. This example writes nothing: it reads the balance, the UTXO count
+/// and the incoming transfer offers.
 ///
-/// This example writes nothing. It reads the balance, the UTXO count and
-/// the incoming transfer offers.
-///
-/// It reads one account, not the whole party. A `TokenStandardVersion::V2`
-/// client filters holdings to the party's basic account, which carries no
-/// provider and an empty id. A party whose holdings sit under a labelled
-/// account sees zero here, while `check_balance` passes no account filter and
-/// reports the party's full total. The two examples answer different
-/// questions.
+/// It reads one account, not the whole party. A party whose holdings sit
+/// under a labelled account sees zero here, while `check_balance` reports the
+/// party's full total.
 ///
 /// Run with: cargo run --example token_client
 ///
-/// Required environment variables:
-/// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
-/// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
-/// - LEDGER_HOST, PARTY_ID
-/// - ENVIRONMENT (devnet, testnet or mainnet)
-///
-/// Optional overrides, for a network ENVIRONMENT cannot name:
-/// DECENTRALIZED_PARTY_ID, REGISTRY_URL
+/// Requires KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID,
+/// KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD, LEDGER_HOST, PARTY_ID and
+/// ENVIRONMENT. DECENTRALIZED_PARTY_ID and REGISTRY_URL override it.
 use std::env;
 
 use cbtc::{
@@ -51,10 +40,8 @@ async fn main() -> Result<(), String> {
             client_id: required("KEYCLOAK_CLIENT_ID"),
             username: required("KEYCLOAK_USERNAME"),
             password: required("KEYCLOAK_PASSWORD"),
-            // token_url, not password_url. This field's own doc comment
-            // recommends password_url, which canton-lib deprecated in
-            // 0.5.1: it emits the legacy {host}/auth/realms/… path, and
-            // no deployed Keycloak serves that prefix.
+            // token_url, not the deprecated password_url: no deployed
+            // Keycloak serves the legacy {host}/auth/realms/… path.
             url: keycloak::login::token_url(
                 &required("KEYCLOAK_HOST"),
                 &required("KEYCLOAK_REALM"),

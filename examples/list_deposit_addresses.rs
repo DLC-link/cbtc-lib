@@ -13,7 +13,7 @@
 /// - LEDGER_HOST, PARTY_ID
 /// - ENVIRONMENT (devnet, testnet or mainnet)
 ///
-/// Optional override: BITSAFE_API_URL, for a network ENVIRONMENT cannot name.
+/// Optional override: BITSAFE_API_URL.
 ///
 /// Note on account IDs:
 /// The Bitsafe API uses the account's `id` field (a UUID in the createArgument) to

@@ -554,6 +554,7 @@ Optional:
 
 - `DECENTRALIZED_PARTY_ID` - Overrides the CBTC decentralized party ID
 - `REGISTRY_URL` - Overrides the Canton registry URL
+- `BITSAFE_API_URL` - Overrides the Bitsafe API URL
 - `TRANSFER_AMOUNT` - Amount to send (default: 0.1)
 - `LIB_TEST_RECEIVER_PARTY_ID` - Receiver party for transfers
 - `CONSOLIDATION_THRESHOLD` - UTXO threshold for consolidation (default: 10)

@@ -120,10 +120,8 @@ impl FromStr for Network {
 mod tests {
     use super::*;
 
-    /// Nine assertions, each against a literal spelled out here.
-    ///
-    /// Comparing a method against the constant it returns calls the thing
-    /// under test and cannot fail, so every literal is written out.
+    /// Nine assertions, each against a literal spelled out here, because
+    /// comparing a method against the constant it returns cannot fail.
     #[test]
     fn each_network_returns_its_own_three_values() {
         assert_eq!(
@@ -204,12 +202,9 @@ mod tests {
 
     /// `ALL` holds three distinct variants.
     ///
-    /// The compiler catches a variant added to `Network`, because every
-    /// method matches on `self` exhaustively. Nothing catches a variant
-    /// added and `ALL` left alone, since `ALL` is typed `[Network; 3]`.
-    ///
-    /// A duplicated entry would shrink `cbtc-tui`'s environment table,
-    /// which collects into a `BTreeMap` where a repeated key overwrites.
+    /// The compiler catches a variant added to `Network`, but not one added
+    /// with `ALL` left alone. A duplicate would silently shrink `cbtc-tui`'s
+    /// environment table, which collects into a `BTreeMap`.
     #[test]
     fn all_holds_every_variant_once() {
         assert_eq!(Network::ALL.len(), 3);
@@ -235,13 +230,9 @@ mod tests {
 
     /// `README.md` documents each of the nine values.
     ///
-    /// One direction only: each value must appear somewhere in the file.
-    /// That catches a value edited in one place and not the other. It
-    /// does not prove the value sits in the right per-network block, and
-    /// it does not prove either copy matches the ledger.
-    ///
-    /// It does not assert `CBTC_TICKER`. `README.md` holds that string
-    /// throughout as prose, so the assertion could never fail.
+    /// One direction only: each value must appear somewhere in the file. It
+    /// does not prove the value sits in the right per-network block, nor that
+    /// either copy matches the ledger.
     #[test]
     fn the_readme_documents_every_per_network_value() {
         let readme = include_str!("../README.md");
@@ -256,16 +247,9 @@ mod tests {
     /// The inverse of the check above: `.env.example` documents no
     /// per-network value.
     ///
-    /// `Network` owns these nine values now. A copy left in this file gets
-    /// copied into a `.env`, `dotenvy::dotenv()` loads it into the process
-    /// environment, and the precedence rule in `examples/shared.rs` makes it
-    /// win. A stale party ID then becomes the instrument admin, and the
-    /// caller reads a zero balance rather than an error.
-    ///
-    /// `include_str!` runs in the compiler, so this check needs no read
-    /// access to the file from any tool. It couples the crate's build to the
-    /// file's presence, which is acceptable: the file is committed, and the
-    /// README tells a user to copy it.
+    /// `Network` owns these nine values. A copy left in this file reaches a
+    /// `.env`, wins under the precedence rule, and a stale party ID then
+    /// becomes the instrument admin behind a zero balance.
     #[test]
     fn env_example_carries_no_per_network_value() {
         let example = include_str!("../.env.example");

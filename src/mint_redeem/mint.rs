@@ -292,7 +292,7 @@ mod tests {
     use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
+    #[ignore = "needs live devnet; run with --ignored"]
     async fn test_create_deposit_account_with_credentials() {
         dotenvy::dotenv().ok();
 
@@ -359,7 +359,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
+    #[ignore = "needs live devnet; run with --ignored"]
     async fn test_list_deposit_accounts() {
         dotenvy::dotenv().ok();
 

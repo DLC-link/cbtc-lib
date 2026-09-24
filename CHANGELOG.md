@@ -69,18 +69,11 @@ cBTC's own bridge operations.
   `Result<SplitResult, String>`. `Error` carries `message` and `partial`, so
   a caller now learns which holdings the failed split did create. A caller
   that only printed the message reads `e.message`.
-- `active_contracts::get` matches the instrument's `id` and `admin`, both
-  exactly. It previously kept any holding whose ticker lowercased to
-  `"cbtc"`, and never compared the admin. One unsolicited holding with that
-  ticker halted every outbound transfer the library attempted, because the
-  registry rejects a whole transaction rather than skipping a holding. It
-  also inflated the reported balance.
-- `utils::fetch_incoming_transfers` and `utils::fetch_outgoing_transfers`
-  match the instrument's `id` and `admin`, both exactly. They previously
-  kept any offer whose ticker lowercased to `"cbtc"` and never compared the
-  admin. **This is the filter that closes the reachable route**: a transfer
-  offer names its receiver as an observer only, so any registrar can create
-  one at any party, and `accept_all` fed the whole list to the registry.
+- `active_contracts::get`, `utils::fetch_incoming_transfers` and
+  `utils::fetch_outgoing_transfers` match the instrument's `id` and `admin`,
+  both exactly. Each previously matched the ticker alone. A caller that
+  relied on the loose match reads fewer holdings and fewer offers. The
+  Security section explains why they changed.
 - `cbtc::types` gained `transfer_factory`.
   `transfer::SequentialChainedParams.registry_response` is an
   `Option<common::transfer_factory::Response>`, on the V1 and the V2 path
@@ -104,17 +97,11 @@ cBTC's own bridge operations.
   `account_label`. The two entries below describe both.
 - The four registry routes report one error wording instead of four. A
   caller that matched on the old per-route text stops matching, and it stops
-  silently. I searched for such a caller across `cbtc-lib`, `cbtc-tui`,
-  `cbtc-faucet`, `vault-ui`, `cBTC-Canton-App` and `cbtc-doc` on 8 September
-  2026 and found none.
+  silently. A search across every known Bitsafe consumer on 8 September 2026
+  found no such caller.
 - `mint_redeem::redeem::list_holdings` filters by instrument, and
-  `ListHoldingsParams` gains `instrument_id` to say which. It returned every
-  `Holding` contract the party owned, and each of five callers compared the
-  ticker alone. A foreign registrar can issue the ticker `CBTC`, so that
-  filter admitted holdings the registry then rejects with
-  `400 Given holdings are invalid`, halting a burn or a split. This closes the
-  gap on the mint and redeem path, which an earlier draft of this entry
-  recorded as open.
+  `ListHoldingsParams` gains `instrument_id` to say which. The Security
+  section explains why.
 - `Holding::from_active_contract` now fails on a payload with no `registrar`
   or no `label`, and `list_holdings` fails the whole call when one holding
   fails to parse. Version 0.6.4 ignored both fields. The choice is deliberate,
@@ -175,6 +162,28 @@ cBTC's own bridge operations.
   slash from the host. `cbtc-tui` carried the same fault and is fixed with
   it.
 
+### Security
+
+- **A holding filter compared the ticker alone.** Any registrar can issue an
+  instrument whose ticker is `CBTC`. `active_contracts::get` kept every
+  holding whose ticker lowercased to `"cbtc"`, and it never compared the
+  instrument admin. One unsolicited holding then halted every outbound
+  transfer, because the registry rejects a whole transaction rather than
+  skipping a holding. It also inflated the reported balance. The filter now
+  matches the instrument's `id` and `admin`, both exactly.
+- **A transfer-offer filter had the same fault, and anyone could reach it.**
+  A transfer offer names its receiver as an observer only, so any registrar
+  can create one at any party. `utils::fetch_incoming_transfers` and
+  `utils::fetch_outgoing_transfers` kept every offer whose ticker lowercased
+  to `"cbtc"`, and `accept_all` fed the whole list to the registry. Both
+  functions now match the instrument's `id` and `admin`, both exactly.
+- **The mint and redeem path carried the same fault.**
+  `mint_redeem::redeem::list_holdings` returned every `Holding` the party
+  owned, and each of five callers compared the ticker alone. The registry
+  rejected such a call with `400 Given holdings are invalid`, which halted a
+  burn or a split. `list_holdings` now filters by instrument, and
+  `ListHoldingsParams` gains `instrument_id` to say which.
+
 ### Dependencies
 
 - `token`, `common`, `ledger`, `keycloak` and `registry` — five crates — pin
@@ -187,8 +196,7 @@ cBTC's own bridge operations.
   `canton-lib` PR 50 merged on 16 September 2026 and `v0.8.0` followed, as
   annotated tag `a643647` on commit `ba728c3`. This crate tracked that work by
   revision while the PR was open, because a revision is reversible and a tag
-  is not. Note that `canton-lib`'s own changelog dates `0.8.0` as 14 September;
-  it shipped on the 16th. That needs no retag and a follow-up corrects it.
+  is not.
 
   This release originally pinned revision `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`,
   because no `canton-lib` tag then contained the `token` crate. `canton-lib`

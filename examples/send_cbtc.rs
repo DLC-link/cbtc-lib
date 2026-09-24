@@ -4,6 +4,7 @@
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -41,8 +42,7 @@ async fn main() -> Result<(), String> {
     println!("To: {}", receiver_party);
 
     // Create transfer
-    let decentralized_party =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party = shared::resolve_party_id();
 
     let transfer_params = cbtc::transfer::Params {
         transfer: cbtc::Transfer {
@@ -51,7 +51,7 @@ async fn main() -> Result<(), String> {
             amount,
             instrument_id: cbtc::InstrumentId {
                 admin: decentralized_party.clone(),
-                id: "CBTC".to_string(),
+                id: cbtc::CBTC_TICKER.to_string(),
             },
             requested_at: chrono::Utc::now().to_rfc3339(),
             execute_before: chrono::Utc::now()
@@ -63,7 +63,7 @@ async fn main() -> Result<(), String> {
         },
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
         access_token: auth.access_token,
-        registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
+        registry_url: shared::resolve_registry_url(),
         decentralized_party_id: decentralized_party,
     };
 

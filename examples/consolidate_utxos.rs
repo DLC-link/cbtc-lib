@@ -4,6 +4,7 @@
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -39,19 +40,18 @@ async fn main() -> Result<(), String> {
     println!("   Party: {}", party);
     println!("   Threshold: {} UTXOs\n", threshold);
 
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party_id = shared::resolve_party_id();
 
     let consolidate_params = cbtc::consolidate::CheckConsolidateParams {
         party,
         instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
         threshold,
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
         access_token: auth.access_token,
-        registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
+        registry_url: shared::resolve_registry_url(),
         decentralized_party_id,
     };
 

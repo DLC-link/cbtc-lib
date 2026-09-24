@@ -40,6 +40,17 @@ cBTC's own bridge operations.
 - `examples/send_cbtc_v2.rs`, the V2 counterpart of `send_cbtc.rs`.
 - `examples/integration_test.rs` reads `TOKEN_STANDARD_VERSION`, `V1` or
   `V2`, and drives the whole flow on either.
+- `cbtc::Network` and `cbtc::CBTC_TICKER`. `Network` is a three-variant
+  enum — `Devnet`, `Testnet`, `Mainnet` — whose methods return the
+  registrar party ID, the registry URL and the Bitsafe API URL for that
+  network. It also carries `Network::ALL`, `Display` and `FromStr`. A
+  crate that depends only on `cbtc` can now name every per-network value
+  without a `canton-lib` dependency and without a string literal.
+  `CBTC_TICKER` names the ticker; the library still supplies no default,
+  and every operation takes its instrument from the caller.
+- `examples/token_client.rs`, the first example that uses `TokenClient`.
+  It reads a party's balance, UTXO count and incoming offers, and writes
+  nothing.
 
 ### Changed — breaking
 
@@ -135,9 +146,24 @@ cBTC's own bridge operations.
   repeating the call would hide it. `allocation_factory::get` and
   `allocation_context::get` do not retry.
 - A Keycloak token expiry no longer underflows below a 60-second lifetime.
+- `.env.example` takes one `ENVIRONMENT` key instead of
+  `DECENTRALIZED_PARTY_ID`, `REGISTRY_URL` and `BITSAFE_API_URL`. Those
+  three stay available as overrides, and an explicit value still wins, so
+  an existing `.env` needs no edit. The file previously carried each of
+  the three values four times.
+- `cbtc-tui --import-env` writes no environment override when the `.env`
+  names none of the three variables. A fresh copy of `.env.example` is
+  now such a file. The override it used to write carried the built-in
+  values anyway.
 
 ### Fixed
 
+- **`cp .env.example .env` left the `--ignored` tests unable to start.** The
+  four live tests in `src/mint_redeem` read `BITSAFE_API_URL` themselves.
+  They live in the library, so `examples/shared.rs` does not reach them, and
+  a fresh template stopped them with `BITSAFE_API_URL must be set`. They now
+  follow the same rule the examples do: `ENVIRONMENT` supplies the URL, and
+  `BITSAFE_API_URL` overrides it.
 - **The library could not authenticate against any Keycloak Bitsafe runs.**
   Every call built its token endpoint with `keycloak::login::password_url`,
   deprecated since `canton-lib` 0.5.1, which emits
@@ -151,7 +177,7 @@ cBTC's own bridge operations.
 
 ### Dependencies
 
-- `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
+- `token`, `common`, `ledger`, `keycloak` and `registry` — five crates — pin
   `canton-lib` at `tag = "v0.8.0"`, and `cbtc-tui` pins `keycloak` and
   `ledger` at the same tag. **A consumer must pin that same tag.** Mixing a
   tag and a revision across manifests makes Cargo build two `common`
@@ -172,7 +198,11 @@ cBTC's own bridge operations.
   one commit over that revision, `a0f46ae`, which extracts `wanted_transfer`
   from a closure and tests it. **So the swap adds those tests and changes no
   behaviour.**
-- `registry`, `zip`, `semver`, `base64`, `futures` and `log` are removed.
-  Nothing in the crate uses them once the thirteen modules go.
+- `zip`, `semver`, `base64`, `futures` and `log` are removed. Nothing in the
+  crate uses them once the thirteen modules go.
+- `registry` returns. It was removed earlier in this release, and
+  `Network::registry_url` brings it back, because that method returns
+  `registry::consts::DEVNET_REGISTRY_URL` and its two siblings rather than a
+  literal. `Cargo.lock` gains one line for it.
 - `cbtc-tui` no longer declares `common` itself. It names `cbtc::InstrumentId`
   instead, so it cannot drift from `cbtc`'s pin.

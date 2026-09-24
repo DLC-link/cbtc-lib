@@ -7,6 +7,7 @@
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -14,17 +15,16 @@ async fn main() -> Result<(), String> {
     dotenvy::dotenv().ok();
     env_logger::init();
 
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party_id = shared::resolve_party_id();
 
     let params = cbtc::accept::AcceptAllParams {
         receiver_party: env::var("PARTY_ID").expect("PARTY_ID must be set"),
         instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
         ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
-        registry_url: env::var("REGISTRY_URL").expect("REGISTRY_URL must be set"),
+        registry_url: shared::resolve_registry_url(),
         decentralized_party_id,
         keycloak_client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         keycloak_username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),

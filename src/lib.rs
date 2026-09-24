@@ -22,5 +22,7 @@ pub use token::{
 
 mod event_helpers;
 pub mod mint_redeem;
+mod network;
+pub use network::{CBTC_TICKER, Network, ParseNetworkError};
 #[cfg(test)]
 mod test_fixtures;

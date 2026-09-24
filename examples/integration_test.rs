@@ -13,8 +13,10 @@
 ///   KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 ///   KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
 ///   LEDGER_HOST, PARTY_ID
-///   DECENTRALIZED_PARTY_ID, REGISTRY_URL
-///   BITSAFE_API_URL
+///   ENVIRONMENT (devnet, testnet or mainnet)
+///
+/// Optional overrides, for a network ENVIRONMENT cannot name:
+///   DECENTRALIZED_PARTY_ID, REGISTRY_URL, BITSAFE_API_URL
 ///
 /// Required environment variables (receiver - RECEIVER_ prefix):
 ///   RECEIVER_KEYCLOAK_USERNAME, RECEIVER_KEYCLOAK_PASSWORD
@@ -35,6 +37,7 @@
 /// Canton contracts. No cleanup API exists; they remain after the test.
 use std::env;
 use std::time::Instant;
+mod shared;
 
 struct PartyConfig {
     party_id: String,
@@ -297,13 +300,12 @@ async fn main() -> Result<(), String> {
     let start = Instant::now();
     let sender = load_sender_config();
     let receiver = load_receiver_config();
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party_id = shared::resolve_party_id();
     let instrument = cbtc::InstrumentId {
         admin: decentralized_party_id.clone(),
-        id: "CBTC".to_string(),
+        id: cbtc::CBTC_TICKER.to_string(),
     };
-    let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
+    let registry_url = shared::resolve_registry_url();
     let amount_str = optional("TRANSFER_AMOUNT").unwrap_or_else(|| "0.00001".to_string());
     let amount = cbtc::DamlDecimal::parse(&amount_str).expect("Invalid TRANSFER_AMOUNT");
     let threshold: usize = optional("CONSOLIDATION_THRESHOLD")
@@ -311,7 +313,7 @@ async fn main() -> Result<(), String> {
         .parse()
         .expect("CONSOLIDATION_THRESHOLD must be a valid number");
 
-    let bitsafe_api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+    let bitsafe_api_url = shared::resolve_bitsafe_api_url();
     let destination_btc_address = optional("DESTINATION_BTC_ADDRESS")
         .unwrap_or_else(|| "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx".to_string());
     let withdraw_amount = optional("WITHDRAW_AMOUNT").unwrap_or_else(|| amount.to_string());

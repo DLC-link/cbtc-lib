@@ -125,14 +125,13 @@ pub async fn get_token_standard_contracts(api_url: &str) -> Result<TokenStandard
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
+    #[ignore = "needs live devnet; run with --ignored"]
     async fn test_get_account_contract_rules() {
         dotenvy::dotenv().ok();
 
-        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+        let api_url = crate::mint_redeem::test_api_url();
 
         let rules = get_account_contract_rules(&api_url)
             .await
@@ -143,11 +142,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
+    #[ignore = "needs live devnet; run with --ignored"]
     async fn test_get_token_standard_contracts() {
         dotenvy::dotenv().ok();
 
-        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+        let api_url = crate::mint_redeem::test_api_url();
 
         let contracts = get_token_standard_contracts(&api_url)
             .await

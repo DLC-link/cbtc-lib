@@ -85,21 +85,19 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-# cbtc re-exports DamlDecimal, InstrumentId, Transfer, Meta and Account, and
-# the parameter types as `cbtc::types`, so a consumer needs no
-# canton-lib dependency for the Token Standard types. If you add one, pin the
-# same revision: a different pin makes Cargo build two `common` packages, and
-# then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the merge commit>" }
+# cbtc re-exports DamlDecimal, InstrumentId, Transfer, Meta, Account, Network
+# and CBTC_TICKER, and the parameter types as `cbtc::types`, so a consumer
+# needs no canton-lib dependency for the Token Standard types. If you add
+# one, pin the same revision: a different pin makes Cargo build two `common`
+# packages, and then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", tag = "v0.7.0" }
 keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
 ```
 
 `cbtc` pins `canton-lib` at `v0.8.0`, so the `keycloak` pin above names that
 same tag. Pinning a different tag or a revision here builds two `common`
 packages.
-**`cbtc-lib` itself is not tagged yet** — that waits for its own pull request
-to merge, so until then pin the commit at the head of
-`feature/token-crate-adoption`.
+`cbtc-lib` is released as `v0.7.0`.
 
 Or for local development:
 
@@ -206,12 +204,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", rev = "<the merge commit>" }
+cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", tag = "v0.7.0" }
 ```
 
-**`cbtc-lib` is not tagged yet** — that waits for its own pull request to
-merge, so until then pin the commit at the head of
-`feature/token-crate-adoption`.
+`cbtc-lib` is released as `v0.7.0`.
 
 Or for local development:
 
@@ -242,16 +238,30 @@ Edit `.env` with your Canton participant node details:
 # Canton Network
 LEDGER_HOST=https://participant.example.com
 PARTY_ID=your-party::1220...
-DECENTRALIZED_PARTY_ID=cbtc-network::1220...  # See environment-specific values below
-REGISTRY_URL=https://api.utilities.digitalasset-dev.com  # See environment-specific values below
 
-# CBTC Mint/Redeem (optional - only needed for BTC bridging)
-BITSAFE_API_URL=https://api.devnet.bitsafe.finance  # See environment-specific values below
+# Pick the network. One of: devnet, testnet, mainnet.
+ENVIRONMENT=devnet
+
+# Override any of these for a local or custom network. The three named
+# networks need no value here. An empty value counts as unset.
+# DECENTRALIZED_PARTY_ID=
+# REGISTRY_URL=
+# BITSAFE_API_URL=
 ```
+
+`ENVIRONMENT` supplies the decentralized party ID, the registry URL and the
+Bitsafe API URL. The next section lists those values.
+
+`cbtc-tui --import-env` writes no environment override from a fresh
+`.env.example`, because the template comments all three overrides out. A user
+who needs one uncomments the single variable that moved, then re-imports.
 
 ### Environment-Specific Values
 
 #### Devnet
+
+`ENVIRONMENT=devnet` selects these values, and `cbtc::Network::Devnet` returns
+them to a Rust caller.
 
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff
@@ -261,6 +271,9 @@ BITSAFE_API_URL=https://api.devnet.bitsafe.finance
 
 #### Testnet
 
+`ENVIRONMENT=testnet` selects these values, and `cbtc::Network::Testnet`
+returns them to a Rust caller.
+
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f
 REGISTRY_URL=https://api.utilities.digitalasset-staging.com
@@ -268,6 +281,9 @@ BITSAFE_API_URL=https://api.testnet.bitsafe.finance
 ```
 
 #### Mainnet
+
+`ENVIRONMENT=mainnet` selects these values, and `cbtc::Network::Mainnet`
+returns them to a Rust caller.
 
 ```bash
 DECENTRALIZED_PARTY_ID=cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262
@@ -432,7 +448,8 @@ See [redeem_cbtc_flow.rs](examples/redeem_cbtc_flow.rs) for complete code.
 
 ### Required Configuration
 
-To use mint/redeem functionality, add these environment variables:
+Mint and redeem need a Bitsafe API URL, and `ENVIRONMENT` supplies it.
+`BITSAFE_API_URL` is an override for a local or custom network:
 
 ```bash
 BITSAFE_API_URL=https://api.devnet.bitsafe.finance  # or api.testnet.bitsafe.finance / api.mainnet.bitsafe.finance
@@ -495,15 +512,19 @@ applies it to every write method and to `holdings`, `balance` and
 `active_contracts` reaches V2 through its `account` field, and `allocation`,
 `credentials`, `dar_check` and `utils` have no V2 form.
 
-The library supplies no ticker. Where an operation needs an instrument, it
-takes one from the caller, because Bitsafe plans to support instruments other
-than CBTC. An operation that acts on one named contract needs none, as
-`accept::submit` and `reject::submit` show, and `credentials` and `dar_check`
-name no instrument either. `mint_redeem::list_holdings` takes one and filters
-on it, which closed issue #74's defect.
-`cbtc` re-exports `InstrumentId`, `Transfer`, `Meta` and `Account` at its
-root, and the parameter types those signatures name as `cbtc::types`, so a
-consumer needs no `canton-lib` dependency to name them.
+The library supplies no default ticker. Where an operation needs an
+instrument, it takes one from the caller, because Bitsafe plans to support
+instruments other than CBTC. `cbtc::CBTC_TICKER` names the CBTC ticker for a
+caller that wants it. Naming the value is not defaulting to it: every
+operation still reads its instrument from its caller. An operation that acts
+on one named contract needs none, as `accept::submit` and `reject::submit`
+show, and `credentials` and `dar_check` name no instrument either.
+`mint_redeem::list_holdings` takes one and filters on it, which closed issue
+#74's defect.
+`cbtc` re-exports `DamlDecimal`, `InstrumentId`, `Transfer`, `Meta`,
+`Account`, `Network` and `CBTC_TICKER` at its root, and the parameter types
+those signatures name as `cbtc::types`, so a consumer needs no `canton-lib`
+dependency to name them.
 `transfer::Params.transfer` and `transfer::v2::Params.transfer` are
 `cbtc::Transfer` and `cbtc::types::v2::Transfer`. `cbtc` does not re-export
 `common` whole. The reads — `active_contracts::get`,
@@ -564,7 +585,9 @@ the crates.io crate `canton-api-client`, not from `canton-lib`.
 - `list_withdraw_accounts(Params)` - Get all withdraw accounts
 - `create_withdraw_account(Params)` - Create withdraw account with BTC destination
 - `list_holdings(ListHoldingsParams)` - Get holdings of one instrument, for
-  burning. `instrument_id` is required: the library supplies no ticker.
+  burning. `instrument_id` is required: the library supplies no default
+  ticker. `cbtc::CBTC_TICKER` names the CBTC value, and naming it is not
+  defaulting to it.
 - `submit_withdraw(SubmitWithdrawParams)` - Burn CBTC and request BTC withdrawal
 - `list_withdraw_requests(Params)` - Monitor withdrawal status
 
@@ -574,6 +597,11 @@ the crates.io crate `canton-api-client`, not from `canton-lib`.
 
 - `password(PasswordParams)` - Authenticate with username/password
 - `client_credentials(ClientCredentialsParams)` - Service account authentication
+
+`KeycloakConfig.url` takes `keycloak::login::token_url`, not the deprecated
+`password_url`. The doc comment on `KeycloakConfig` recommends `password_url`;
+[canton-lib#54](https://github.com/DLC-link/canton-lib/issues/54) tracks
+fixing it at its source.
 
 #### `ledger`
 
@@ -812,6 +840,23 @@ Set up your environment:
 cp .env.example .env
 # Edit .env with your Canton credentials
 ```
+
+The `--ignored` tests in `src/mint_redeem` take the Bitsafe API URL from
+`ENVIRONMENT`, exactly as the examples do. `BITSAFE_API_URL` overrides it.
+
+Run the `--ignored` tests one at a time:
+
+```bash
+cargo test -- --ignored --test-threads=1
+```
+
+Every live test calls `dotenvy::dotenv()`, which writes the process
+environment. The harness runs tests in parallel, so one test can read a
+variable while another writes it. The run then fails with
+`invalid_grant: Invalid user credentials` although the credentials are
+correct. Measured on 22 September 2026: three parallel runs passed 2, 3 and 3
+of 6, and two runs with `--test-threads=1` both passed 4 of 6. #80 tracks the
+fix.
 
 Run tests:
 

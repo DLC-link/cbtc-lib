@@ -5,6 +5,7 @@
 ///
 /// Run with: cargo run -p examples --bin cancel_offers
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -14,9 +15,8 @@ async fn main() -> Result<(), String> {
     // Load configuration from environment
     let sender_party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-    let registry_url = env::var("REGISTRY_URL").expect("REGISTRY_URL must be set");
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let registry_url = shared::resolve_registry_url();
+    let decentralized_party_id = shared::resolve_party_id();
 
     let keycloak_client_id =
         env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set");
@@ -38,7 +38,7 @@ async fn main() -> Result<(), String> {
         sender_party,
         instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
         ledger_host,
         registry_url,

@@ -26,6 +26,7 @@ use cbtc::mint_redeem::redeem::{
 /// 3. cargo run -p examples --bin redeem_cbtc_flow
 use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -52,10 +53,9 @@ async fn main() -> Result<(), String> {
     // Common parameters
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
-    let decentralized_party_id =
-        env::var("DECENTRALIZED_PARTY_ID").expect("DECENTRALIZED_PARTY_ID must be set");
+    let decentralized_party_id = shared::resolve_party_id();
     let access_token = login_response.access_token.clone();
-    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+    let api_url = shared::resolve_bitsafe_api_url();
 
     // Step 2: List existing withdraw accounts
     println!("Step 2: Listing existing withdraw accounts...");
@@ -85,7 +85,7 @@ async fn main() -> Result<(), String> {
         access_token: access_token.clone(),
         instrument_id: cbtc::InstrumentId {
             admin: decentralized_party_id.clone(),
-            id: "CBTC".to_string(),
+            id: cbtc::CBTC_TICKER.to_string(),
         },
     })
     .await?;

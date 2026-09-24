@@ -21,6 +21,7 @@ use cbtc::mint_redeem::mint::{
 /// 2. cargo run -p examples --bin mint_cbtc_flow
 use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -48,7 +49,7 @@ async fn main() -> Result<(), String> {
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
     let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let access_token = login_response.access_token.clone();
-    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+    let api_url = shared::resolve_bitsafe_api_url();
 
     // Step 2: List existing deposit accounts
     println!("Step 2: Listing existing deposit accounts...");

@@ -40,40 +40,24 @@ pub struct Config {
 }
 
 impl Config {
-    /// Built-in environment defaults shipped with the binary (from `.env.example`).
+    /// The three built-in environments, from `cbtc::Network`.
+    ///
+    /// `BTreeMap` sorts its keys, so this comes out devnet, mainnet,
+    /// testnet rather than in `Network::ALL`'s order.
     pub fn builtin_environments() -> BTreeMap<String, Environment> {
-        let mut m = BTreeMap::new();
-        m.insert(
-            "devnet".to_string(),
-            Environment {
-                registry_url: "https://api.utilities.digitalasset-dev.com".to_string(),
-                decentralized_party_id:
-                    "cbtc-network::12202a83c6f4082217c175e29bc53da5f2703ba2675778ab99217a5a881a949203ff"
-                        .to_string(),
-                bitsafe_api_url: "https://api.devnet.bitsafe.finance".to_string(),
-            },
-        );
-        m.insert(
-            "testnet".to_string(),
-            Environment {
-                registry_url: "https://api.utilities.digitalasset-staging.com".to_string(),
-                decentralized_party_id:
-                    "cbtc-network::12201b1741b63e2494e4214cf0bedc3d5a224da53b3bf4d76dba468f8e97eb15508f"
-                        .to_string(),
-                bitsafe_api_url: "https://api.testnet.bitsafe.finance".to_string(),
-            },
-        );
-        m.insert(
-            "mainnet".to_string(),
-            Environment {
-                registry_url: "https://api.utilities.digitalasset.com".to_string(),
-                decentralized_party_id:
-                    "cbtc-network::12205af3b949a04776fc48cdcc05a060f6bda2e470632935f375d1049a8546a3b262"
-                        .to_string(),
-                bitsafe_api_url: "https://api.mainnet.bitsafe.finance".to_string(),
-            },
-        );
-        m
+        cbtc::Network::ALL
+            .into_iter()
+            .map(|network| {
+                (
+                    network.to_string(),
+                    Environment {
+                        registry_url: network.registry_url().to_string(),
+                        decentralized_party_id: network.decentralized_party_id().to_string(),
+                        bitsafe_api_url: network.bitsafe_api_url().to_string(),
+                    },
+                )
+            })
+            .collect()
     }
 
     /// The environment for `env_name`: a config override if present, else the
@@ -217,6 +201,25 @@ mod tests {
             envs["devnet"].registry_url,
             "https://api.utilities.digitalasset-dev.com"
         );
+    }
+
+    /// Each built-in entry carries its own network's three values.
+    ///
+    /// This catches a transposed mapping, not a wrong value, because the
+    /// right-hand side is the source `builtin_environments` reads. The
+    /// tests in `cbtc`'s `src/network.rs` pin the values themselves.
+    #[test]
+    fn every_builtin_environment_carries_its_own_networks_values() {
+        let envs = Config::builtin_environments();
+        assert_eq!(envs.len(), 3);
+        for network in cbtc::Network::ALL {
+            let env = envs
+                .get(&network.to_string())
+                .unwrap_or_else(|| panic!("no built-in environment for {network}"));
+            assert_eq!(env.registry_url, network.registry_url());
+            assert_eq!(env.decentralized_party_id, network.decentralized_party_id());
+            assert_eq!(env.bitsafe_api_url, network.bitsafe_api_url());
+        }
     }
 
     #[test]

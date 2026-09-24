@@ -4,7 +4,7 @@ All notable changes to `cbtc-lib` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-09-24
 
 `cbtc-lib` now re-exports `canton-lib`'s `token` crate for every Token
 Standard operation. It deletes its own copies of thirteen modules, 4,851
@@ -16,8 +16,12 @@ cBTC's own bridge operations.
 - Token Standard V2 entry points on eight of the thirteen operations —
   `accept`, `batch`, `cancel_offers`, `consolidate`, `distribute`, `reject`,
   `split` and `transfer`, each in a `v2` submodule. `active_contracts`
-  reaches V2 through its new `account` field instead. `allocation`,
-  `credentials`, `dar_check` and `utils` have no V2 form.
+  reaches V2 through its new `account` field instead. `credentials` and
+  `dar_check` never call the token registry, so no version applies to them,
+  and `utils` reads both versions with one implementation. `allocation` is
+  the one gap: it has a V1 equivalent and V2 defines a form for it, and
+  `canton-lib` supplies neither the route nor the account-shaped leg. #81
+  tracks it.
 - A caller reaches the V2 API two ways: `cbtc::transfer::v2::submit` beside
   `cbtc::transfer::submit`, or `TokenClientConfig.version`, which selects
   the registry API for every write method and for the holding reads.
@@ -40,6 +44,17 @@ cBTC's own bridge operations.
 - `examples/send_cbtc_v2.rs`, the V2 counterpart of `send_cbtc.rs`.
 - `examples/integration_test.rs` reads `TOKEN_STANDARD_VERSION`, `V1` or
   `V2`, and drives the whole flow on either.
+- `cbtc::Network` and `cbtc::CBTC_TICKER`. `Network` is a three-variant
+  enum — `Devnet`, `Testnet`, `Mainnet` — whose methods return the
+  registrar party ID, the registry URL and the Bitsafe API URL for that
+  network. It also carries `Network::ALL`, `Display` and `FromStr`. A
+  crate that depends only on `cbtc` can now name every per-network value
+  without a `canton-lib` dependency and without a string literal.
+  `CBTC_TICKER` names the ticker; the library still supplies no default,
+  and every operation takes its instrument from the caller.
+- `examples/token_client.rs`, the first example that uses `TokenClient`.
+  It reads a party's balance, UTXO count and incoming offers, and writes
+  nothing.
 
 ### Changed — breaking
 
@@ -58,18 +73,11 @@ cBTC's own bridge operations.
   `Result<SplitResult, String>`. `Error` carries `message` and `partial`, so
   a caller now learns which holdings the failed split did create. A caller
   that only printed the message reads `e.message`.
-- `active_contracts::get` matches the instrument's `id` and `admin`, both
-  exactly. It previously kept any holding whose ticker lowercased to
-  `"cbtc"`, and never compared the admin. One unsolicited holding with that
-  ticker halted every outbound transfer the library attempted, because the
-  registry rejects a whole transaction rather than skipping a holding. It
-  also inflated the reported balance.
-- `utils::fetch_incoming_transfers` and `utils::fetch_outgoing_transfers`
-  match the instrument's `id` and `admin`, both exactly. They previously
-  kept any offer whose ticker lowercased to `"cbtc"` and never compared the
-  admin. **This is the filter that closes the reachable route**: a transfer
-  offer names its receiver as an observer only, so any registrar can create
-  one at any party, and `accept_all` fed the whole list to the registry.
+- `active_contracts::get`, `utils::fetch_incoming_transfers` and
+  `utils::fetch_outgoing_transfers` match the instrument's `id` and `admin`,
+  both exactly. Each previously matched the ticker alone. A caller that
+  relied on the loose match reads fewer holdings and fewer offers. The
+  Security section explains why they changed.
 - `cbtc::types` gained `transfer_factory`.
   `transfer::SequentialChainedParams.registry_response` is an
   `Option<common::transfer_factory::Response>`, on the V1 and the V2 path
@@ -93,17 +101,11 @@ cBTC's own bridge operations.
   `account_label`. The two entries below describe both.
 - The four registry routes report one error wording instead of four. A
   caller that matched on the old per-route text stops matching, and it stops
-  silently. I searched for such a caller across `cbtc-lib`, `cbtc-tui`,
-  `cbtc-faucet`, `vault-ui`, `cBTC-Canton-App` and `cbtc-doc` on 8 September
-  2026 and found none.
+  silently. A search across every known Bitsafe consumer on 8 September 2026
+  found no such caller.
 - `mint_redeem::redeem::list_holdings` filters by instrument, and
-  `ListHoldingsParams` gains `instrument_id` to say which. It returned every
-  `Holding` contract the party owned, and each of five callers compared the
-  ticker alone. A foreign registrar can issue the ticker `CBTC`, so that
-  filter admitted holdings the registry then rejects with
-  `400 Given holdings are invalid`, halting a burn or a split. This closes the
-  gap on the mint and redeem path, which an earlier draft of this entry
-  recorded as open.
+  `ListHoldingsParams` gains `instrument_id` to say which. The Security
+  section explains why.
 - `Holding::from_active_contract` now fails on a payload with no `registrar`
   or no `label`, and `list_holdings` fails the whole call when one holding
   fails to parse. Version 0.6.4 ignored both fields. The choice is deliberate,
@@ -135,9 +137,24 @@ cBTC's own bridge operations.
   repeating the call would hide it. `allocation_factory::get` and
   `allocation_context::get` do not retry.
 - A Keycloak token expiry no longer underflows below a 60-second lifetime.
+- `.env.example` takes one `ENVIRONMENT` key instead of
+  `DECENTRALIZED_PARTY_ID`, `REGISTRY_URL` and `BITSAFE_API_URL`. Those
+  three stay available as overrides, and an explicit value still wins, so
+  an existing `.env` needs no edit. The file previously carried each of
+  the three values four times.
+- `cbtc-tui --import-env` writes no environment override when the `.env`
+  names none of the three variables. A fresh copy of `.env.example` is
+  now such a file. The override it used to write carried the built-in
+  values anyway.
 
 ### Fixed
 
+- **`cp .env.example .env` left the `--ignored` tests unable to start.** The
+  four live tests in `src/mint_redeem` read `BITSAFE_API_URL` themselves.
+  They live in the library, so `examples/shared.rs` does not reach them, and
+  a fresh template stopped them with `BITSAFE_API_URL must be set`. They now
+  follow the same rule the examples do: `ENVIRONMENT` supplies the URL, and
+  `BITSAFE_API_URL` overrides it.
 - **The library could not authenticate against any Keycloak Bitsafe runs.**
   Every call built its token endpoint with `keycloak::login::password_url`,
   deprecated since `canton-lib` 0.5.1, which emits
@@ -149,9 +166,31 @@ cBTC's own bridge operations.
   slash from the host. `cbtc-tui` carried the same fault and is fixed with
   it.
 
+### Security
+
+- **A holding filter compared the ticker alone.** Any registrar can issue an
+  instrument whose ticker is `CBTC`. `active_contracts::get` kept every
+  holding whose ticker lowercased to `"cbtc"`, and it never compared the
+  instrument admin. One unsolicited holding then halted every outbound
+  transfer, because the registry rejects a whole transaction rather than
+  skipping a holding. It also inflated the reported balance. The filter now
+  matches the instrument's `id` and `admin`, both exactly.
+- **A transfer-offer filter had the same fault, and anyone could reach it.**
+  A transfer offer names its receiver as an observer only, so any registrar
+  can create one at any party. `utils::fetch_incoming_transfers` and
+  `utils::fetch_outgoing_transfers` kept every offer whose ticker lowercased
+  to `"cbtc"`, and `accept_all` fed the whole list to the registry. Both
+  functions now match the instrument's `id` and `admin`, both exactly.
+- **The mint and redeem path carried the same fault.**
+  `mint_redeem::redeem::list_holdings` returned every `Holding` the party
+  owned, and each of five callers compared the ticker alone. The registry
+  rejected such a call with `400 Given holdings are invalid`, which halted a
+  burn or a split. `list_holdings` now filters by instrument, and
+  `ListHoldingsParams` gains `instrument_id` to say which.
+
 ### Dependencies
 
-- `token`, `common`, `ledger` and `keycloak` — four crates, not five — pin
+- `token`, `common`, `ledger`, `keycloak` and `registry` — five crates — pin
   `canton-lib` at `tag = "v0.8.0"`, and `cbtc-tui` pins `keycloak` and
   `ledger` at the same tag. **A consumer must pin that same tag.** Mixing a
   tag and a revision across manifests makes Cargo build two `common`
@@ -161,8 +200,7 @@ cBTC's own bridge operations.
   `canton-lib` PR 50 merged on 16 September 2026 and `v0.8.0` followed, as
   annotated tag `a643647` on commit `ba728c3`. This crate tracked that work by
   revision while the PR was open, because a revision is reversible and a tag
-  is not. Note that `canton-lib`'s own changelog dates `0.8.0` as 14 September;
-  it shipped on the 16th. That needs no retag and a follow-up corrects it.
+  is not.
 
   This release originally pinned revision `21ba857c1aa1e1e9955ab72ea46b6cccb6ea5c3f`,
   because no `canton-lib` tag then contained the `token` crate. `canton-lib`
@@ -172,7 +210,11 @@ cBTC's own bridge operations.
   one commit over that revision, `a0f46ae`, which extracts `wanted_transfer`
   from a closure and tests it. **So the swap adds those tests and changes no
   behaviour.**
-- `registry`, `zip`, `semver`, `base64`, `futures` and `log` are removed.
-  Nothing in the crate uses them once the thirteen modules go.
+- `zip`, `semver`, `base64`, `futures` and `log` are removed. Nothing in the
+  crate uses them once the thirteen modules go.
+- `registry` returns. It was removed earlier in this release, and
+  `Network::registry_url` brings it back, because that method returns
+  `registry::consts::DEVNET_REGISTRY_URL` and its two siblings rather than a
+  literal. `Cargo.lock` gains one line for it.
 - `cbtc-tui` no longer declares `common` itself. It names `cbtc::InstrumentId`
   instead, so it cannot drift from `cbtc`'s pin.

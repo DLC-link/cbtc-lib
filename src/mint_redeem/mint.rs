@@ -292,13 +292,13 @@ mod tests {
     use std::env;
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
+    #[ignore = "needs live devnet; run with --ignored"]
     async fn test_create_deposit_account_with_credentials() {
         dotenvy::dotenv().ok();
 
         let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
         let party_id = env::var("PARTY_ID").expect("PARTY_ID must be set");
-        let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+        let api_url = crate::mint_redeem::test_api_url();
 
         let params = PasswordParams {
             client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
@@ -359,7 +359,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "needs live devnet; the .env hosts do not resolve; run with --ignored"]
+    #[ignore = "needs live devnet; run with --ignored"]
     async fn test_list_deposit_accounts() {
         dotenvy::dotenv().ok();
 

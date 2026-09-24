@@ -100,12 +100,7 @@ fn run_import(
         .with_context(|| format!("reading {}", env_file.display()))?;
 
     // Default the profile name to the file's ENVIRONMENT (e.g. "mainnet").
-    let name = profile_name.unwrap_or_else(|| {
-        env_import::parse_env(&content)
-            .get("ENVIRONMENT")
-            .cloned()
-            .unwrap_or_else(|| "imported".to_string())
-    });
+    let name = profile_name.unwrap_or_else(|| env_import::default_profile_name(&content));
 
     let (mut profile, override_env) = env_import::import(&content, &name);
     if profile.ledger_host.is_empty() || profile.keycloak_host.is_empty() {

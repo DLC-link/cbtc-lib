@@ -11,7 +11,9 @@
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 /// - KEYCLOAK_USERNAME, KEYCLOAK_PASSWORD
 /// - LEDGER_HOST, PARTY_ID
-/// - BITSAFE_API_URL
+/// - ENVIRONMENT (devnet, testnet or mainnet)
+///
+/// Optional override: BITSAFE_API_URL.
 ///
 /// Note on account IDs:
 /// The Bitsafe API uses the account's `id` field (a UUID in the createArgument) to
@@ -20,6 +22,7 @@
 use cbtc::mint_redeem::mint::{GetBitcoinAddressParams, ListDepositAccountsParams};
 use keycloak::login::{PasswordParams, token_url};
 use std::env;
+mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -45,7 +48,7 @@ async fn main() -> Result<(), String> {
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
     let ledger_host = env::var("LEDGER_HOST").expect("LEDGER_HOST must be set");
-    let api_url = env::var("BITSAFE_API_URL").expect("BITSAFE_API_URL must be set");
+    let api_url = shared::resolve_bitsafe_api_url();
 
     println!("\nListing deposit accounts for party: {}", party);
     println!("{}\n", "=".repeat(60));

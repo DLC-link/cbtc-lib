@@ -24,14 +24,30 @@ pub fn parse_env(content: &str) -> BTreeMap<String, String> {
     map
 }
 
+/// The profile name to use when the caller names none.
+/// A blank value counts as unset, as it does when resolving the environment
+/// itself, so a profile never takes an empty name.
+pub fn default_profile_name(content: &str) -> String {
+    parse_env(content)
+        .get("ENVIRONMENT")
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "imported".to_string())
+}
+
 /// Build a `Profile` (and an optional environment override) from `.env` content.
 pub fn import(content: &str, profile_name: &str) -> (Profile, Option<(String, Environment)>) {
     let map = parse_env(content);
     let get = |k: &str| map.get(k).cloned().unwrap_or_default();
+    // The binary chooses devnet; the library still makes every caller
+    // choose, because `Network` has no `Default`. Naming the variant keeps
+    // this from drifting from `Config::builtin_environments`' keys. A blank
+    // value counts as unset, or it would name an environment no table holds.
     let env_name = map
         .get("ENVIRONMENT")
-        .cloned()
-        .unwrap_or_else(|| "devnet".to_string());
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| cbtc::Network::Devnet.to_string());
 
     let profile = Profile {
         name: profile_name.to_string(),
@@ -107,5 +123,56 @@ BITSAFE_API_URL=https://api.example
         assert_eq!(env_name, "devnet");
         assert_eq!(ov.registry_url, "https://reg.example");
         assert_eq!(ov.bitsafe_api_url, "https://api.example");
+    }
+
+    /// The shipped `.env.example` comments out all three per-network
+    /// variables, so importing a copy of it writes no environment override.
+    #[test]
+    fn importing_the_shipped_env_example_writes_no_override() {
+        let (profile, override_env) = import(include_str!("../../.env.example"), "imported");
+        assert_eq!(profile.environment, "devnet");
+        assert!(
+            override_env.is_none(),
+            "the shipped template must pin no per-network value"
+        );
+    }
+
+    /// A `.env` with no `ENVIRONMENT` key falls back to devnet.
+    ///
+    /// This is the only test that reaches the `unwrap_or_else`.
+    #[test]
+    fn an_env_without_the_environment_key_falls_back_to_devnet() {
+        let (profile, override_env) = import("LEDGER_HOST=https://ledger.example\n", "imported");
+        assert_eq!(profile.environment, "devnet");
+        assert!(override_env.is_none());
+    }
+
+    /// A blank `ENVIRONMENT` falls back too, rather than naming an
+    /// environment no table holds.
+    /// A blank `ENVIRONMENT` names no profile, so the name falls back too.
+    ///
+    /// `parse_env` trims, so `ENVIRONMENT=` and `ENVIRONMENT=   ` both reach
+    /// here as an empty value. Saving a profile under that name stores an
+    /// empty key, and `--set-default` then points at it.
+    #[test]
+    fn a_blank_environment_does_not_name_the_profile() {
+        for content in ["ENVIRONMENT=\n", "ENVIRONMENT=   \n"] {
+            assert_eq!(default_profile_name(content), "imported", "for {content:?}");
+        }
+    }
+
+    /// A named `ENVIRONMENT` names the profile.
+    #[test]
+    fn the_environment_names_the_profile() {
+        assert_eq!(default_profile_name("ENVIRONMENT=mainnet\n"), "mainnet");
+        assert_eq!(default_profile_name("LEDGER_HOST=x\n"), "imported");
+    }
+
+    #[test]
+    fn a_blank_environment_falls_back_to_devnet() {
+        for content in ["ENVIRONMENT=\n", "ENVIRONMENT=   \n"] {
+            let (profile, _) = import(content, "imported");
+            assert_eq!(profile.environment, "devnet", "for {content:?}");
+        }
     }
 }

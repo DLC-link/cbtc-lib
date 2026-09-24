@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "cbtc"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "canton-api-client",
  "chrono",
@@ -297,6 +297,7 @@ dependencies = [
  "env_logger",
  "keycloak",
  "ledger",
+ "registry",
  "reqwest 0.12.26",
  "serde",
  "serde_json",

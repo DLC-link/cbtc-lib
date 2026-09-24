@@ -404,12 +404,22 @@ fn draw_confirm(frame: &mut Frame, app: &App, theme: &Theme) {
     let area = centered_rect(60, 40, frame.area());
     frame.render_widget(Clear, area);
     let mainnet = app.is_mainnet();
+    let mixed = app.cross_network_warning();
     let summary = app.pending.as_ref().map(|(_, s)| s.clone()).unwrap_or_default();
     let mut lines: Vec<Line> = Vec::new();
     if mainnet {
         lines.push(Line::from(Span::styled(
             "⚠ MAINNET ⚠",
             Style::default().fg(theme.color(Role::Danger)).add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from(""));
+    }
+    if let Some(warning) = &mixed {
+        lines.push(Line::from(Span::styled(
+            format!("⚠ {warning}"),
+            Style::default()
+                .fg(theme.color(Role::Danger))
+                .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(""));
     }
@@ -420,7 +430,7 @@ fn draw_confirm(frame: &mut Frame, app: &App, theme: &Theme) {
     lines.push(Line::from(
         Span::styled("Enter confirm · Esc cancel", Style::default().fg(theme.color(Role::FgDim))),
     ));
-    let border = if mainnet { Role::Danger } else { Role::Accent };
+    let border = if mainnet || mixed.is_some() { Role::Danger } else { Role::Accent };
     let para = Paragraph::new(lines).block(
         Block::default()
             .title(Span::styled(

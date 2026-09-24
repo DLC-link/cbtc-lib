@@ -16,8 +16,12 @@ cBTC's own bridge operations.
 - Token Standard V2 entry points on eight of the thirteen operations —
   `accept`, `batch`, `cancel_offers`, `consolidate`, `distribute`, `reject`,
   `split` and `transfer`, each in a `v2` submodule. `active_contracts`
-  reaches V2 through its new `account` field instead. `allocation`,
-  `credentials`, `dar_check` and `utils` have no V2 form.
+  reaches V2 through its new `account` field instead. `credentials` and
+  `dar_check` never call the token registry, so no version applies to them,
+  and `utils` reads both versions with one implementation. `allocation` is
+  the one gap: it has a V1 equivalent and V2 defines a form for it, and
+  `canton-lib` supplies neither the route nor the account-shaped leg. #81
+  tracks it.
 - A caller reaches the V2 API two ways: `cbtc::transfer::v2::submit` beside
   `cbtc::transfer::submit`, or `TokenClientConfig.version`, which selects
   the registry API for every write method and for the holding reads.

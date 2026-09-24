@@ -4,6 +4,17 @@ All notable changes to `cbtc-lib` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `README.md` no longer copies the `.env` variable block out of
+  `.env.example`. The two had drifted: the template's `LEDGER_HOST` carries
+  the JSON API path and says so, and the README showed a bare host. A
+  participant answers 404 on every call without that path. The README now
+  links the template and names the three values a user supplies, so the two
+  files cannot disagree again.
+
 ## [0.7.0] - 2026-09-24
 
 `cbtc-lib` now re-exports `canton-lib`'s `token` crate for every Token

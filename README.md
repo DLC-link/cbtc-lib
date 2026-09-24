@@ -232,25 +232,18 @@ cp .env.example .env
 
 2. **Configure your environment variables**
 
-Edit `.env` with your Canton participant node details:
+[`.env.example`](.env.example) lists every variable, with a comment on each
+one. It is the reference: this README does not repeat it, so the two cannot
+disagree.
 
-```bash
-# Canton Network
-LEDGER_HOST=https://participant.example.com
-PARTY_ID=your-party::1220...
-
-# Pick the network. One of: devnet, testnet, mainnet.
-ENVIRONMENT=devnet
-
-# Override any of these for a local or custom network. The three named
-# networks need no value here. An empty value counts as unset.
-# DECENTRALIZED_PARTY_ID=
-# REGISTRY_URL=
-# BITSAFE_API_URL=
-```
+You supply three things. Your participant node's JSON ledger API host goes in
+`LEDGER_HOST`, and the template shows the API path it needs. Your party goes in
+`PARTY_ID`. `ENVIRONMENT` names the network, and it takes `devnet`, `testnet`
+or `mainnet`.
 
 `ENVIRONMENT` supplies the decentralized party ID, the registry URL and the
-Bitsafe API URL. The next section lists those values.
+Bitsafe API URL. The next section lists those values. Override any of the three
+for a local or custom network, and an explicit value wins.
 
 `cbtc-tui --import-env` writes no environment override from a fresh
 `.env.example`, because the template comments all three overrides out. A user

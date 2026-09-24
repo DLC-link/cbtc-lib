@@ -1,6 +1,6 @@
 # Canton CBTC Token Library
 
-A Rust library for interacting with the Canton blockchain to manage CBTC tokens using the Canton Token Standard (CIP-0056).
+A Rust library for interacting with the Canton blockchain to manage CBTC tokens using the Canton Token Standard, version 1 (CIP-0056) and version 2 (CIP-0112).
 
 ## Features
 
@@ -12,7 +12,7 @@ A Rust library for interacting with the Canton blockchain to manage CBTC tokens 
 - **UTXO Management** - Consolidate and split holdings
 - **High-Volume Transfers** - Optimized for high-volume transfer operations
 - **Multi-Environment** - Support for devnet, testnet, and mainnet
-- **Token Standard Compliant** - Implements Canton Token Standard (CIP-0056)
+- **Token Standard Compliant** - Implements version 1 of the Canton Token Standard (CIP-0056) and version 2 (CIP-0112). Eight of the thirteen operations carry a V2 counterpart, and a caller names the version once on `cbtc::TokenClient`
 - **Interactive TUI** - A terminal UI (`cbtc-tui`) to browse balances, offers, and accounts and submit commands without writing code
 
 > **Important Setup Requirements**:
@@ -501,8 +501,14 @@ applies it to every write method and to `holdings`, `balance` and
 `utxo_count`, so a caller names the version once. `incoming_offers` and
 `outgoing_offers` read the same contracts under either version.
 
-`active_contracts` reaches V2 through its `account` field, and `allocation`,
-`credentials`, `dar_check` and `utils` have no V2 form.
+`active_contracts` reaches V2 through its `account` field. `credentials` and
+`dar_check` never call the token registry, so no version applies to them, and
+`utils` reads both versions with one implementation. `allocation` is the one
+gap: it has a V1 equivalent and V2 defines a form for it, and `canton-lib`
+supplies neither the route nor the account-shaped leg. [#81][alloc-v2] tracks
+it.
+
+[alloc-v2]: https://github.com/DLC-link/cbtc-lib/issues/81
 
 The library supplies no default ticker. Where an operation needs an
 instrument, it takes one from the caller, because Bitsafe plans to support
@@ -881,7 +887,8 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Resources
 
-- [Canton Token Standard (CIP-0056)](context/cip-0056.md)
-- [Canton Coin Fee Removal (CIP-0078)](context/cip-0078-canton-coin-fee-removal.md)
+- [Canton Token Standard V1 (CIP-0056)](https://github.com/canton-foundation/cips/blob/main/cip-0056/cip-0056.md)
+- [Canton Token Standard V2 (CIP-0112)](https://github.com/canton-foundation/cips/blob/main/cip-0112/cip-0112.md)
+- [Canton Coin Fee Removal (CIP-0078)](https://github.com/canton-foundation/cips/blob/main/cip-0078/cip-0078.md)
 - [Canton Documentation](https://docs.digitalasset.com/canton)
 - [Canton Network](https://www.canton.network/)

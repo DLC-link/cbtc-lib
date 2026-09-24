@@ -14,6 +14,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   participant answers 404 on every call without that path. The README now
   links the template and names the three values a user supplies, so the two
   files cannot disagree again.
+- `README.md` names Token Standard V2 where a reader starts. The description
+  and the feature list cited CIP-0056 alone, so a reader who did not reach
+  the API reference took the library for V1 only. Both now cite CIP-0112 as
+  well, and the resources list links it.
+- `README.md` no longer lists `allocation` beside `credentials`, `dar_check`
+  and `utils` as having no V2 form. Those three need no version. Allocation
+  is a gap, and #81 tracks it.
+- Two resource links pointed at `context/cip-0056.md` and
+  `context/cip-0078-canton-coin-fee-removal.md`. Neither file is in the
+  repository, so both returned 404. They now link the published CIPs.
 
 ## [0.7.0] - 2026-09-24
 

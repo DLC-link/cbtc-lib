@@ -233,8 +233,7 @@ cp .env.example .env
 2. **Configure your environment variables**
 
 [`.env.example`](.env.example) lists every variable, with a comment on each
-one. It is the reference: this README does not repeat it, so the two cannot
-disagree.
+one.
 
 You supply three things. Your participant node's JSON ledger API host goes in
 `LEDGER_HOST`, and the template shows the API path it needs. Your party goes in

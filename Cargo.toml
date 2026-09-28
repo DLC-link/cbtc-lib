@@ -8,11 +8,11 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
-token = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
-registry = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.8.0" }
+token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9578a1f49a681a0d9c55b0e07b0d9711f8c762ee" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9578a1f49a681a0d9c55b0e07b0d9711f8c762ee" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9578a1f49a681a0d9c55b0e07b0d9711f8c762ee" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9578a1f49a681a0d9c55b0e07b0d9711f8c762ee" }
+registry = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "9578a1f49a681a0d9c55b0e07b0d9711f8c762ee" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"

@@ -8,6 +8,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `examples/batch_distribute.rs` reports the batch's failures and exits
+  non-zero when it has any. It printed a success line and exited 0 whatever
+  happened, so a script could not tell a clean run from one where every
+  transfer failed. A devnet run on 28 September 2026 showed the shape of the
+  problem: the ledger settled the transfer, the library reported one failure,
+  and the example printed success.
+
+### Changed
+
+- The five `canton-lib` crates, and `cbtc-tui`'s two, track a revision instead
+  of `tag = "v0.8.0"`. The revision carries the fix that makes
+  `batch::submit_from_csv` return its result. All seven move together, because
+  mixing a tag and a revision across manifests builds two `common` packages.
+  **This pin swaps back to a tag before release**, once `canton-lib` cuts the
+  version that contains it.
+
+### Fixed
+
 - `README.md` no longer copies the `.env` variable block out of
   `.env.example`. The two had drifted: the template's `LEDGER_HOST` carries
   the JSON API path and says so, and the README showed a bare host. A

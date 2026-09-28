@@ -58,9 +58,29 @@ async fn main() -> Result<(), String> {
     println!("\nProcessing batch distribution...");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-    cbtc::batch::submit_from_csv(batch_params).await?;
+    let result = cbtc::batch::submit_from_csv(batch_params).await?;
 
-    println!("\n✅ Batch distribution completed successfully!");
+    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("Successful transfers: {}", result.successful_count);
+
+    if result.failed_count > 0 {
+        println!("Failed transfers:     {}", result.failed_count);
+        for failed in result.results.iter().filter(|r| !r.success) {
+            println!(
+                "  {} to {}: {}",
+                failed.amount,
+                failed.receiver,
+                failed.error.as_deref().unwrap_or("no error recorded")
+            );
+        }
+        return Err(format!(
+            "{} of {} transfers failed",
+            result.failed_count,
+            result.results.len()
+        ));
+    }
+
+    println!("\n✅ Every transfer succeeded.");
     println!("\nNote: Each receiver must accept their transfer for it to complete.");
 
     Ok(())

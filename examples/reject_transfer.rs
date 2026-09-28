@@ -9,7 +9,8 @@
 ///
 /// Token Standard V2 needs no separate example. `reject::v2` re-exports V1's
 /// `Params` unchanged, so calling `cbtc::reject::v2::submit` with the same
-/// arguments is the whole difference.
+/// arguments is the whole difference. A devnet run confirmed it: the V2 call
+/// rejected a V2 offer with these arguments untouched.
 ///
 /// Create an offer to reject by running `send_cbtc` first. A transfer to
 /// another party creates an offer and waits. A transfer to your own party

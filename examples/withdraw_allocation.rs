@@ -10,8 +10,7 @@
 /// You have to supply the allocation's contract id, because
 /// `cbtc::allocation::allocate` returns no contract id and nothing in the
 /// crate lists allocations. Read it from the created `Allocation` contract
-/// in the allocate run's transaction, with `RUST_LOG=trace`. Tracked in the
-/// repository's issues.
+/// in the allocate run's transaction, with `RUST_LOG=trace`. Tracked in issue #85.
 use std::env;
 mod shared;
 

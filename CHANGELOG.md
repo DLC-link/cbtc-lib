@@ -18,6 +18,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   was the only operation in the public API that nothing exercised. Run against
   devnet on 28 September 2026: a cross-party transfer created an offer, the
   receiver rejected it, and the rejection returned the sender's 0.01 CBTC.
+- `examples/withdraw_allocation.rs`. `allocate_cbtc` locks holdings into a
+  settlement leg, and nothing showed how to get them back. This withdraws the
+  allocation as the sender, which unlocks them.
+
+  It takes the allocation's contract id from `ALLOCATION_CONTRACT_ID`, because
+  `allocation::allocate` returns no contract id and nothing in the crate lists
+  allocations. Run against devnet on 28 September 2026: an allocation of 0.001
+  CBTC locked the holdings, and the withdrawal exercised `Allocation_Withdraw`,
+  archived the allocation and created a holding of 0.0010000000 for the sender.
 
 ### Changed
 

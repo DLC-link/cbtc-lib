@@ -100,13 +100,24 @@ async fn main() -> Result<(), String> {
 
     // Submit allocation
     println!("\nSubmitting allocation...");
-    cbtc::allocation::allocate(params).await?;
+    let result = cbtc::allocation::allocate(params).await?;
 
     println!("✅ Allocation submitted successfully!");
+    println!("\n   Allocation: {}", result.allocation_cid);
+    if !result.sender_change_cids.is_empty() {
+        println!("   Change holdings:");
+        for cid in &result.sender_change_cids {
+            println!("     - {}", cid);
+        }
+    }
     println!(
         "\nNote: the executor settles all legs of the settlement atomically before settleBefore."
     );
-    println!("To reclaim before settlement, withdraw the allocation as the sender.");
+    println!("\nTo reclaim before settlement, withdraw the allocation as the sender:");
+    println!(
+        "  ALLOCATION_CONTRACT_ID={} cargo run --example withdraw_allocation",
+        result.allocation_cid
+    );
 
     Ok(())
 }

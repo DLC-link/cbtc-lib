@@ -26,6 +26,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `examples/allocate_cbtc.rs` prints the allocation's contract id, its change
+  holdings, and the command that reclaims it. The id was only readable out of
+  the ledger transaction with `RUST_LOG=trace`, because `allocation::allocate`
+  returned nothing. It returns the id now, and the example passes it on.
 - `examples/batch_distribute.rs` reports the batch's failures and exits
   non-zero when it has any. It printed a success line and exited 0 whatever
   happened, so a script could not tell a clean run from one where every
@@ -36,8 +40,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - The five `canton-lib` crates, and `cbtc-tui`'s two, track a revision instead
-  of `tag = "v0.8.0"`. The revision carries the fix that makes
-  `batch::submit_from_csv` return its result. All seven move together, because
+  of `tag = "v0.8.0"`. The revision carries the fixes that make
+  `batch::submit_from_csv` and `allocation::allocate` return their results. All seven move together, because
   mixing a tag and a revision across manifests builds two `common` packages.
   **This pin swaps back to a tag before release**, once `canton-lib` cuts the
   version that contains it.

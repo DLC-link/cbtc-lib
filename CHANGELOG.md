@@ -6,6 +6,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `examples/reject_transfer.rs`. Rejecting is the receiver's action, so the
+  example authenticates as the receiver and reads the `RECEIVER_*` variables,
+  falling back to the sender's host and realm where they are shared. It lists
+  the incoming offers for the exact instrument and rejects each one. With no
+  offers it says so and exits 0.
+
+  `reject` had no example, no test and no call site anywhere in the crate. It
+  was the only operation in the public API that nothing exercised. Run against
+  devnet on 28 September 2026: a cross-party transfer created an offer, the
+  receiver rejected it, and the rejection returned the sender's 0.01 CBTC.
+
 ### Fixed
 
 - `README.md` no longer copies the `.env` variable block out of

@@ -114,6 +114,10 @@ path = "examples/allocate_cbtc.rs"
 name = "token_client"
 path = "examples/token_client.rs"
 
+[[example]]
+name = "reject_transfer"
+path = "examples/reject_transfer.rs"
+
 [workspace]
 members = ["cbtc-tui"]
 

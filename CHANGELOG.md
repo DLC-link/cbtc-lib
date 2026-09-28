@@ -8,21 +8,49 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `examples/reject_transfer.rs`. Rejecting is the receiver's action, so the
+  example authenticates as the receiver and reads the `RECEIVER_*` variables,
+  falling back to the sender's host and realm where they are shared. It lists
+  the incoming offers for the exact instrument and rejects each one. With no
+  offers it says so and exits 0.
+
+  `reject` had no example, no test and no call site anywhere in the crate. It
+  was the only operation in the public API that nothing exercised. Run against
+  devnet on 28 September 2026: a cross-party transfer created an offer, the
+  receiver rejected it, and the rejection returned the sender's 0.01 CBTC.
+- `examples/withdraw_allocation.rs`. `allocate_cbtc` locks holdings into a
+  settlement leg, and nothing showed how to get them back. This withdraws the
+  allocation as the sender, which unlocks them.
+
+  It takes the allocation's contract id from `ALLOCATION_CONTRACT_ID`, because
+  `allocation::allocate` returns no contract id and nothing in the crate lists
+  allocations. Run against devnet on 28 September 2026: an allocation of 0.001
+  CBTC locked the holdings, and the withdrawal exercised `Allocation_Withdraw`,
+  archived the allocation and created a holding of 0.0010000000 for the sender.
 - Four Token Standard V2 examples: `consolidate_utxos_v2`,
   `split_holding_v2`, `batch_distribute_v2` and `batch_with_callback_v2`.
   Each takes a `cbtc::Account` where its V1 counterpart takes a party string,
   which is the difference V2 makes to these four. `split_holding_v2` is the
   first split example on either version.
 
-  They live on this branch rather than beside the other new examples, because
-  `batch_distribute_v2` reads the per-transfer result that the pinned
-  `canton-lib` revision returns and the released tag does not.
-
   All four ran against devnet on 28 September 2026, each over the
   `Splice.Api.Token.TransferInstructionV2` interface: consolidation merged two
   holdings into one, the split turned 20.1751930825 CBTC into an output of
   0.001 and its change, and both batch entry points distributed to a second
   party and reported one success and no failures.
+
+### Changed
+
+- `accept_transfers`, `reject_transfer` and `cancel_offers` say in their doc
+  comment that the V2 call is a drop-in. Those three modules re-export V1's
+  parameter types unchanged, so a separate example would have differed by one
+  path segment and taught a reader nothing.
+- The five `canton-lib` crates, and `cbtc-tui`'s two, track a revision instead
+  of `tag = "v0.8.0"`. The revision carries the fixes that make
+  `batch::submit_from_csv` and `allocation::allocate` return their results.
+  All seven move together, because mixing a tag and a revision across
+  manifests builds two `common` packages. **This pin swaps back to a tag
+  before release**, once `canton-lib` cuts the version that contains it.
 
 ### Fixed
 
@@ -36,18 +64,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   transfer failed. A devnet run on 28 September 2026 showed the shape of the
   problem: the ledger settled the transfer, the library reported one failure,
   and the example printed success.
-
-### Changed
-
-- The five `canton-lib` crates, and `cbtc-tui`'s two, track a revision instead
-  of `tag = "v0.8.0"`. The revision carries the fixes that make
-  `batch::submit_from_csv` and `allocation::allocate` return their results. All seven move together, because
-  mixing a tag and a revision across manifests builds two `common` packages.
-  **This pin swaps back to a tag before release**, once `canton-lib` cuts the
-  version that contains it.
-
-### Fixed
-
 - `README.md` no longer copies the `.env` variable block out of
   `.env.example`. The two had drifted: the template's `LEDGER_HOST` carries
   the JSON API path and says so, and the README showed a bare host. A

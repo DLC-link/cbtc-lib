@@ -4,6 +4,11 @@
 /// that you have sent but have not yet been accepted by the receiver.
 ///
 /// Run with: cargo run -p examples --bin cancel_offers
+///
+/// Token Standard V2 needs no separate example. `cancel_offers::v2`
+/// re-exports V1's `WithdrawAllParams` unchanged, so calling
+/// `cbtc::cancel_offers::v2::withdraw_all` with the same arguments is the
+/// whole difference.
 use std::env;
 mod shared;
 

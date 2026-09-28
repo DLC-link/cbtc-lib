@@ -6,6 +6,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Four Token Standard V2 examples: `consolidate_utxos_v2`,
+  `split_holding_v2`, `batch_distribute_v2` and `batch_with_callback_v2`.
+  Each takes a `cbtc::Account` where its V1 counterpart takes a party string,
+  which is the difference V2 makes to these four. `split_holding_v2` is the
+  first split example on either version.
+
+  They live on this branch rather than beside the other new examples, because
+  `batch_distribute_v2` reads the per-transfer result that the pinned
+  `canton-lib` revision returns and the released tag does not.
+
+  All four ran against devnet on 28 September 2026, each over the
+  `Splice.Api.Token.TransferInstructionV2` interface: consolidation merged two
+  holdings into one, the split turned 20.1751930825 CBTC into an output of
+  0.001 and its change, and both batch entry points distributed to a second
+  party and reported one success and no failures.
+
 ### Fixed
 
 - `examples/batch_distribute.rs` reports the batch's failures and exits

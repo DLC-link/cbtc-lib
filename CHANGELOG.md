@@ -18,17 +18,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   was the only operation in the public API that nothing exercised. Run against
   devnet on 28 September 2026: a cross-party transfer created an offer, the
   receiver rejected it, and the rejection returned the sender's 0.01 CBTC.
-- Four Token Standard V2 examples: `consolidate_utxos_v2`,
-  `split_holding_v2`, `batch_distribute_v2` and `batch_with_callback_v2`.
-  Each takes a `cbtc::Account` where its V1 counterpart takes a party
-  string, which is the difference V2 makes to these four. `split_holding_v2`
-  is the first split example on either version.
-
-  All four ran against devnet on 28 September 2026, each over the
-  `Splice.Api.Token.TransferInstructionV2` interface: consolidation merged
-  two holdings into one, the split turned 20.1751930825 CBTC into an output
-  of 0.001 and its change, and both batch entry points distributed to a
-  second party.
 
 ### Changed
 

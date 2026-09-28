@@ -118,22 +118,6 @@ path = "examples/token_client.rs"
 name = "reject_transfer"
 path = "examples/reject_transfer.rs"
 
-[[example]]
-name = "consolidate_utxos_v2"
-path = "examples/consolidate_utxos_v2.rs"
-
-[[example]]
-name = "split_holding_v2"
-path = "examples/split_holding_v2.rs"
-
-[[example]]
-name = "batch_distribute_v2"
-path = "examples/batch_distribute_v2.rs"
-
-[[example]]
-name = "batch_with_callback_v2"
-path = "examples/batch_with_callback_v2.rs"
-
 [workspace]
 members = ["cbtc-tui"]
 

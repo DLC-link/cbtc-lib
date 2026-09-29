@@ -127,7 +127,10 @@ async fn main() -> Result<(), String> {
         cbtc::allocation::AllocationOutcome::Pending {
             allocation_instruction_cid,
         } => {
-            println!("\n   Allocation instruction: {}", allocation_instruction_cid);
+            println!(
+                "\n   Allocation instruction: {}",
+                allocation_instruction_cid
+            );
             println!(
                 "\nThe registry created an instruction rather than the allocation, so there is\nnothing to withdraw yet. Keep this id: it is the only handle on the instruction."
             );

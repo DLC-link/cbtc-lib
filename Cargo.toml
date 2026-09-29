@@ -8,11 +8,11 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
-token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
-registry = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
+token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
+registry = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"

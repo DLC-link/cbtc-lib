@@ -103,7 +103,6 @@ async fn main() -> Result<(), String> {
     let result = cbtc::allocation::allocate(params).await?;
 
     println!("✅ Allocation submitted successfully!");
-    println!("\n   Allocation: {}", result.allocation_cid);
     if !result.sender_change_cids.is_empty() {
         println!("   Change holdings:");
         for cid in &result.sender_change_cids {
@@ -113,11 +112,27 @@ async fn main() -> Result<(), String> {
     println!(
         "\nNote: the executor settles all legs of the settlement atomically before settleBefore."
     );
-    println!("\nTo reclaim before settlement, withdraw the allocation as the sender:");
-    println!(
-        "  ALLOCATION_CONTRACT_ID={} cargo run --example withdraw_allocation",
-        result.allocation_cid
-    );
+
+    // The registry either creates the allocation or creates an instruction
+    // that needs a further step. Only the first can be withdrawn.
+    match &result.outcome {
+        cbtc::allocation::AllocationOutcome::Completed { allocation_cid } => {
+            println!("\n   Allocation: {}", allocation_cid);
+            println!("\nTo reclaim before settlement, withdraw the allocation as the sender:");
+            println!(
+                "  ALLOCATION_CONTRACT_ID={} cargo run --example withdraw_allocation",
+                allocation_cid
+            );
+        }
+        cbtc::allocation::AllocationOutcome::Pending {
+            allocation_instruction_cid,
+        } => {
+            println!("\n   Allocation instruction: {}", allocation_instruction_cid);
+            println!(
+                "\nThe registry created an instruction rather than the allocation, so there is\nnothing to withdraw yet. Keep this id: it is the only handle on the instruction."
+            );
+        }
+    }
 
     Ok(())
 }

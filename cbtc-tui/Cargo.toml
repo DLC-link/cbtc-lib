@@ -10,8 +10,8 @@ cbtc = { path = ".." }
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
 dirs = "5"
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "3d98d583618c19ef1e01067d74f84103495357b7" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "c378c639f1dfc5dab78c9023555a6c72fe45b1c7" }
 ratatui = "0.29"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

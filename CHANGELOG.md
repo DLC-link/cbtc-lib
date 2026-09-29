@@ -14,8 +14,9 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the incoming offers for the exact instrument and rejects each one. With no
   offers it says so and exits 0.
 
-  `reject` had no example, no test and no call site anywhere in the crate. It
-  was the only operation in the public API that nothing exercised. Run against
+  `reject` had no example and no test. `cbtc-tui` dispatches it at
+  `cbtc-tui/src/event.rs:135`, and that is its only call site in the
+  repository, so nothing exercised it automatically. Run against
   devnet on 28 September 2026: a cross-party transfer created an offer, the
   receiver rejected it, and the rejection returned the sender's 0.01 CBTC.
 - `examples/withdraw_allocation.rs`. `allocate_cbtc` locks holdings into a

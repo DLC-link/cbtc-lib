@@ -29,6 +29,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   CBTC locked the holdings, and the withdrawal exercised `Allocation_Withdraw`,
   archived the allocation and created a holding of 0.0010000000 for the sender.
 
+  Both hints that tell a reader how to find that id name
+  `RUST_LOG=ledger::submit=trace` rather than a bare `RUST_LOG=trace`. The
+  websocket library logs its handshake at trace, and `canton-lib` puts the
+  access token in a handshake header, so the wider filter prints a live token
+  to the terminal. The narrower one shows the submission response, which is
+  where the contract id is.
+
 ### Changed
 
 - `accept_transfers`, `reject_transfer` and `cancel_offers` say in their doc

@@ -9,12 +9,13 @@
 ///
 /// Token Standard V2 needs no separate example. `reject::v2` re-exports V1's
 /// `Params` unchanged, so calling `cbtc::reject::v2::submit` with the same
-/// arguments is the whole difference. A devnet run confirmed it: the V2 call
-/// rejected a V2 offer with these arguments untouched.
+/// arguments is the whole difference.
 ///
 /// Create an offer to reject by running `send_cbtc` first. A transfer to
 /// another party creates an offer and waits. A transfer to your own party
-/// settles on submission and leaves nothing to reject.
+/// settles on submission and leaves nothing to reject. `send_cbtc` sends to
+/// `LIB_TEST_RECEIVER_PARTY_ID`, and this example rejects as
+/// `RECEIVER_PARTY_ID`, so both must name this receiver.
 use std::env;
 mod shared;
 
@@ -26,7 +27,8 @@ async fn main() -> Result<(), String> {
     // An empty override is not an override: a `.env` assigns rather than unsets.
     let receiver_var = |name: &str| env::var(name).ok().filter(|s| !s.is_empty());
 
-    let party = env::var("RECEIVER_PARTY_ID").expect("RECEIVER_PARTY_ID must be set");
+    let party = receiver_var("RECEIVER_PARTY_ID")
+        .expect("RECEIVER_PARTY_ID must be set to the party that rejects the offers");
     let ledger_host = receiver_var("RECEIVER_LEDGER_HOST")
         .unwrap_or_else(|| env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"));
     let keycloak_url = keycloak::login::token_url(
@@ -71,7 +73,11 @@ async fn main() -> Result<(), String> {
 
     if transfers.is_empty() {
         println!("No pending incoming transfers found.");
-        println!("Run `cargo run --example send_cbtc` from the sender to create one.\n");
+        println!("Run `cargo run --example send_cbtc` from the sender to create one.");
+        println!(
+            "It sends to LIB_TEST_RECEIVER_PARTY_ID, which must name the same party as \
+             RECEIVER_PARTY_ID.\n"
+        );
         return Ok(());
     }
 

@@ -6,6 +6,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-01
+
 ### Added
 
 - `examples/reject_transfer.rs`. Rejecting is the receiver's action, so the
@@ -63,15 +65,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   comment that the V2 call is a drop-in. Those three modules re-export V1's
   parameter types unchanged, so a separate example would have differed by one
   path segment and taught a reader nothing.
-- The five `canton-lib` crates, and `cbtc-tui`'s two, track a revision instead
-  of `tag = "v0.8.0"`. The revision carries the fixes that make
+- The five `canton-lib` crates, and `cbtc-tui`'s two, move from
+  `tag = "v0.8.0"` to `tag = "v0.9.0"`. That release makes
   `batch::submit_from_csv`, `allocation::allocate` and `transfer::submit`
-  return their results, the one that stops `allocate` reading a pending
-  allocation as a failure, and the one that keeps a settled self transfer's
-  holdings in a chained batch.
-  All seven move together, because mixing a tag and a revision across
-  manifests builds two `common` packages. **This pin swaps back to a tag
-  before release**, once `canton-lib` cuts the version that contains it.
+  return their results, stops `allocate` reading a pending allocation as a
+  failure, and keeps a settled self transfer's holdings in a chained batch.
+  All seven move together, because mixing two source specifications across
+  manifests builds two `common` packages. `cargo tree -d -p common` is the
+  check.
+
+  This release is breaking because of that pin. `cbtc` re-exports
+  `token::transfer` wholesale, so `canton-lib`'s API change reaches this
+  crate's public surface. Under SemVer's 0.x rules the next version is 0.8.0,
+  not 0.7.1.
 
 ### Fixed
 

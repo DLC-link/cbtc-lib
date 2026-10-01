@@ -3,7 +3,7 @@
 /// This example lists all pending CBTC transfer offers where you are the sender.
 /// Use this to see what transfers you've sent that haven't been accepted yet.
 ///
-/// Run with: cargo run -p examples --bin list_outgoing_offers
+/// Run with: cargo run --example list_outgoing_offers
 use std::env;
 mod shared;
 

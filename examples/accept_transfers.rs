@@ -1,6 +1,6 @@
 /// Example: Accept all pending CBTC transfers
 ///
-/// Run with: cargo run -p examples --bin accept_transfers
+/// Run with: cargo run --example accept_transfers
 ///
 /// Token Standard V2 needs no separate example. `accept::v2` re-exports V1's
 /// `Params` and `AcceptAllParams` unchanged, so calling

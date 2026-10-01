@@ -1,20 +1,22 @@
-/// Example: Check and consolidate UTXOs if needed
+/// Example: Check and consolidate UTXOs, Token Standard V2
 ///
-/// Run with: cargo run --example consolidate_utxos
+/// Run with: cargo run --example consolidate_utxos_v2
 ///
-/// Make sure to set up your .env file with the required configuration.
+/// The V2 counterpart of `consolidate_utxos`. The only difference is the
+/// account: V1 takes the party as a string, and V2 takes a
+/// `cbtc::Account`. `Account::basic` builds the unlabelled account every
+/// party owns, with no provider and an empty id. A party can also hold CBTC
+/// under a labelled account, and this example does not reach those.
 use std::env;
 mod shared;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    // Load environment variables
     dotenvy::dotenv().ok();
     env_logger::init();
 
-    // Authenticate
     println!("Authenticating...");
-    let login_params = keycloak::login::PasswordParams {
+    let auth = keycloak::login::password(keycloak::login::PasswordParams {
         client_id: env::var("KEYCLOAK_CLIENT_ID").expect("KEYCLOAK_CLIENT_ID must be set"),
         username: env::var("KEYCLOAK_USERNAME").expect("KEYCLOAK_USERNAME must be set"),
         password: env::var("KEYCLOAK_PASSWORD").expect("KEYCLOAK_PASSWORD must be set"),
@@ -22,55 +24,51 @@ async fn main() -> Result<(), String> {
             &env::var("KEYCLOAK_HOST").expect("KEYCLOAK_HOST must be set"),
             &env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
         ),
-    };
-
-    let auth = keycloak::login::password(login_params)
-        .await
-        .map_err(|e| format!("Authentication failed: {}", e))?;
+    })
+    .await
+    .map_err(|e| format!("Authentication failed: {}", e))?;
 
     let party = env::var("PARTY_ID").expect("PARTY_ID must be set");
-
-    // You can customize the threshold (default is 10)
     let threshold: usize = env::var("CONSOLIDATION_THRESHOLD")
         .unwrap_or_else(|_| "10".to_string())
         .parse()
         .expect("CONSOLIDATION_THRESHOLD must be a valid number");
 
-    println!("\n🔄 Checking UTXO consolidation for party:");
+    println!("\n🔄 Checking UTXO consolidation (V2) for party:");
     println!("   Party: {}", party);
     println!("   Threshold: {} UTXOs\n", threshold);
 
     let decentralized_party_id = shared::resolve_party_id();
 
-    let consolidate_params = cbtc::consolidate::CheckConsolidateParams {
-        party,
-        instrument_id: cbtc::InstrumentId {
-            admin: decentralized_party_id.clone(),
-            id: cbtc::CBTC_TICKER.to_string(),
+    let result = cbtc::consolidate::v2::check_and_consolidate(
+        cbtc::consolidate::v2::CheckConsolidateParams {
+            account: cbtc::Account::basic(party),
+            instrument_id: cbtc::InstrumentId {
+                admin: decentralized_party_id.clone(),
+                id: cbtc::CBTC_TICKER.to_string(),
+            },
+            threshold,
+            ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
+            access_token: auth.access_token,
+            registry_url: shared::resolve_registry_url(),
+            decentralized_party_id,
         },
-        threshold,
-        ledger_host: env::var("LEDGER_HOST").expect("LEDGER_HOST must be set"),
-        access_token: auth.access_token,
-        registry_url: shared::resolve_registry_url(),
-        decentralized_party_id,
-    };
-
-    let result = cbtc::consolidate::check_and_consolidate(consolidate_params).await?;
+    )
+    .await?;
 
     println!();
     if result.consolidated {
         println!("✅ Consolidation complete!");
         println!("   Before: {} UTXOs", result.utxos_before);
         println!("   After:  {} UTXO(s)", result.utxos_after);
-        println!();
-        println!("   Resulting holding CIDs:");
+        println!("\n   Resulting holding CIDs:");
         for cid in &result.holding_cids {
-            let short_id = if cid.len() > 16 {
+            let short = if cid.len() > 16 {
                 format!("{}...{}", &cid[..8], &cid[cid.len() - 8..])
             } else {
                 cid.clone()
             };
-            println!("     - {}", short_id);
+            println!("     - {}", short);
         }
     } else {
         println!("✅ No consolidation needed");

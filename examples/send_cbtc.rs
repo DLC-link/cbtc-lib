@@ -1,6 +1,6 @@
 /// Example: Send CBTC to another party
 ///
-/// Run with: cargo run -p examples --bin send_cbtc
+/// Run with: cargo run --example send_cbtc
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;
@@ -69,10 +69,37 @@ async fn main() -> Result<(), String> {
 
     // Submit transfer
     println!("\nSubmitting transfer...");
-    cbtc::transfer::submit(transfer_params).await?;
+    let receipt = cbtc::transfer::submit(transfer_params).await?;
 
     println!("✅ Transfer submitted successfully!");
-    println!("\nNote: The receiver must accept the transfer for it to complete.");
+    println!("   Update: {}", receipt.update_id);
+
+    // The registry either creates an offer or settles the transfer outright.
+    // Only the first leaves something for the receiver to do.
+    match &receipt.outcome {
+        cbtc::transfer::TransferOutcome::Pending {
+            transfer_instruction_cid,
+        } => {
+            println!("   Offer:  {}", transfer_instruction_cid);
+            println!("\nThe receiver must accept the offer for the transfer to complete.");
+        }
+        cbtc::transfer::TransferOutcome::Completed {
+            receiver_holding_cids,
+        } => {
+            println!("\nThe transfer settled on submission, so there is nothing to accept.");
+            println!("   Receiver holdings:");
+            for cid in receiver_holding_cids {
+                println!("     - {}", cid);
+            }
+        }
+    }
+
+    if !receipt.sender_change_cids.is_empty() {
+        println!("   Your change holdings:");
+        for cid in &receipt.sender_change_cids {
+            println!("     - {}", cid);
+        }
+    }
 
     Ok(())
 }

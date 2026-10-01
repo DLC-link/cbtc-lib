@@ -15,7 +15,7 @@ use cbtc::mint_redeem::redeem::{ListWithdrawAccountsParams, ListWithdrawRequests
 /// To run this example:
 /// 1. Make sure you have .env configured with your credentials
 /// 2. Submit a withdrawal first using redeem_cbtc_flow
-/// 3. cargo run -p examples --bin check_withdraw_requests
+/// 3. cargo run --example check_withdraw_requests
 /// 4. Press Ctrl+C to stop
 use keycloak::login::{PasswordParams, password, token_url};
 use std::env;

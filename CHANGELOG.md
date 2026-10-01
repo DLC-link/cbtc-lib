@@ -6,6 +6,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-01
+
 ### Added
 
 - `examples/reject_transfer.rs`. Rejecting is the receiver's action, so the
@@ -24,27 +26,84 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   allocation as the sender, which unlocks them.
 
   It takes the allocation's contract id from `ALLOCATION_CONTRACT_ID`, because
-  `allocation::allocate` returns no contract id and nothing in the crate lists
-  allocations. Run against devnet on 28 September 2026: an allocation of 0.001
-  CBTC locked the holdings, and the withdrawal exercised `Allocation_Withdraw`,
-  archived the allocation and created a holding of 0.0010000000 for the sender.
+  nothing in the crate lists allocations. `allocate_cbtc` prints that id and
+  the command that reclaims it, so a reader copies one line. Run against
+  devnet on 28 September 2026: an allocation of 0.001 CBTC locked the
+  holdings, and the withdrawal exercised `Allocation_Withdraw`, archived the
+  allocation and created a holding of 0.0010000000 for the sender.
+- Four Token Standard V2 examples: `consolidate_utxos_v2`,
+  `split_holding_v2`, `batch_distribute_v2` and `batch_with_callback_v2`.
+  Each takes a `cbtc::Account` where its V1 counterpart takes a party string,
+  which is the difference V2 makes to these four. `split_holding_v2` is the
+  first split example on either version.
 
-  Both hints that tell a reader how to find that id name
-  `RUST_LOG=ledger::submit=trace` rather than a bare `RUST_LOG=trace`. The
-  websocket library logs its handshake at trace, and `canton-lib` puts the
-  access token in a handshake header, so the wider filter prints a live token
-  to the terminal. The narrower one shows the submission response, which is
-  where the contract id is.
+  All four ran against devnet on 28 September 2026, each over the
+  `Splice.Api.Token.TransferInstructionV2` interface: consolidation merged two
+  holdings into one, the split turned 20.1751930825 CBTC into an output of
+  0.001 and its change, and both batch entry points distributed to a second
+  party and reported one success and no failures.
 
 ### Changed
 
+- `examples/send_cbtc.rs` and `examples/send_cbtc_v2.rs` report which of the
+  two answers the registry gave. Both printed "The receiver must accept the
+  transfer for it to complete" whatever happened, which is false after a
+  transfer that settles on submission: there is no offer to accept. They read
+  the `TransferReceipt` that `canton-lib` now returns, and print the offer id
+  or the receiver's new holdings.
+- `examples/README.md` documents every example the workspace declares, and
+  lists the variables each one reads. Twelve had no section: `reject_transfer`
+  and `withdraw_allocation`, which this release adds, plus `allocate_cbtc`,
+  `check_dars`, `check_withdraw_requests`, `list_deposit_addresses`,
+  `list_withdraw_accounts`, `token_client` and the four V2 counterparts. The
+  root `README.md` sends a reader there for the detail, so those examples were
+  reachable only by listing the directory.
+- `README.md` no longer calls a transfer two-phase. The registry creates an
+  offer, or it settles the transfer outright, and the section names both.
+  `examples/batch_distribute.rs` and `examples/batch_distribute_v2.rs` carried
+  the same claim per batch, and now state the condition.
 - `accept_transfers`, `reject_transfer` and `cancel_offers` say in their doc
   comment that the V2 call is a drop-in. Those three modules re-export V1's
   parameter types unchanged, so a separate example would have differed by one
   path segment and taught a reader nothing.
+- The five `canton-lib` crates, and `cbtc-tui`'s two, move from
+  `tag = "v0.8.0"` to `tag = "v0.9.0"`. That release makes
+  `batch::submit_from_csv`, `allocation::allocate` and `transfer::submit`
+  return their results, stops `allocate` reading a pending allocation as a
+  failure, and keeps a settled self transfer's holdings in a chained batch.
+  All seven move together, because mixing two source specifications across
+  manifests builds two `common` packages. `cargo tree -d -p common` is the
+  check.
+
+  This release is breaking because of that pin. `cbtc` re-exports
+  `token::transfer` wholesale, so `canton-lib`'s API change reaches this
+  crate's public surface. Under SemVer's 0.x rules the next version is 0.8.0,
+  not 0.7.1.
 
 ### Fixed
 
+- Fourteen examples named a run command that fails. Their doc comments said
+  `cargo run -p examples --bin <name>`, and no `examples` package exists:
+  each one is an example of the `cbtc` package. They say
+  `cargo run --example <name>` now. `examples/stream.rs` also named the wrong
+  target, because `Cargo.toml` declares it as `stream_cbtc`.
+  `examples/redeem_cbtc_flow.rs` printed the broken form at runtime as the
+  next step to take.
+- `examples/allocate_cbtc.rs` prints the contract the registry created, its
+  change holdings, and the command that reclaims it. `allocation::allocate`
+  returned nothing, so the id was unreachable without reading the ledger
+  transaction. It returns an `AllocationOutcome` now, and the example reads
+  it: a completed allocation prints the withdraw command, and a pending one
+  prints the instruction id and says there is nothing to withdraw yet.
+- `examples/batch_with_callback.rs` exits non-zero when the batch has any
+  failures. It printed the failed count and returned success, so a script
+  read a failed run as a clean one. Its V2 twin already did this.
+- `examples/batch_distribute.rs` reports the batch's failures and exits
+  non-zero when it has any. It printed a success line and exited 0 whatever
+  happened, so a script could not tell a clean run from one where every
+  transfer failed. A devnet run on 28 September 2026 showed the shape of the
+  problem: the ledger settled the transfer, the library reported one failure,
+  and the example printed success.
 - `README.md` no longer copies the `.env` variable block out of
   `.env.example`. The two had drifted: the template's `LEDGER_HOST` carries
   the JSON API path and says so, and the README showed a bare host. A

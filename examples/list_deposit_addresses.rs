@@ -5,7 +5,7 @@
 /// 2. List all deposit accounts for your party
 /// 3. Fetch the Bitcoin address for each account from the attestor
 ///
-/// Run with: cargo run -p examples --bin list_deposit_addresses
+/// Run with: cargo run --example list_deposit_addresses
 ///
 /// Required environment variables:
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID

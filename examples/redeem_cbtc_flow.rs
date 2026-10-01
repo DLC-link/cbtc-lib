@@ -23,7 +23,7 @@ use cbtc::mint_redeem::redeem::{
 /// To run this example:
 /// 1. Make sure you have .env configured with your credentials
 /// 2. Make sure you have CBTC holdings (run mint_cbtc_flow first)
-/// 3. cargo run -p examples --bin redeem_cbtc_flow
+/// 3. cargo run --example redeem_cbtc_flow
 use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
 mod shared;
@@ -291,7 +291,7 @@ async fn main() -> Result<(), String> {
     println!("Important: WithdrawRequests are NOT created atomically with this call.");
     println!("The attestor network will process your pending balance and create a");
     println!("WithdrawRequest later. Use 'check_withdraw_requests' to monitor:");
-    println!("  cargo run -p examples --bin check_withdraw_requests");
+    println!("  cargo run --example check_withdraw_requests");
 
     Ok(())
 }

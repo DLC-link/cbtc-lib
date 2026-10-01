@@ -51,12 +51,15 @@ async fn main() -> Result<(), String> {
     println!("\n✂️  Splitting a holding (V2)");
     println!("   Party: {}", party);
 
+    // Read the same account the split names below. `account: None` returns
+    // every account the party owns, and a holding under a labelled account
+    // cannot be split from the basic one: the registry rejects the mismatch.
     let holdings = cbtc::active_contracts::get(cbtc::active_contracts::Params {
         ledger_host: ledger_host.clone(),
         party: party.clone(),
         access_token: auth.access_token.clone(),
         instrument_id: instrument.clone(),
-        account: None,
+        account: Some(cbtc::Account::basic(party.clone())),
     })
     .await?;
 
@@ -66,7 +69,7 @@ async fn main() -> Result<(), String> {
         .iter()
         .filter_map(|holding| cbtc::utils::extract_amount(holding).map(|a| (holding, a)))
         .max_by(|left, right| left.1.cmp(&right.1))
-        .ok_or("the party holds no CBTC, so there is nothing to split")?;
+        .ok_or("the party's basic account holds no CBTC, so there is nothing to split")?;
 
     let input_cid = largest.created_event.contract_id.clone();
     println!("   Input:  {} CBTC ({})", amount, input_cid);

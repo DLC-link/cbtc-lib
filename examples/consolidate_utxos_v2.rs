@@ -4,8 +4,9 @@
 ///
 /// The V2 counterpart of `consolidate_utxos`. The only difference is the
 /// account: V1 takes the party as a string, and V2 takes a
-/// `cbtc::Account`. `Account::basic` builds the account every party owns,
-/// with no provider and an empty id, which is what every CBTC holding uses.
+/// `cbtc::Account`. `Account::basic` builds the unlabelled account every
+/// party owns, with no provider and an empty id. A party can also hold CBTC
+/// under a labelled account, and this example does not reach those.
 use std::env;
 mod shared;
 

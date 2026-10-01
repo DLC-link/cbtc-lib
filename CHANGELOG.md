@@ -26,10 +26,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   allocation as the sender, which unlocks them.
 
   It takes the allocation's contract id from `ALLOCATION_CONTRACT_ID`, because
-  `allocation::allocate` returns no contract id and nothing in the crate lists
-  allocations. Run against devnet on 28 September 2026: an allocation of 0.001
-  CBTC locked the holdings, and the withdrawal exercised `Allocation_Withdraw`,
-  archived the allocation and created a holding of 0.0010000000 for the sender.
+  nothing in the crate lists allocations. `allocate_cbtc` prints that id and
+  the command that reclaims it, so a reader copies one line. Run against
+  devnet on 28 September 2026: an allocation of 0.001 CBTC locked the
+  holdings, and the withdrawal exercised `Allocation_Withdraw`, archived the
+  allocation and created a holding of 0.0010000000 for the sender.
 - Four Token Standard V2 examples: `consolidate_utxos_v2`,
   `split_holding_v2`, `batch_distribute_v2` and `batch_with_callback_v2`.
   Each takes a `cbtc::Account` where its V1 counterpart takes a party string,
@@ -42,12 +43,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   0.001 and its change, and both batch entry points distributed to a second
   party and reported one success and no failures.
 
-  Both hints that tell a reader how to find that id name
-  `RUST_LOG=ledger::submit=trace` rather than a bare `RUST_LOG=trace`. The
-  websocket library logs its handshake at trace, and `canton-lib` puts the
-  access token in a handshake header, so the wider filter prints a live token
-  to the terminal. The narrower one shows the submission response, which is
-  where the contract id is.
+  An earlier draft told the reader to find that id with `RUST_LOG=trace`.
+  That prints a live access token, because the websocket library logs its
+  handshake and `canton-lib` puts the token in a handshake header.
+  DLC-link/canton-lib#59 tracks the cause.
 
 ### Changed
 

@@ -2,6 +2,11 @@
 ///
 /// Run with: cargo run -p examples --bin accept_transfers
 ///
+/// Token Standard V2 needs no separate example. `accept::v2` re-exports V1's
+/// `Params` and `AcceptAllParams` unchanged, so calling
+/// `cbtc::accept::v2::accept_all` with the same arguments is the whole
+/// difference.
+///
 /// This example uses the `cbtc::accept::accept_all` method to automatically
 /// fetch and accept all pending CBTC TransferInstruction contracts for your party.
 ///

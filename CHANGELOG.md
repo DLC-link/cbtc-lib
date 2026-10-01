@@ -6,6 +6,43 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `examples/reject_transfer.rs`. Rejecting is the receiver's action, so the
+  example authenticates as the receiver and reads the `RECEIVER_*` variables,
+  falling back to the sender's host and realm where they are shared. It lists
+  the incoming offers for the exact instrument and rejects each one. With no
+  offers it says so and exits 0.
+
+  `reject` had no example and no test. `cbtc-tui` dispatches it at
+  `cbtc-tui/src/event.rs:135`, and that is its only call site in the
+  repository, so nothing exercised it automatically. Run against
+  devnet on 28 September 2026: a cross-party transfer created an offer, the
+  receiver rejected it, and the rejection returned the sender's 0.01 CBTC.
+- `examples/withdraw_allocation.rs`. `allocate_cbtc` locks holdings into a
+  settlement leg, and nothing showed how to get them back. This withdraws the
+  allocation as the sender, which unlocks them.
+
+  It takes the allocation's contract id from `ALLOCATION_CONTRACT_ID`, because
+  `allocation::allocate` returns no contract id and nothing in the crate lists
+  allocations. Run against devnet on 28 September 2026: an allocation of 0.001
+  CBTC locked the holdings, and the withdrawal exercised `Allocation_Withdraw`,
+  archived the allocation and created a holding of 0.0010000000 for the sender.
+
+  Both hints that tell a reader how to find that id name
+  `RUST_LOG=ledger::submit=trace` rather than a bare `RUST_LOG=trace`. The
+  websocket library logs its handshake at trace, and `canton-lib` puts the
+  access token in a handshake header, so the wider filter prints a live token
+  to the terminal. The narrower one shows the submission response, which is
+  where the contract id is.
+
+### Changed
+
+- `accept_transfers`, `reject_transfer` and `cancel_offers` say in their doc
+  comment that the V2 call is a drop-in. Those three modules re-export V1's
+  parameter types unchanged, so a separate example would have differed by one
+  path segment and taught a reader nothing.
+
 ### Fixed
 
 - `README.md` no longer copies the `.env` variable block out of

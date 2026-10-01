@@ -10,7 +10,10 @@
 /// You have to supply the allocation's contract id, because
 /// `cbtc::allocation::allocate` returns no contract id and nothing in the
 /// crate lists allocations. Read it from the created `Allocation` contract
-/// in the allocate run's transaction, with `RUST_LOG=trace`. Tracked in issue #85.
+/// in the allocate run's transaction, with `RUST_LOG=ledger::submit=trace`.
+/// Use that filter rather than a bare `RUST_LOG=trace`, which turns on the
+/// websocket library's own logging. That library prints the handshake, and
+/// the handshake header carries your access token. Tracked in issue #85.
 use std::env;
 mod shared;
 
@@ -24,8 +27,9 @@ async fn main() -> Result<(), String> {
         .filter(|value| !value.trim().is_empty())
         .ok_or(
             "ALLOCATION_CONTRACT_ID must be set to the allocation to withdraw. \
-             Run allocate_cbtc with RUST_LOG=trace and read the created Allocation \
-             contract id from the transaction.",
+             Run allocate_cbtc with RUST_LOG=ledger::submit=trace and read the created \
+             Allocation contract id from the transaction. That filter keeps the \
+             websocket handshake, which carries your access token, out of the log.",
         )?;
 
     println!("Authenticating...");

@@ -9,8 +9,7 @@
 ///
 /// You supply the allocation's contract id, because nothing in the crate
 /// lists allocations. `allocate_cbtc` prints the id when it succeeds, along
-/// with the command that reclaims it, so copy that line. Issue #85 tracks
-/// the listing itself.
+/// with the command that reclaims it, so copy that line.
 use std::env;
 mod shared;
 

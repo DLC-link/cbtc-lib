@@ -121,6 +121,14 @@ async fn main() -> Result<(), String> {
     println!("✓ Successful: {}", result.successful_count);
     println!("✗ Failed: {}", result.failed_count);
 
+    if result.failed_count > 0 {
+        return Err(format!(
+            "{} of {} transfers failed",
+            result.failed_count,
+            result.results.len()
+        ));
+    }
+
     Ok(())
 }
 

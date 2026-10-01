@@ -43,11 +43,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   0.001 and its change, and both batch entry points distributed to a second
   party and reported one success and no failures.
 
-  An earlier draft told the reader to find that id with `RUST_LOG=trace`.
-  That prints a live access token, because the websocket library logs its
-  handshake and `canton-lib` puts the token in a handshake header.
-  DLC-link/canton-lib#59 tracks the cause.
-
 ### Changed
 
 - `examples/send_cbtc.rs` and `examples/send_cbtc_v2.rs` report which of the
@@ -81,12 +76,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - `examples/allocate_cbtc.rs` prints the contract the registry created, its
-  change holdings, and the command that reclaims it. The id was only readable
-  out of the ledger transaction with `RUST_LOG=trace`, because
-  `allocation::allocate` returned nothing. It returns an `AllocationOutcome`
-  now, and the example reads it: a completed allocation prints the withdraw
-  command, and a pending one prints the instruction id and says there is
-  nothing to withdraw yet.
+  change holdings, and the command that reclaims it. `allocation::allocate`
+  returned nothing, so the id was unreachable without reading the ledger
+  transaction. It returns an `AllocationOutcome` now, and the example reads
+  it: a completed allocation prints the withdraw command, and a pending one
+  prints the instruction id and says there is nothing to withdraw yet.
+- `examples/batch_with_callback.rs` exits non-zero when the batch has any
+  failures. It printed the failed count and returned success, so a script
+  read a failed run as a clean one. Its V2 twin already did this.
 - `examples/batch_distribute.rs` reports the batch's failures and exits
   non-zero when it has any. It printed a success line and exited 0 whatever
   happened, so a script could not tell a clean run from one where every

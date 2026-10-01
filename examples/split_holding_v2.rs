@@ -8,8 +8,9 @@
 /// outputs; it defaults to one output of 0.001 CBTC.
 ///
 /// V2 takes a `cbtc::Account` where V1 takes the party as a string.
-/// `Account::basic` builds the account every party owns, with no provider
-/// and an empty id.
+/// `Account::basic` builds the unlabelled account every party owns, with no
+/// provider and an empty id. A party can also hold CBTC under a labelled
+/// account, and this example does not reach those.
 use std::env;
 mod shared;
 

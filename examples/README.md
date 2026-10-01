@@ -200,6 +200,19 @@ cargo run --example credentials
 
 This example checks for existing Minter credentials. If none are found, it looks for pending credential offers from the registrar, accepts the first Minter offer, and displays the credential CID for use in other operations.
 
+### Check DARs
+
+Verify that the participant node holds every DAR package the library needs:
+
+```bash
+cargo run --example check_dars
+```
+
+The example scans the DAR files under `cbtc-dars/` and compares them against
+the packages uploaded to the participant. It exits non-zero when one is
+missing. It reads no registry and no Bitsafe API, so it needs neither
+`ENVIRONMENT` nor `PARTY_ID`.
+
 ### Mint CBTC Flow
 
 Complete flow for minting CBTC from BTC:
@@ -209,6 +222,18 @@ cargo run --example mint_cbtc_flow
 ```
 
 Creates a deposit account with Minter credentials, retrieves the BTC address, and displays account status. Requires a Minter credential (run `credentials` first).
+
+### List Deposit Addresses
+
+List every deposit account for your party, with its Bitcoin address:
+
+```bash
+cargo run --example list_deposit_addresses
+```
+
+The example reads the accounts from the ledger, then asks the Bitsafe API for
+each account's Bitcoin address. Use it to recover an address that
+`mint_cbtc_flow` printed earlier.
 
 ### Redeem CBTC Flow
 
@@ -220,6 +245,19 @@ cargo run --example redeem_cbtc_flow
 
 Creates a withdraw account, checks transaction limits, and submits a withdrawal. Requires a Minter credential and CBTC balance.
 
+### List Withdraw Accounts
+
+List every withdraw account for your party:
+
+```bash
+cargo run --example list_withdraw_accounts
+```
+
+A withdraw account holds the destination Bitcoin address that the attestor
+network pays out to. The example prints that address and the account's
+pending balance. The pending balance is CBTC you burned that the attestor
+network has not yet paid out.
+
 ### Test Burn CBTC
 
 Burn a small amount of CBTC using an existing withdraw account:
@@ -228,6 +266,21 @@ Burn a small amount of CBTC using an existing withdraw account:
 cargo run --example test_burn_cbtc
 ```
 
+### Check Withdraw Requests
+
+Watch for the withdraw requests the attestor network creates:
+
+```bash
+cargo run --example check_withdraw_requests
+```
+
+Submit a withdrawal first with `redeem_cbtc_flow`. The attestor network then
+processes the pending balance and creates a `WithdrawRequest`. Each request
+carries the `btc_tx_id` of the Bitcoin transaction that paid it.
+
+The example polls every five seconds and does not stop on its own. Press
+`Ctrl+C` to end it.
+
 ### Check Balance
 
 Check your CBTC balance and UTXO count:
@@ -235,6 +288,22 @@ Check your CBTC balance and UTXO count:
 ```bash
 cargo run --example check_balance
 ```
+
+### Read a Position with TokenClient
+
+Read a party's balance, UTXO count and incoming offers through one client:
+
+```bash
+cargo run --example token_client
+```
+
+`TokenClient` stores the configuration that otherwise repeats on every call,
+including the Token Standard version. This example writes nothing to the
+ledger.
+
+It reads one account rather than the whole party. A party whose holdings sit
+under a labelled account sees zero here, while `check_balance` reports the
+party's full total.
 
 ### Send CBTC
 
@@ -323,6 +392,28 @@ cargo run --example cancel_offers
 
 This example withdraws all transfer offers you've sent that are still pending, returning the CBTC to your account.
 
+### Allocate CBTC for DvP
+
+Lock CBTC into one leg of a Delivery-versus-Payment settlement:
+
+```bash
+export LIB_TEST_RECEIVER_PARTY_ID="receiver-party::1220..."
+export EXECUTOR_PARTY_ID="venue-party::1220..."
+export ALLOCATE_AMOUNT=0.1
+cargo run --example allocate_cbtc
+```
+
+The settlement executor settles every leg atomically later. The example sets
+`allocateBefore` 24 hours ahead and `settleBefore` 48 hours ahead, and names
+the settlement `cbtc-dvp-example` unless `SETTLEMENT_REF_ID` says otherwise.
+It selects the sender's holdings itself.
+
+The registry answers one of two ways. It creates the allocation, and the
+example prints the contract id and the command that reclaims it. Or it
+creates an allocation instruction, which needs a further step and cannot be
+withdrawn. The example prints the instruction id in that case, because that
+id is the only handle on it.
+
 ### Withdraw a DvP Allocation
 
 Take back the holdings that an allocation locked:
@@ -363,6 +454,33 @@ export CONSOLIDATION_THRESHOLD=8
 cargo run --example consolidate_utxos
 ```
 
+### Consolidate UTXOs over Token Standard V2
+
+```bash
+cargo run --example consolidate_utxos_v2
+```
+
+The V2 counterpart of `consolidate_utxos`. One thing differs: V1 takes the
+party as a string, and V2 takes a `cbtc::Account`. The example uses
+`Account::basic`, the unlabelled account every party owns. It does not reach
+a labelled account.
+
+### Split a Holding over Token Standard V2
+
+Turn one holding into several of the amounts you name, plus change:
+
+```bash
+# Optional: name the outputs. The default is a single output of 0.001 CBTC.
+export SPLIT_AMOUNTS=0.001,0.002
+cargo run --example split_holding_v2
+```
+
+The example reads the party's holdings, picks the largest, and splits it. It
+reads and splits the same account, because the registry rejects a holding
+that a labelled account owns when the split names the basic one.
+
+Splitting has no V1 example. The library offers `cbtc::split::submit` for V1.
+
 ### Batch Distribute
 
 Distribute CBTC to multiple recipients from a CSV file:
@@ -383,6 +501,17 @@ cargo run --example batch_distribute
 
 See `recipients_example.csv` for the CSV format.
 
+### Batch Distribute over Token Standard V2
+
+```bash
+cargo run --example batch_distribute_v2
+```
+
+The V2 counterpart of `batch_distribute`, reading the same CSV file. The
+format does not change between versions: each row names a bare party, and the
+library lifts it to a basic account. The sender differs, because V2 takes a
+`cbtc::Account` where V1 takes a party string.
+
 ### Batch Distribute with Callback
 
 Distribute CBTC to multiple recipients with real-time result logging:
@@ -392,6 +521,16 @@ cargo run --example batch_with_callback
 ```
 
 This example demonstrates the callback feature, which allows you to process transfer results as they complete. The callback writes one line per transfer to a timestamped log file.
+
+### Batch Distribute with Callback over Token Standard V2
+
+```bash
+cargo run --example batch_with_callback_v2
+```
+
+The V2 counterpart of `batch_with_callback`. The callback fires once per
+transfer under either version, and `distribute::v2` returns the same result
+as V1. V2 takes a `cbtc::Account` for the sender and for each recipient.
 
 ## Transfer Result Callbacks
 
@@ -597,8 +736,16 @@ Optional:
 - `BITSAFE_API_URL` - Overrides the Bitsafe API URL
 - `TRANSFER_AMOUNT` - Amount to send (default: 0.1)
 - `LIB_TEST_RECEIVER_PARTY_ID` - Receiver party for transfers
+- `ALLOCATE_AMOUNT` - Amount to allocate for DvP (default: 0.1)
+- `SETTLEMENT_REF_ID` - Settlement reference id (default: cbtc-dvp-example)
+- `SPLIT_AMOUNTS` - Comma-separated outputs for the split example (default: 0.001)
 - `CONSOLIDATION_THRESHOLD` - UTXO threshold for consolidation (default: 10)
 - `RECIPIENTS_CSV` - Path to CSV file for batch distribution (default: recipients.csv)
+
+For the allocate example:
+
+- `LIB_TEST_RECEIVER_PARTY_ID` - The party that receives the leg
+- `EXECUTOR_PARTY_ID` - The settlement executor, also called the venue
 
 For the reject example:
 

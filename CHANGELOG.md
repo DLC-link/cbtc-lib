@@ -51,10 +51,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   transfer that settles on submission: there is no offer to accept. They read
   the `TransferReceipt` that `canton-lib` now returns, and print the offer id
   or the receiver's new holdings.
-- `examples/README.md` documents `reject_transfer` and `withdraw_allocation`,
-  and lists the variables each one reads. The root `README.md` sends a reader
-  there for the detail, so the two examples this release adds were reachable
-  only by opening their source.
+- `examples/README.md` documents every example the workspace declares, and
+  lists the variables each one reads. Twelve had no section: `reject_transfer`
+  and `withdraw_allocation`, which this release adds, plus `allocate_cbtc`,
+  `check_dars`, `check_withdraw_requests`, `list_deposit_addresses`,
+  `list_withdraw_accounts`, `token_client` and the four V2 counterparts. The
+  root `README.md` sends a reader there for the detail, so those examples were
+  reachable only by listing the directory.
 - `README.md` no longer calls a transfer two-phase. The registry creates an
   offer, or it settles the transfer outright, and the section names both.
   `examples/batch_distribute.rs` and `examples/batch_distribute_v2.rs` carried

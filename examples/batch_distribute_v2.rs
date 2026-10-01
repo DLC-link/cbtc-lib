@@ -78,7 +78,9 @@ async fn main() -> Result<(), String> {
     }
 
     println!("\n✅ Every transfer succeeded.");
-    println!("\nNote: Each receiver must accept their transfer for it to complete.");
+    println!(
+        "\nNote: a receiver accepts an offer to complete it. A transfer that settled on\nsubmission leaves nothing to accept."
+    );
 
     Ok(())
 }

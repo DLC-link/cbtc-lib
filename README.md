@@ -332,10 +332,15 @@ This library provides several high-level operations for working with CBTC tokens
 
 **UTXO Model**: CBTC uses a UTXO (Unspent Transaction Output) model similar to Bitcoin. Each holding is a separate UTXO that can be split or combined.
 
-**Two-Phase Transfers**:
+**Transfers answer one of two ways**:
 
-1. Sender creates a transfer offer
-2. Receiver must accept the transfer to complete it
+1. The registry creates a transfer offer, and the receiver accepts it.
+2. The registry settles the transfer on submission and creates the holdings,
+   leaving nothing to accept. It answers this way for a self transfer, and for
+   a receiver that pre-approved the sender.
+
+`transfer::submit` returns a `TransferReceipt`. Read its `outcome` to tell the
+two apart, rather than waiting for an acceptance that is never coming.
 
 **BTC/CBTC Bridge**: The mint/redeem flow allows you to bridge between native Bitcoin and CBTC tokens:
 

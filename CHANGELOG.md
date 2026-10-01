@@ -49,14 +49,26 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `examples/send_cbtc.rs` and `examples/send_cbtc_v2.rs` report which of the
+  two answers the registry gave. Both printed "The receiver must accept the
+  transfer for it to complete" whatever happened, which is false after a
+  transfer that settles on submission: there is no offer to accept. They read
+  the `TransferReceipt` that `canton-lib` now returns, and print the offer id
+  or the receiver's new holdings.
+- `README.md` no longer calls a transfer two-phase. The registry creates an
+  offer, or it settles the transfer outright, and the section names both.
+  `examples/batch_distribute.rs` and `examples/batch_distribute_v2.rs` carried
+  the same claim per batch, and now state the condition.
 - `accept_transfers`, `reject_transfer` and `cancel_offers` say in their doc
   comment that the V2 call is a drop-in. Those three modules re-export V1's
   parameter types unchanged, so a separate example would have differed by one
   path segment and taught a reader nothing.
 - The five `canton-lib` crates, and `cbtc-tui`'s two, track a revision instead
   of `tag = "v0.8.0"`. The revision carries the fixes that make
-  `batch::submit_from_csv` and `allocation::allocate` return their results,
-  and the one that stops `allocate` reading a pending allocation as a failure.
+  `batch::submit_from_csv`, `allocation::allocate` and `transfer::submit`
+  return their results, the one that stops `allocate` reading a pending
+  allocation as a failure, and the one that keeps a settled self transfer's
+  holdings in a chained batch.
   All seven move together, because mixing a tag and a revision across
   manifests builds two `common` packages. **This pin swaps back to a tag
   before release**, once `canton-lib` cuts the version that contains it.

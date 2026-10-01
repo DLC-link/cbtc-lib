@@ -289,6 +289,30 @@ cargo run --example accept_transfers
 
 This example automatically fetches all pending TransferInstruction contracts and accepts them in a loop. Useful for automated acceptance of incoming transfers.
 
+### Reject Incoming Transfers
+
+Reject every incoming CBTC offer for the CBTC instrument:
+
+```bash
+cargo run --example reject_transfer
+```
+
+Rejecting is the receiver's action, so this example authenticates as the
+receiver. It reads `RECEIVER_PARTY_ID` and the `RECEIVER_KEYCLOAK_*`
+variables. Where the receiver shares the sender's host and realm, it falls
+back to `LEDGER_HOST`, `KEYCLOAK_HOST` and `KEYCLOAK_REALM`.
+
+Create an offer first. Run `send_cbtc` from the sender to another party. A
+transfer to your own party settles on submission and leaves nothing to
+reject. `send_cbtc` sends to `LIB_TEST_RECEIVER_PARTY_ID`, so set that
+variable to the same party as `RECEIVER_PARTY_ID`.
+
+The example lists the pending offers and rejects each one. The rejection
+returns the CBTC to the sender. With no offers it says so and exits 0.
+
+Token Standard V2 needs no separate example. `reject::v2` re-exports V1's
+`Params` unchanged, so only the module path differs.
+
 ### Cancel Pending Transfers
 
 Cancel all pending outgoing transfers that haven't been accepted:
@@ -298,6 +322,22 @@ cargo run --example cancel_offers
 ```
 
 This example withdraws all transfer offers you've sent that are still pending, returning the CBTC to your account.
+
+### Withdraw a DvP Allocation
+
+Take back the holdings that an allocation locked:
+
+```bash
+ALLOCATION_CONTRACT_ID=<cid> cargo run --example withdraw_allocation
+```
+
+`allocate_cbtc` locks holdings into a settlement leg. The sender takes those
+holdings back by withdrawing the allocation, until the executor settles the
+leg. `cancel` works the same way for the executor.
+
+You supply the allocation's contract id, because nothing in the crate lists
+allocations. `allocate_cbtc` prints that id when it succeeds, together with
+the command that reclaims it. Copy that line.
 
 ### Stream CBTC
 
@@ -559,6 +599,20 @@ Optional:
 - `LIB_TEST_RECEIVER_PARTY_ID` - Receiver party for transfers
 - `CONSOLIDATION_THRESHOLD` - UTXO threshold for consolidation (default: 10)
 - `RECIPIENTS_CSV` - Path to CSV file for batch distribution (default: recipients.csv)
+
+For the reject example:
+
+- `RECEIVER_PARTY_ID` - The party that rejects the offers
+- `RECEIVER_KEYCLOAK_CLIENT_ID` - Client ID for the receiver
+- `RECEIVER_KEYCLOAK_USERNAME` - Username for the receiver
+- `RECEIVER_KEYCLOAK_PASSWORD` - Password for the receiver
+- `RECEIVER_LEDGER_HOST` - Optional. Defaults to `LEDGER_HOST`
+- `RECEIVER_KEYCLOAK_HOST` - Optional. Defaults to `KEYCLOAK_HOST`
+- `RECEIVER_KEYCLOAK_REALM` - Optional. Defaults to `KEYCLOAK_REALM`
+
+For the withdraw allocation example:
+
+- `ALLOCATION_CONTRACT_ID` - The allocation to withdraw
 
 For stream example:
 

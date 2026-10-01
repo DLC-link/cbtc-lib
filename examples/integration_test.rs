@@ -568,7 +568,6 @@ async fn main() -> Result<(), String> {
     });
 
     // Faucet steps (conditional, only if FAUCET_URL is set)
-    // Faucet API: https://github.com/DLC-link/cbtc-faucet
     if let Some(ref faucet_url) = faucet_url {
         // Step 9: Request CBTC from faucet
         run_step!("Request CBTC from faucet", async {

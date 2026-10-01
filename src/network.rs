@@ -228,7 +228,8 @@ mod tests {
             .collect()
     }
 
-    /// `README.md` documents each of the nine values.
+    /// Every value this module resolves also appears in the repository's
+    /// README.
     ///
     /// One direction only: each value must appear somewhere in the file. It
     /// does not prove the value sits in the right per-network block, nor that

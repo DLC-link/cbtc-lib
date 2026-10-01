@@ -18,7 +18,7 @@ use cbtc::mint_redeem::mint::{
 ///
 /// To run this example:
 /// 1. Copy .env.example to .env and fill in your values
-/// 2. cargo run -p examples --bin mint_cbtc_flow
+/// 2. cargo run --example mint_cbtc_flow
 use keycloak::login::{PasswordParams, password, token_url};
 use std::env;
 mod shared;

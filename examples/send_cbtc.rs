@@ -1,6 +1,6 @@
 /// Example: Send CBTC to another party
 ///
-/// Run with: cargo run -p examples --bin send_cbtc
+/// Run with: cargo run --example send_cbtc
 ///
 /// Make sure to set up your .env file with the required configuration.
 use std::env;

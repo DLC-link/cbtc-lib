@@ -82,6 +82,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Fourteen examples named a run command that fails. Their doc comments said
+  `cargo run -p examples --bin <name>`, and no `examples` package exists:
+  each one is an example of the `cbtc` package. They say
+  `cargo run --example <name>` now. `examples/stream.rs` also named the wrong
+  target, because `Cargo.toml` declares it as `stream_cbtc`.
+  `examples/redeem_cbtc_flow.rs` printed the broken form at runtime as the
+  next step to take.
 - `examples/allocate_cbtc.rs` prints the contract the registry created, its
   change holdings, and the command that reclaims it. `allocation::allocate`
   returned nothing, so the id was unreachable without reading the ledger

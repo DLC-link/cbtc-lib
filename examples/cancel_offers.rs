@@ -3,7 +3,7 @@
 /// This example demonstrates how to withdraw all pending CBTC transfers
 /// that you have sent but have not yet been accepted by the receiver.
 ///
-/// Run with: cargo run -p examples --bin cancel_offers
+/// Run with: cargo run --example cancel_offers
 ///
 /// Token Standard V2 needs no separate example. `cancel_offers::v2`
 /// re-exports V1's `WithdrawAllParams` unchanged, so calling

@@ -6,7 +6,7 @@ use cbtc::mint_redeem;
 /// withdraw account instead of creating a new one.
 ///
 /// Usage:
-/// cargo run -p examples --bin test_burn_cbtc
+/// cargo run --example test_burn_cbtc
 use keycloak::login::{PasswordParams, password, token_url};
 use mint_redeem::redeem::{ListHoldingsParams, ListWithdrawAccountsParams, SubmitWithdrawParams};
 use std::env;

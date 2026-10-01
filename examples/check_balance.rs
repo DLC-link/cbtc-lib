@@ -5,7 +5,7 @@
 /// 2. Calculate total balance across all UTXOs
 /// 3. Monitor UTXO count and warn about consolidation needs
 ///
-/// Run with: cargo run -p examples --bin check_balance
+/// Run with: cargo run --example check_balance
 ///
 /// Required environment variables:
 /// - KEYCLOAK_HOST, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID

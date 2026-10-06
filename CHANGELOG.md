@@ -6,6 +6,27 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The five `canton-lib` crates, and `cbtc-tui`'s two, move from
+  `tag = "v0.9.0"` to `tag = "v0.10.0"`. Canton 3.6.1 rejects the top-level
+  `filter` and `verbose` request fields with `DEPRECATED_API_DISABLED`, and
+  v0.9.0 sends them on every active-contracts query and update subscription.
+  v0.10.0 sends `eventFormat` and `updateFormat` instead. `cargo tree -d -p
+  common` prints nothing, so all seven resolve to one `common`.
+
+  This bump does not break callers of `cbtc`. `cbtc` does not re-export
+  `ledger`, and v0.10.0 changes no `token` signature. Tracked in
+  DLC-link/dlc-infra#274.
+
+### Added
+
+- `examples/ledger_api_smoke.rs`. It is read-only. It runs the HTTP and
+  websocket active-contracts queries, and it holds an update subscription
+  open for 15 seconds. Run against devnet on 6 October 2026, on Canton
+  3.5.19: both queries returned the same holdings as canton-lib v0.9.0, and
+  the subscription stayed open.
+
 ## [0.8.0] - 2026-10-01
 
 ### Added

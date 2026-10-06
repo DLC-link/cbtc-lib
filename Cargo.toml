@@ -8,11 +8,11 @@ autoexamples = false
 uninlined_format_args = "allow"
 
 [dependencies]
-token = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.9.0" }
-ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.9.0" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.9.0" }
-common = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.9.0" }
-registry = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.9.0" }
+token = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "a7bfebef81d2eedb9c62ff1eefcea853086d6919" }
+ledger = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "a7bfebef81d2eedb9c62ff1eefcea853086d6919" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "a7bfebef81d2eedb9c62ff1eefcea853086d6919" }
+common = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "a7bfebef81d2eedb9c62ff1eefcea853086d6919" }
+registry = { git = "ssh://git@github.com/DLC-link/canton-lib", rev = "a7bfebef81d2eedb9c62ff1eefcea853086d6919" }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 serde_json = "1"
 chrono = "0.4.42"
@@ -147,3 +147,7 @@ strip = "debuginfo"
 codegen-units = 1
 lto = true
 panic = "unwind"
+
+[[example]]
+name = "ledger_api_smoke"
+path = "examples/ledger_api_smoke.rs"

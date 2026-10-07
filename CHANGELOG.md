@@ -30,6 +30,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   consumer that also pins `canton-lib` must move that pin to `v0.10.0`.
   Under SemVer's 0.x rules the next version is 0.9.0, not 0.8.1.
 
+### Security
+
+- `Cargo.lock` moves `h2` from 0.4.12 to 0.4.19. Version 0.4.12 carries
+  RUSTSEC-2026-0258, which Cargo Deny reports. The lockfile sets the version
+  for `cbtc-tui` and the examples. A consumer's own lockfile sets it for the
+  consumer.
+
 ## [0.8.0] - 2026-10-01
 
 ### Added

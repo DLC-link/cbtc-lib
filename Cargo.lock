@@ -427,8 +427,8 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "0.10.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.0#f5a90bd2b44c976e641d9375e43fdc91b9dfa472"
+version = "0.10.1"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.1#81ea9e7a70903d6f656fbcd523ad768bf4ed60a0"
 dependencies = [
  "canton-api-client",
  "rust_decimal",
@@ -783,7 +783,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1402,8 +1402,8 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "0.10.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.0#f5a90bd2b44c976e641d9375e43fdc91b9dfa472"
+version = "0.10.1"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.1#81ea9e7a70903d6f656fbcd523ad768bf4ed60a0"
 dependencies = [
  "base64",
  "reqwest 0.12.26",
@@ -1419,8 +1419,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "ledger"
-version = "0.10.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.0#f5a90bd2b44c976e641d9375e43fdc91b9dfa472"
+version = "0.10.1"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.1#81ea9e7a70903d6f656fbcd523ad768bf4ed60a0"
 dependencies = [
  "base64",
  "canton-api-client",
@@ -1952,8 +1952,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "registry"
-version = "0.10.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.0#f5a90bd2b44c976e641d9375e43fdc91b9dfa472"
+version = "0.10.1"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.1#81ea9e7a70903d6f656fbcd523ad768bf4ed60a0"
 dependencies = [
  "common",
  "reqwest 0.12.26",
@@ -2133,7 +2133,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2583,7 +2583,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.2",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2692,8 +2692,8 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token"
-version = "0.10.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.0#f5a90bd2b44c976e641d9375e43fdc91b9dfa472"
+version = "0.10.1"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.10.1#81ea9e7a70903d6f656fbcd523ad768bf4ed60a0"
 dependencies = [
  "base64",
  "canton-api-client",

@@ -11,14 +11,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed — breaking
 
 - The five `canton-lib` crates, and `cbtc-tui`'s two, move from
-  `tag = "v0.9.0"` to `tag = "v0.10.0"`. Canton 3.6.1 rejects the top-level
+  `tag = "v0.9.0"` to `tag = "v0.10.1"`. Canton 3.6.1 rejects the top-level
   `filter` and `verbose` fields of an active-contracts request with
-  `DEPRECATED_API_DISABLED`. `canton-lib` 0.9.0 sends both, and 0.10.0 sends
+  `DEPRECATED_API_DISABLED`. `canton-lib` 0.9.0 sends both. 0.10.0 sends
   `eventFormat` in their place.
 
-  Every active-contracts query in this crate goes through those calls. Mint,
-  redeem, `cbtc::active_contracts::get` and the `cbtc-tui` queries fail
-  against a 3.6.1 participant without this pin. No code in this crate
+  `canton-lib` 0.9.0 also read that rejection as a stream with no contracts.
+  So on a 3.6.1 participant, every active-contracts query in this crate
+  returned an empty result and no error. Mint, redeem,
+  `cbtc::active_contracts::get` and the `cbtc-tui` queries are affected. On
+  devnet, `check_balance` reported 0 for a party that held 4 holdings.
+
+  `canton-lib` 0.10.1 fixes that too. A query that the Ledger API rejects now
+  returns `Err("Ledger API returned <code>: <cause>")`. No code in this crate
   changes, because the `Params` of the functions it calls stay the same.
 
   All seven pins move together, because mixing two tags across the manifests
@@ -26,8 +31,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `name = "common"` entry.
 
   This release is breaking because of that pin. `cbtc` re-exports `common`
-  types such as `DamlDecimal`, and `common` moves from 0.9.0 to 0.10.0. A
-  consumer that also pins `canton-lib` must move that pin to `v0.10.0`.
+  types such as `DamlDecimal`, and `common` moves from 0.9.0 to 0.10.1. A
+  consumer that also pins `canton-lib` must move that pin to `v0.10.1`.
   Under SemVer's 0.x rules the next version is 0.9.0, not 0.8.1.
 
 ### Security

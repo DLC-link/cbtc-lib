@@ -6,6 +6,30 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-07
+
+### Changed — breaking
+
+- The five `canton-lib` crates, and `cbtc-tui`'s two, move from
+  `tag = "v0.9.0"` to `tag = "v0.10.0"`. Canton 3.6.1 rejects the top-level
+  `filter` and `verbose` fields of an active-contracts request with
+  `DEPRECATED_API_DISABLED`. `canton-lib` 0.9.0 sends both, and 0.10.0 sends
+  `eventFormat` in their place.
+
+  Every active-contracts query in this crate goes through those calls. Mint,
+  redeem, `cbtc::active_contracts::get` and the `cbtc-tui` queries fail
+  against a 3.6.1 participant without this pin. No code in this crate
+  changes, because the `Params` of the functions it calls stay the same.
+
+  All seven pins move together, because mixing two tags across the manifests
+  builds two `common` packages. The check is that `Cargo.lock` holds one
+  `name = "common"` entry.
+
+  This release is breaking because of that pin. `cbtc` re-exports `common`
+  types such as `DamlDecimal`, and `common` moves from 0.9.0 to 0.10.0. A
+  consumer that also pins `canton-lib` must move that pin to `v0.10.0`.
+  Under SemVer's 0.x rules the next version is 0.9.0, not 0.8.1.
+
 ## [0.8.0] - 2026-10-01
 
 ### Added

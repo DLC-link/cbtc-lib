@@ -632,9 +632,9 @@ curl -X POST $LEDGER_HOST/v2/state/active-contracts \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d '{
-    "filter": {
+    "eventFormat": {
       "filtersByParty": {
-        "$SENDER_PARTY_ID": {
+        "'$SENDER_PARTY_ID'": {
           "cumulative": [{
             "identifierFilter": {
               "InterfaceFilter": {
@@ -647,9 +647,9 @@ curl -X POST $LEDGER_HOST/v2/state/active-contracts \
             }
           }]
         }
-      }
+      },
+      "verbose": false
     },
-    "verbose": false,
     "activeAtOffset": '$(echo $LEDGER_OFFSET | jq -R 'tonumber')'
   }' | jq
 ```

@@ -91,10 +91,10 @@ Add to your `Cargo.toml`:
 # one, pin the same revision: a different pin makes Cargo build two `common`
 # packages, and then cbtc::DamlDecimal and common::decimal::DamlDecimal differ.
 cbtc = { git = "ssh://git@github.com/DLC-link/cbtc-lib", tag = "v0.9.0" }
-keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.10.1" }
+keycloak = { git = "ssh://git@github.com/DLC-link/canton-lib", tag = "v0.11.0" }
 ```
 
-`cbtc` v0.9.0 pins `canton-lib` at `v0.10.1`, so the `keycloak` pin above names
+`cbtc` v0.9.0 pins `canton-lib` at `v0.11.0`, so the `keycloak` pin above names
 that same tag. Pinning a different tag or a revision here builds two `common`
 packages.
 

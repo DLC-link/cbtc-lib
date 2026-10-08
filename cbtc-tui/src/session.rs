@@ -36,7 +36,7 @@ pub fn parse_party_rights(resp: &ListUserRightsResponse) -> Vec<PartyRight> {
         };
         let (party, act, read) = match kind {
             Kind::KindOneOf(k) => (k.can_act_as.value.party.clone(), true, false),
-            Kind::KindOneOf3(k) => (k.can_read_as.value.party.clone(), false, true),
+            Kind::KindOneOf4(k) => (k.can_read_as.value.party.clone(), false, true),
             _ => continue,
         };
         let entry = by_party.entry(party.clone()).or_insert(PartyRight {

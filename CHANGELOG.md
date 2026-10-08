@@ -11,7 +11,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed — breaking
 
 - The five `canton-lib` crates, and `cbtc-tui`'s two, move from
-  `tag = "v0.9.0"` to `tag = "v0.10.1"`. Canton 3.6.1 rejects the top-level
+  `tag = "v0.9.0"` to `tag = "v0.11.0"`. Canton 3.6.1 rejects the top-level
   `filter` and `verbose` fields of an active-contracts request with
   `DEPRECATED_API_DISABLED`. `canton-lib` 0.9.0 sends both. 0.10.0 sends
   `eventFormat` in their place.
@@ -23,16 +23,27 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   devnet, `check_balance` reported 0 for a party that held 4 holdings.
 
   `canton-lib` 0.10.1 fixes that too. A query that the Ledger API rejects now
-  returns `Err("Ledger API returned <code>: <cause>")`. No code in this crate
-  changes, because the `Params` of the functions it calls stay the same.
+  returns `Err("Ledger API returned <code>: <cause>")`.
 
   All seven pins move together, because mixing two tags across the manifests
   builds two `common` packages. The check is that `Cargo.lock` holds one
   `name = "common"` entry.
 
-  This release is breaking because of that pin. `cbtc` re-exports `common`
-  types such as `DamlDecimal`, and `common` moves from 0.9.0 to 0.10.1. A
-  consumer that also pins `canton-lib` must move that pin to `v0.10.1`.
+- `canton-api-client` moves from 3.6.0-0.1.0 to 3.6.1-0.1.0 in both
+  manifests. `canton-lib` 0.11.0 uses client 3.6.1, and `ledger` re-exports
+  the client's `models`. With two client versions, the `ledger::models` types
+  and this crate's own client types differ.
+
+  Client 3.6.1 adds the `CanActAsAnyParty` user right as `Kind::KindOneOf1`.
+  The generator numbers the variants in order, so `CanReadAs` moves from
+  `KindOneOf3` to `KindOneOf4`. `cbtc-tui`'s `parse_party_rights` matches the
+  new variant.
+
+  This release is breaking because of these pins. `cbtc` re-exports `common`
+  types such as `DamlDecimal`, and `common` moves from 0.9.0 to 0.11.0. Its
+  public functions also take and return `ledger::models` types. A consumer
+  that also pins `canton-lib` must move that pin to `v0.11.0`. A consumer
+  that depends on `canton-api-client` must move it to 3.6.1-0.1.0.
   Under SemVer's 0.x rules the next version is 0.9.0, not 0.8.1.
 
 ### Security

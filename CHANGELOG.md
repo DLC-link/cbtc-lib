@@ -6,6 +6,67 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-08
+
+### Changed — breaking
+
+- The five `canton-lib` crates, and `cbtc-tui`'s two, move from
+  `tag = "v0.9.0"` to `tag = "v0.11.0"`. Canton 3.6.1 rejects the top-level
+  `filter` and `verbose` fields of an active-contracts request with
+  `DEPRECATED_API_DISABLED`. `canton-lib` 0.9.0 sends both. 0.10.0 sends
+  `eventFormat` in their place.
+
+  The effect of that rejection depends on the path the query takes:
+
+  - `canton-lib` sends some queries over a websocket, such as
+    `cbtc::active_contracts::get` and the `cbtc-tui` balance query. In
+    `canton-lib` 0.9.0, those functions read the rejection as a stream with no
+    contracts. So on a 3.6.1 participant they returned an empty result and no
+    error. On devnet, `check_balance` reported 0 for a party that held 4
+    holdings.
+  - Mint and redeem call the HTTP function
+    `ledger::active_contracts::get_by_party`. It already returned
+    `Err("post_v2_state_active_contracts failed: ...")`, so mint and redeem
+    failed with that error.
+
+  `canton-lib` 0.10.1 fixes the websocket functions. A query that the Ledger
+  API rejects there now returns
+  `Err("Ledger API returned <code>: <cause>")`. The HTTP path keeps its
+  `post_v2_state_active_contracts failed` text.
+
+  This release is tested on Canton 3.6.1 only, on devnet. The participant's
+  error says that Canton deprecated the old fields in 3.4. That suggests
+  `eventFormat` works from Canton 3.4, but nobody has tested an older
+  participant.
+
+  All seven pins move together, because mixing two tags across the manifests
+  builds two `common` packages. The check is that `Cargo.lock` holds one
+  `name = "common"` entry.
+
+- `canton-api-client` moves from 3.6.0-0.1.0 to 3.6.1-0.1.0 in both
+  manifests. `canton-lib` 0.11.0 uses client 3.6.1, and `ledger` re-exports
+  the client's `models`. With two client versions, the `ledger::models` types
+  and this crate's own client types differ.
+
+  Client 3.6.1 adds the `CanActAsAnyParty` user right as `Kind::KindOneOf1`.
+  The generator numbers the variants in order, so `CanReadAs` moves from
+  `KindOneOf3` to `KindOneOf4`. `cbtc-tui`'s `parse_party_rights` matches the
+  new variant.
+
+  This release is breaking because of these pins. `cbtc` re-exports `common`
+  types such as `DamlDecimal`, and `common` moves from 0.9.0 to 0.11.0. Its
+  public functions also take and return `ledger::models` types. A consumer
+  that also pins `canton-lib` must move that pin to `v0.11.0`. A consumer
+  that depends on `canton-api-client` must move it to 3.6.1-0.1.0.
+  Under SemVer's 0.x rules the next version is 0.9.0, not 0.8.1.
+
+### Security
+
+- `Cargo.lock` moves `h2` from 0.4.12 to 0.4.19. Version 0.4.12 carries
+  RUSTSEC-2026-0258, which Cargo Deny reports. The lockfile sets the version
+  for `cbtc-tui` and the examples. A consumer's own lockfile sets it for the
+  consumer.
+
 ## [0.8.0] - 2026-10-01
 
 ### Added

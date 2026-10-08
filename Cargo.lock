@@ -255,9 +255,9 @@ dependencies = [
 
 [[package]]
 name = "canton-api-client"
-version = "3.6.0-0.1.0"
+version = "3.6.1-0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1702122d98d165e2c77a1c6532e8be8a80d5bf7f25eac71beed5587a61fcaf01"
+checksum = "47e17b77ce38ae760c1b8f82f8ae8dc0d2766f16a7092d540dfcf3bf26e21f6c"
 dependencies = [
  "chrono",
  "reqwest 0.13.3",
@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "cbtc"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "canton-api-client",
  "chrono",
@@ -427,8 +427,8 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "common"
-version = "0.9.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.9.0#be591dbb6af0d6cc3f747b95b8bfa857280a9ea6"
+version = "0.11.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.11.0#87646b727ff5d5ca56f33ca75cb2cce1dfc8f6f0"
 dependencies = [
  "canton-api-client",
  "rust_decimal",
@@ -948,9 +948,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.12"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3c0b69cfcb4e1b9f1bf2f53f95f766e4661169728ec61cd3fe5a0166f2d1386"
+checksum = "ef8e5e5a340588f4452631496976cf8636d4a7ecf600239fdc27615d2530bc16"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1402,8 +1402,8 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "0.9.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.9.0#be591dbb6af0d6cc3f747b95b8bfa857280a9ea6"
+version = "0.11.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.11.0#87646b727ff5d5ca56f33ca75cb2cce1dfc8f6f0"
 dependencies = [
  "base64",
  "reqwest 0.12.26",
@@ -1419,8 +1419,8 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "ledger"
-version = "0.9.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.9.0#be591dbb6af0d6cc3f747b95b8bfa857280a9ea6"
+version = "0.11.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.11.0#87646b727ff5d5ca56f33ca75cb2cce1dfc8f6f0"
 dependencies = [
  "base64",
  "canton-api-client",
@@ -1952,8 +1952,8 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "registry"
-version = "0.9.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.9.0#be591dbb6af0d6cc3f747b95b8bfa857280a9ea6"
+version = "0.11.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.11.0#87646b727ff5d5ca56f33ca75cb2cce1dfc8f6f0"
 dependencies = [
  "common",
  "reqwest 0.12.26",
@@ -2692,8 +2692,8 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token"
-version = "0.9.0"
-source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.9.0#be591dbb6af0d6cc3f747b95b8bfa857280a9ea6"
+version = "0.11.0"
+source = "git+ssh://git@github.com/DLC-link/canton-lib?tag=v0.11.0#87646b727ff5d5ca56f33ca75cb2cce1dfc8f6f0"
 dependencies = [
  "base64",
  "canton-api-client",

@@ -16,14 +16,23 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `DEPRECATED_API_DISABLED`. `canton-lib` 0.9.0 sends both. 0.10.0 sends
   `eventFormat` in their place.
 
-  `canton-lib` 0.9.0 also read that rejection as a stream with no contracts.
-  So on a 3.6.1 participant, every active-contracts query in this crate
-  returned an empty result and no error. Mint, redeem,
-  `cbtc::active_contracts::get` and the `cbtc-tui` queries are affected. On
-  devnet, `check_balance` reported 0 for a party that held 4 holdings.
+  The effect of that rejection depends on the path the query takes:
 
-  `canton-lib` 0.10.1 fixes that too. A query that the Ledger API rejects now
-  returns `Err("Ledger API returned <code>: <cause>")`.
+  - `canton-lib` sends some queries over a websocket, such as
+    `cbtc::active_contracts::get` and the `cbtc-tui` balance query. In
+    `canton-lib` 0.9.0, those functions read the rejection as a stream with no
+    contracts. So on a 3.6.1 participant they returned an empty result and no
+    error. On devnet, `check_balance` reported 0 for a party that held 4
+    holdings.
+  - Mint and redeem call the HTTP function
+    `ledger::active_contracts::get_by_party`. It already returned
+    `Err("post_v2_state_active_contracts failed: ...")`, so mint and redeem
+    failed with that error.
+
+  `canton-lib` 0.10.1 fixes the websocket functions. A query that the Ledger
+  API rejects there now returns
+  `Err("Ledger API returned <code>: <cause>")`. The HTTP path keeps its
+  `post_v2_state_active_contracts failed` text.
 
   All seven pins move together, because mixing two tags across the manifests
   builds two `common` packages. The check is that `Cargo.lock` holds one

@@ -34,6 +34,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Err("Ledger API returned <code>: <cause>")`. The HTTP path keeps its
   `post_v2_state_active_contracts failed` text.
 
+  This release is tested on Canton 3.6.1 only, on devnet. The participant's
+  error says that Canton deprecated the old fields in 3.4. That suggests
+  `eventFormat` works from Canton 3.4, but nobody has tested an older
+  participant.
+
   All seven pins move together, because mixing two tags across the manifests
   builds two `common` packages. The check is that `Cargo.lock` holds one
   `name = "common"` entry.

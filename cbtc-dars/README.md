@@ -25,12 +25,10 @@ For both methods you will need to have port-forwarding to your participant's adm
 1. **Set your JWT token** (if authentication is required):
 
    ```bash
-   # Option 1: Export as environment variable
    export jwt_token="your-jwt-token-here"
-
-   # Option 2: Edit the script directly
-   # Open upload_dars.sh and set: jwt_token="your-jwt-token-here"
    ```
+
+   Do not write the token into `upload_dars.sh`. The script is a tracked file, so the token could end up in a commit.
 
 2. **Configure Canton admin API URL** (optional):
    - Default is `localhost:5002`

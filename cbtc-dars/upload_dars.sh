@@ -6,11 +6,11 @@
 #   2. Then uploads all CBTC DARs from dars/cbtc/
 #
 # Configuration:
-#   - jwt_token: Authentication token for Canton API
+#   - jwt_token: Authentication token for Canton API, read from the environment
 #   - canton_admin_api_url: Canton participant node admin API URL
 
 DAR_DIRECTORY="dars"
-jwt_token=""
+jwt_token="${jwt_token:-}"
 
 canton_admin_api_url="localhost:5002"
 canton_admin_api_grpc_base_service="com.digitalasset.canton.admin.participant.v30"

@@ -6,6 +6,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `cbtc-dars/upload_dars.sh` now reads `jwt_token` from the environment. The
+  script set `jwt_token=""`, which replaced an exported token. The upload then
+  went to the Admin API with no `Authorization` header, so it could not
+  succeed on a participant that requires a token. The README tells users to
+  export the token, so that instruction now works.
+
 ## [0.9.0] - 2026-10-08
 
 ### Changed — breaking

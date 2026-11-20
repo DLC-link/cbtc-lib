@@ -477,7 +477,6 @@ async fn main() -> Result<(), String> {
                             ledger_host: sender.ledger_host.clone(),
                             party: sender.party_id.clone(),
                             access_token: token,
-                            user_service_template_id: user_service.template_id.clone(),
                             user_service_contract_id: user_service.contract_id.clone(),
                             credential_offer_cid: offer.contract_id.clone(),
                         },

@@ -129,7 +129,6 @@ async fn main() -> Result<(), String> {
         party: party_id.clone(),
         access_token: access_token.clone(),
         user_service_contract_id: user_service.contract_id.clone(),
-        user_service_template_id: user_service.template_id.clone(),
         credential_offer_cid: offer.contract_id.clone(),
     })
     .await?;

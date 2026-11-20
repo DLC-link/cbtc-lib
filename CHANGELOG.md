@@ -6,15 +6,29 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed — breaking
+
+- The five `canton-lib` crates, and `cbtc-tui`'s two, move from
+  `tag = "v0.11.0"` to `tag = "v0.12.0"`. `canton-lib` 0.12.0 moves `zip`
+  from 2.4.2 to 9, which the advisories below need.
+- `cbtc::credentials::AcceptCredentialOfferParams` loses its
+  `user_service_template_id` field. Drop it at the call site.
+  `accept_credential_offer` now sends the package-name template id. A
+  participant that no longer vets the package version of the UserService
+  contract rejected the old request with `INVALID_PRESCRIBED_SYNCHRONIZER_ID`.
+
 ### Security
 
+- `zip` 9 closes RUSTSEC-2026-0367, RUSTSEC-2026-0368, RUSTSEC-2026-0369,
+  RUSTSEC-2026-0429, RUSTSEC-2026-0545 and RUSTSEC-2026-0548. `canton-lib`
+  0.12.0 enables only the deflate feature of `zip`. So `zstd`, `zstd-safe`
+  and `zstd-sys` leave the build, and with them RUSTSEC-2026-0391,
+  RUSTSEC-2026-0398, RUSTSEC-2026-0403 and RUSTSEC-2026-0410.
 - `Cargo.lock` moves these crates inside their current version ranges, which
-  closes the advisories that `cargo deny check advisories` reported:
+  closes the other advisories that `cargo deny check advisories` reported:
   - `openssl` 0.10.75 to 0.10.82: RUSTSEC-2026-0463 and RUSTSEC-2026-0473
     to RUSTSEC-2026-0479.
   - `tokio` 1.48.0 to 1.53.3: RUSTSEC-2026-0386.
-  - `zstd`, `zstd-safe` and `zstd-sys`: RUSTSEC-2026-0391, RUSTSEC-2026-0398,
-    RUSTSEC-2026-0403 and RUSTSEC-2026-0410.
   - `hyper` 1.8.1 to 1.12.0, which no longer needs the unmaintained
     `pin-utils` (RUSTSEC-2026-0441).
 - A new `deny.toml` ignores RUSTSEC-2026-0543, which marks `chrono` as

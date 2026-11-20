@@ -6,6 +6,21 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- `Cargo.lock` moves these crates inside their current version ranges, which
+  closes the advisories that `cargo deny check advisories` reported:
+  - `openssl` 0.10.75 to 0.10.82: RUSTSEC-2026-0463 and RUSTSEC-2026-0473
+    to RUSTSEC-2026-0479.
+  - `tokio` 1.48.0 to 1.53.3: RUSTSEC-2026-0386.
+  - `zstd`, `zstd-safe` and `zstd-sys`: RUSTSEC-2026-0391, RUSTSEC-2026-0398,
+    RUSTSEC-2026-0403 and RUSTSEC-2026-0410.
+  - `hyper` 1.8.1 to 1.12.0, which no longer needs the unmaintained
+    `pin-utils` (RUSTSEC-2026-0441).
+- A new `deny.toml` ignores RUSTSEC-2026-0543, which marks `chrono` as
+  unmaintained. No fixed release exists, and `canton-api-client` and the
+  `canton-lib` `token` crate still need `chrono`.
+
 ## [0.9.0] - 2026-10-08
 
 ### Changed — breaking

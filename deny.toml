@@ -1,0 +1,10 @@
+[advisories]
+ignore = [
+  # chrono is unmaintained (RUSTSEC-2026-0543). The advisory covers every
+  # version and names no fixed release, so no update clears it. It is a
+  # maintenance notice, not a known vulnerability.
+  # canton-api-client and the canton-lib token crate need chrono, and the
+  # cbtc examples and cbtc-tui use it directly. Drop this ignore when those
+  # move to jiff, as canton-lib main already has.
+  { id = "RUSTSEC-2026-0543", reason = "chrono is unmaintained with no fixed release; canton-api-client and canton-lib's token crate depend on it" },
+]

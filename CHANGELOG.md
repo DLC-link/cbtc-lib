@@ -6,6 +6,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-23
+
+### Deprecated
+
+- `cbtc-lib` is being retired. Security updates end on January 31, 2027.
+  Migrate to [`bitsafe-token-lib`](https://github.com/DLC-link/bitsafe-token-lib)
+  for long-term support of CBTC operations.
+
 ### Changed — breaking
 
 - The five `canton-lib` crates, and `cbtc-tui`'s two, move from
@@ -19,6 +27,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- `Cargo.lock` moves `url` from 2.5.7 to 2.5.9 to address
+  [RUSTSEC-2026-0592](https://rustsec.org/advisories/RUSTSEC-2026-0592.html).
 - `zip` 9 closes RUSTSEC-2026-0367, RUSTSEC-2026-0368, RUSTSEC-2026-0369,
   RUSTSEC-2026-0429, RUSTSEC-2026-0545 and RUSTSEC-2026-0548. `canton-lib`
   0.12.0 enables only the deflate feature of `zip`. So `zstd`, `zstd-safe`

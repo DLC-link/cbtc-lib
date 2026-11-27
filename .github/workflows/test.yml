@@ -1,0 +1,20 @@
+name: Test
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DLC-link/dlc-infra/.github/actions/private-deps@main
+        with:
+          client-id: ${{ secrets.DEPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEPS_APP_PRIVATE_KEY }}
+          repositories: canton-lib
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --locked --lib --bins --test shared
